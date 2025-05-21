@@ -19,7 +19,7 @@ func NewJobController(jobUseCase usecase.JobUseCase) jobController {
 
 func (controller *jobController) ScrappeAndInsert(ctx *gin.Context){
 
-	jobs, err := controller.JobUseCase.ScrapeAndStoreJobs()
+	jobs, err := controller.JobUseCase.ScrapeAndStoreJobs(ctx)
 	if(err != nil){
 		ctx.JSON(http.StatusInternalServerError, err)
 		return

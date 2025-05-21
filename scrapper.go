@@ -2,10 +2,12 @@
 package main
 
 import (
-	"web-scrapper/db"
+	"context"
+	"web-scrapper/controller"
+	"web-scrapper/infra/db"
+	"web-scrapper/infra/ses"
 	"web-scrapper/repository"
 	"web-scrapper/usecase"
-	"web-scrapper/controller"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,8 +23,12 @@ func main() {
 	}
 	println("Connected to the database!")
 
+	mailSender, err := ses.NewSESMailSender(context.Background(), "leobkklaser@gmail.com")
+	if err != nil {
+		println("Erro ao criar o SESMailSender:", err)
+	}
 	JobRepository := repository.NewJobRepository(dbConnection)
-	UserUseCase := usecase.NewJobUseCase(JobRepository)
+	UserUseCase := usecase.NewJobUseCase(JobRepository, mailSender)
 	JobController := controller.NewJobController(UserUseCase)
 
 	server.GET("/scrape", JobController.ScrappeAndInsert)	
