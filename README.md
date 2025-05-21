@@ -35,8 +35,7 @@ ScrapJobs é um projeto desenvolvido em Go para realizar o scraping de vagas de 
 
 2. **Build e execução (ajuste variáveis de ambiente se necessário):**
    ```bash
-   docker build -t scrapjobs .
-   docker run -p 8080:8080 scrapjobs
+   docker-compose up -d --build .
    ```
 
 ### Executando Localmente
