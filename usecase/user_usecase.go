@@ -70,7 +70,7 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context) ([]*model.Job, err
 				go func() {
 					err := uc.MailSender.SendEmail(ctx, to, subject, body)
 					if err != nil {
-						println("Erro ao enviar e-mail:", err)
+						println("Erro ao enviar e-mail:", err.Error())
 						return
 					}
 				}()
