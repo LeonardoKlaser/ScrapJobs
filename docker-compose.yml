@@ -51,5 +51,5 @@ networks:
 volumes:
   pgdata: {}
 
-enviroment:
+environment:
   - AWS_REGION=us-east-1
