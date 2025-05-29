@@ -22,13 +22,13 @@ func (usr *UserController) CreateUser(ctx *gin.Context) {
 	var user model.User
 
 	if err := ctx.ShouldBindJSON(&user); err != nil {
-		ctx.JSON(http.StatusInternalServerError, fmt.Errorf("error to get new user json: %w", err ))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error" : fmt.Errorf("error to get new user json: %w", err )})
 		return
 	}
 
 	res, err := usr.usecase.CreateUser(user)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -37,16 +37,16 @@ func (usr *UserController) CreateUser(ctx *gin.Context) {
 
 
 func (usr *UserController) GetUserByEmail(ctx *gin.Context) {
-	var userEmail string
+	userEmail := ctx.Param("email")
 
-	if err := ctx.ShouldBindJSON(&userEmail); err != nil {
-		ctx.JSON(http.StatusInternalServerError, fmt.Errorf("error to get email json: %w", err ))
+	if userEmail == ""{
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User email is required in the path"})
 		return
 	}
 
 	res, err := usr.usecase.GetUserByEmail(userEmail)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

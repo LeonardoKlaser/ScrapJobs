@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"web-scrapper/model"
 	"web-scrapper/usecase"
-
+    "strconv"
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,12 +22,12 @@ func NewCurriculumController (usecase usecase.CurriculumUsecase) CurriculumContr
 func (c *CurriculumController) CreateCurriculum(ctx *gin.Context) {
 	var curriculum model.Curriculum
 	if err := ctx.ShouldBindJSON(&curriculum); err != nil {
-		ctx.JSON(http.StatusBadRequest, fmt.Errorf("error to deserialize new job json body: %w", err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error" : fmt.Errorf("error to deserialize new job json body: %w", err)})
 	}
 
 	res, err := c.curriculumUsecase.CreateCurriculum(curriculum)
 	if err != nil{
-		ctx.JSON(http.StatusInternalServerError, err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -36,15 +36,15 @@ func (c *CurriculumController) CreateCurriculum(ctx *gin.Context) {
 
 
 func (c *CurriculumController) GetCurriculumByUserId(ctx *gin.Context) {
-	var userId int
-
-	if err := ctx.ShouldBindJSON(&userId); err != nil {
-		ctx.JSON(http.StatusBadRequest, fmt.Errorf("error to deserialize new job json body: %w", err))
+	userId := ctx.Param("id")
+	userIdInt, err := strconv.Atoi(userId)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error" : fmt.Errorf("error to deserialize new job json body: %w", err)})
 	}
 
-	res, err := c.curriculumUsecase.GetCurriculumByUserId(userId)
+	res, err := c.curriculumUsecase.GetCurriculumByUserId(userIdInt)
 	if err != nil{
-		ctx.JSON(http.StatusInternalServerError, err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

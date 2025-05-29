@@ -64,10 +64,10 @@ func main() {
 
 
 	server.GET("/scrape", JobController.ScrappeAndInsert)
-	server.GET("/curriculum", CurriculumController.GetCurriculumByUserId)
+	server.GET("/curriculum/:id", CurriculumController.GetCurriculumByUserId)
 	server.POST("/curriculum", CurriculumController.CreateCurriculum)
 	server.POST("/user", UserController.CreateUser)
-	server.GET("/user", UserController.GetUserByEmail)
+	server.GET("/user/:email", UserController.GetUserByEmail)
 
 
 

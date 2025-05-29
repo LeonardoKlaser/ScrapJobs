@@ -19,7 +19,7 @@ func NewCurriculumRepository(db *sql.DB) CurriculumRepository {
 
 // INSERT A NEW CURRICULUM INTO THE DATABASE
 func (cur *CurriculumRepository) CreateCurriculum(curriculum model.Curriculum) (model.Curriculum, error) {
-	query := `INSERT INTO curriculums (user_id, experience, education, skills, languages, summary) VALUES ($1, $2, $3, $4, $5, $6) RETURNING experience, education, skills, languages, summary;`
+	query := `INSERT INTO curriculum (user_id, experience, education, skills, languages, summary) VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id , experience, education, skills, languages, summary;`
 	queryPrepare, err := cur.connection.Prepare(query)
 
 	if err != nil {
@@ -27,6 +27,7 @@ func (cur *CurriculumRepository) CreateCurriculum(curriculum model.Curriculum) (
 	}
 	var curriculumCreated model.Curriculum
 
+	var experienceJSON, educationJSON []byte
 	experiences, err := json.Marshal(curriculum.Experiences)
 	if err != nil {
 		return curriculumCreated, fmt.Errorf("error to serialize experiences: %v", err)
@@ -37,9 +38,31 @@ func (cur *CurriculumRepository) CreateCurriculum(curriculum model.Curriculum) (
 		return curriculumCreated, fmt.Errorf("error to serialize educations: %v", err)
 	}
 
-	err = queryPrepare.QueryRow(curriculum.UserID, experiences, educations, curriculum.Skills, curriculum.Languages, curriculum.Summary).Scan(&curriculumCreated)
-	if err != nil {
+	err = queryPrepare.QueryRow(curriculum.UserID, experiences, educations, curriculum.Skills, curriculum.Languages, curriculum.Summary).Scan(
+		&curriculumCreated.UserID,
+		&experienceJSON,
+		&educationJSON,
+		&curriculumCreated.Skills,
+		&curriculumCreated.Languages,
+		&curriculumCreated.Summary,
+	)
+	if err != nil{
+		if err == sql.ErrNoRows{
+			return model.Curriculum{}, fmt.Errorf("error to insert new curriculum: %w", err)
+		}
 		return model.Curriculum{}, err
+	}
+
+	if len(educationJSON) > 0 {
+		if err := json.Unmarshal(educationJSON, &curriculumCreated.Educations); err != nil {
+			return model.Curriculum{}, fmt.Errorf("error to get education informations: %w", err )
+		}
+	}
+
+	if len(experienceJSON) > 0 {
+		if err := json.Unmarshal(experienceJSON, &curriculumCreated.Experiences); err != nil {
+			return model.Curriculum{}, fmt.Errorf("error to get experiences informations: %w", err )
+		}
 	}
 
 	queryPrepare.Close()

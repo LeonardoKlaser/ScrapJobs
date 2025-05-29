@@ -17,18 +17,18 @@ func NewUserRepository (DB *sql.DB) UserRepository{
 }
 
 func (usr *UserRepository) CreateUser (user model.User) (model.User, error){
-	query := `INSERT INTO users (user_name, email, user_password, curriculum_id) VALUES ($1, $2, $3, $4) RETURNING user_name, email, user_password, curriculum_id`
+	query := `INSERT INTO users (user_name, email, user_password) VALUES ($1, $2, $3) RETURNING id, user_name, email, user_password`
 	queryPrepare, err := usr.db.Prepare(query)
 	if err != nil {
 		return model.User{}, fmt.Errorf("error to prepare database query: %w", err)
 	}
 
 	var userToReturn model.User
-	err = queryPrepare.QueryRow(user.Name, user.Email, user.Password, user.CurriculumId).Scan(
+	err = queryPrepare.QueryRow(user.Name, user.Email, user.Password).Scan(
+		&userToReturn.Id,
 		&userToReturn.Name,
 		&userToReturn.Email,
 		&userToReturn.Password,
-		&userToReturn.CurriculumId,
 	)
 	if(err != nil){
 		return model.User{}, fmt.Errorf("error to insert new user in database: %w", err)	
@@ -41,7 +41,7 @@ func (usr *UserRepository) CreateUser (user model.User) (model.User, error){
 }
 
 func (usr *UserRepository) GetUserByEmail (userEmail string) (model.User, error){
-	query := `SELECT user_name, email, user_password, curriculum_id FROM users WHERE email = $1`
+	query := `SELECT id, user_name, email, user_password, curriculum_id FROM users WHERE email = $1`
 	queryPrepare, err := usr.db.Prepare(query)
 	if err != nil {
 		return model.User{}, fmt.Errorf("error to prepare database query: %w", err)
@@ -49,6 +49,7 @@ func (usr *UserRepository) GetUserByEmail (userEmail string) (model.User, error)
 
 	var userToReturn model.User
 	err = queryPrepare.QueryRow(userEmail).Scan(
+		&userToReturn.Id,
 		&userToReturn.Name,
 		&userToReturn.Email,
 		&userToReturn.Password,
