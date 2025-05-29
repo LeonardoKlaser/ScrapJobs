@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN curriculum_id INTEGER REFERENCES curriculum(id) ON DELETE CASCADE;

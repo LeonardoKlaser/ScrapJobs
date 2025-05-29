@@ -5,13 +5,7 @@ CREATE TABLE IF NOT EXISTS curriculum(
     education JSONB NOT NULL,
     skills VARCHAR NOT NULL,
     languages VARCHAR NOT NULL,
-    summary TEXT NOT NULL,
+    summary TEXT NOT NULL
 )
 
-CREATE TABLE IF NOT EXISTS users(
-    id SERIAL PRIMARY KEY,
-    user_name VARCHAR NOT NULL,
-    email VARCHAR NOT NULL UNIQUE,
-    user_password VARCHAR,
-    curriculum_id INTEGER REFERENCES curriculum(id) ON DELETE CASCADE,
-)
+
