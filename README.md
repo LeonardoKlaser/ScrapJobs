@@ -67,6 +67,7 @@ ScrapJobs é um projeto desenvolvido em Go para realizar o scraping de vagas de 
 - As vagas são filtradas por palavras-chave no título (“developer” ou “software”) e localizadas em São Leopoldo.
 - É necessário configurar corretamente as credenciais AWS e permissões SES para envio de e-mails.
 - O projeto pode ser expandido para rastrear outros sites e/ou cidades alterando a lógica do scraper.
+- Para adicionar migrations -> migrate create -ext sql -dir migrations -seq createCurriculumTable
 
 
 Desenvolvido por [Leonardo Klaser](https://github.com/LeonardoKlaser)
