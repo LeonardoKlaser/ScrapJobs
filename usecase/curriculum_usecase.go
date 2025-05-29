@@ -15,4 +15,20 @@ func NewCurriculumUsecase (repository repository.CurriculumRepository) Curriculu
 	}
 }
 
-func (cur *CurriculumUsecase) InsertCurriculum (model.Curriculum) 
+func (cur *CurriculumUsecase) CreateCurriculum (curriculum model.Curriculum) (model.Curriculum, error){
+	res, err := cur.CurriculumRepository.CreateCurriculum(curriculum)
+	if err != nil {
+		return model.Curriculum{}, err
+	}
+
+	return res, nil
+}
+
+func (cur *CurriculumUsecase) GetCurriculumByUserId(userId int) (model.Curriculum, error){
+	res, err := cur.CurriculumRepository.FindCurriculumByUserID(userId)
+	if err != nil {
+		return model.Curriculum{}, err
+	}
+
+	return res, nil
+}

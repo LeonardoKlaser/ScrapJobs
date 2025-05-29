@@ -3,7 +3,6 @@ package controller
 import (
 	"net/http"
 	"web-scrapper/usecase"
-
 	"github.com/gin-gonic/gin"
 )
 

@@ -3,6 +3,8 @@ package repository
 import (
 	"database/sql"
 	"web-scrapper/model"
+	"encoding/json"
+	"fmt"
 )
 
 type CurriculumRepository struct {
@@ -25,7 +27,17 @@ func (cur *CurriculumRepository) CreateCurriculum(curriculum model.Curriculum) (
 	}
 	var curriculumCreated model.Curriculum
 
-	err = queryPrepare.QueryRow(curriculum.UserID, curriculum.Experiences, curriculum.Educations, curriculum.Skills, curriculum.Languages, curriculum.Summary).Scan(&curriculumCreated)
+	experiences, err := json.Marshal(curriculum.Experiences)
+	if err != nil {
+		return curriculumCreated, fmt.Errorf("error to serialize experiences: %v", err)
+	}
+
+	educations, err := json.Marshal(curriculum.Educations)
+	if err != nil {
+		return curriculumCreated, fmt.Errorf("error to serialize educations: %v", err)
+	}
+
+	err = queryPrepare.QueryRow(curriculum.UserID, experiences, educations, curriculum.Skills, curriculum.Languages, curriculum.Summary).Scan(&curriculumCreated)
 	if err != nil {
 		return model.Curriculum{}, err
 	}
@@ -40,16 +52,39 @@ func (cur *CurriculumRepository) FindCurriculumByUserID(userID int) (model.Curri
 	queryPrepare, err := cur.connection.Prepare(query)
 
 	var curriculum model.Curriculum
+	var experienceJSON, educationJSON []byte
 	
 	if err != nil{
 		return curriculum, err
 	}
 
-	err = queryPrepare.QueryRow(userID).Scan(&curriculum)
+	err = queryPrepare.QueryRow(userID).Scan(
+		&experienceJSON,
+		&educationJSON,
+		&curriculum.Skills,
+		&curriculum.Languages,
+		&curriculum.Summary,
+	)
 	if err != nil{
-		return curriculum, err
+		if err == sql.ErrNoRows{
+			return model.Curriculum{}, fmt.Errorf("curriculum for this user_id: %d not found: %w", userID, err)
+		}
+		return model.Curriculum{}, err
 	}
 
+	if len(educationJSON) > 0 {
+		if err := json.Unmarshal(educationJSON, &curriculum.Educations); err != nil {
+			return model.Curriculum{}, fmt.Errorf("error to get education informations: %w", err )
+		}
+	}
+
+	if len(experienceJSON) > 0 {
+		if err := json.Unmarshal(experienceJSON, &curriculum.Experiences); err != nil {
+			return model.Curriculum{}, fmt.Errorf("error to get experiences informations: %w", err )
+		}
+	}
+
+	queryPrepare.Close()
 	return curriculum, nil
 
 }
