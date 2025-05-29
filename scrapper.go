@@ -54,7 +54,21 @@ func main() {
 	UserUseCase := usecase.NewJobUseCase(JobRepository, mailSender)
 	JobController := controller.NewJobController(UserUseCase)
 
+	CurriculumRepository := repository.NewCurriculumRepository(dbConnection)
+	CurriculumUsecase := usecase.NewCurriculumUsecase(CurriculumRepository)
+	CurriculumController := controller.NewCurriculumController(CurriculumUsecase)
+
+	UserRepository := repository.NewUserRepository(dbConnection)
+	UserUsecase := usecase.NewUserUsercase(UserRepository)
+	UserController := controller.NewUserController(UserUsecase)
+
+
 	server.GET("/scrape", JobController.ScrappeAndInsert)
+	server.GET("/curriculum", CurriculumController.GetCurriculumByUserId)
+	server.POST("/curriculum", CurriculumController.CreateCurriculum)
+	server.POST("/user", UserController.CreateUser)
+	server.GET("/user", UserController.GetUserByEmail)
+
 
 
 	server.Run(":8080")
