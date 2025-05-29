@@ -10,7 +10,6 @@ import (
 
 type JobUseCase struct{
 	Repository repository.JobRepository
-	scrapper scrapper.JobScrapper
 	MailSender *ses.SESMailSender
 }
 
