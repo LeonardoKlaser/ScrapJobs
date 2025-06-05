@@ -21,8 +21,7 @@ func GeminiClientModel(ctx context.Context, cfg Config) (*GeminiClient, error) {
 	}
 	if cfg.ApiModel == "" {
 		return nil, errors.New("gemini model name is required")
-	}
-
+	} 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey: cfg.ApiKey,
 		Backend: genai.BackendGeminiAPI,
