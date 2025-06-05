@@ -7,4 +7,5 @@ type Job struct {
 	Company string `json:"company"`
 	Job_link string `json:"job_link"`
 	Requisition_ID int `json:"job_id"`
+	Description string `json:"description"`
 }
