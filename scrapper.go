@@ -36,23 +36,13 @@ func main() {
 		println("Erro ao criar o GeminiClient:", err)
 		return
 	}
-	prompt := "Quais são as vagas de emprego disponíveis no Brasil?"
-	response, err := client.GeminiSearch(context.Background(), prompt)
-	if err != nil {
-		println("Erro ao fazer a pesquisa no Gemini:", err)
-		return
-	}
-	println("Resposta do Gemini:", response)
-	
-	
 
+	AiAnalyser := usecase.NewAiAnalyser(client)
+		
 	mailSender, err := ses.NewSESMailSender(context.Background(), "leobkklaser@gmail.com")
 	if err != nil {
 		println("Erro ao criar o SESMailSender:", err)
 	}
-	JobRepository := repository.NewJobRepository(dbConnection)
-	UserUseCase := usecase.NewJobUseCase(JobRepository, mailSender)
-	JobController := controller.NewJobController(UserUseCase)
 
 	CurriculumRepository := repository.NewCurriculumRepository(dbConnection)
 	CurriculumUsecase := usecase.NewCurriculumUsecase(CurriculumRepository)
@@ -61,6 +51,10 @@ func main() {
 	UserRepository := repository.NewUserRepository(dbConnection)
 	UserUsecase := usecase.NewUserUsercase(UserRepository)
 	UserController := controller.NewUserController(UserUsecase)
+
+	JobRepository := repository.NewJobRepository(dbConnection)
+	UserUseCase := usecase.NewJobUseCase(JobRepository, mailSender, AiAnalyser, UserUsecase, CurriculumUsecase)
+	JobController := controller.NewJobController(UserUseCase)
 
 
 	server.GET("/scrape", JobController.ScrappeAndInsert)
