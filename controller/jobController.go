@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"web-scrapper/usecase"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,11 +19,10 @@ func NewJobController(jobUseCase usecase.JobUseCase) jobController {
 
 func (controller *jobController) ScrappeAndInsert(ctx *gin.Context){
 
-	jobs, err := controller.JobUseCase.ScrapeAndStoreJobs(ctx)
+	jobs ,err := controller.JobUseCase.ScrapeAndStoreJobs(ctx)
 	if(err != nil){
 		ctx.JSON(http.StatusInternalServerError, err)
 		return
 	}
-
 	ctx.JSON(http.StatusCreated, jobs)
 }
