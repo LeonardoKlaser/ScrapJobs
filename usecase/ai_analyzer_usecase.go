@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"strings"
 	"web-scrapper/infra/gemini"
 	"web-scrapper/model"
 )
@@ -84,11 +85,12 @@ func getPromptTemplateString() string{
 }
 
 func prompt_builder(curriculum model.Curriculum, job model.Job) (string, error) {
+	
 	curriculumJsonBytes, err := json.MarshalIndent(curriculum, "", " ")
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal curriculum: %w", err)
 	}
-
+	
 	jobDataForPrompt := struct{
 		Title string `json:"title"`
 		Company string `json:"company"`
@@ -100,49 +102,61 @@ func prompt_builder(curriculum model.Curriculum, job model.Job) (string, error) 
 		Location: job.Location,
 		DescriptionFull: job.Description,
 	}
+	
 	jobDescriptionsJSONBytes, err := json.MarshalIndent(jobDataForPrompt, "", " ")
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal job informations: %w", err)
 	}
-
+	
 	promptData := struct{
-		CurriculumJson string
+		CurriculumJSON string
 		JobDescriptionJSON string
 	}{
-		CurriculumJson: string(curriculumJsonBytes),
+		CurriculumJSON: string(curriculumJsonBytes),
 		JobDescriptionJSON: string(jobDescriptionsJSONBytes),
 	}
-
+	
 	tmpl, err := template.New("jobMatchPrompt").Parse(getPromptTemplateString())
 	if err != nil {
 		return "", fmt.Errorf("failed to generate jobMatch template to return: %w", err)
 	}
-
+	
 	var populatedPrompt bytes.Buffer
 	if err := tmpl.Execute(&populatedPrompt, promptData); err != nil {
 		return "", fmt.Errorf("failed to execute prompt template: %w", err)
 	}
-
+	
 	return populatedPrompt.String(), nil
 }
 
-func (a *AiAnalyser) AiAnalyzerMatch(ctx context.Context ,curriculum model.Curriculum, job model.Job) (string, error) {
+func (a *AiAnalyser) AiAnalyzerMatch(ctx context.Context ,curriculum model.Curriculum, job model.Job) (model.ResumeAnalysis, error) {
+	nullreturn := model.ResumeAnalysis{}
 	if a.client == nil {
-		return "", errors.New("gemini´s client isn´t initialized")
+		return nullreturn, errors.New("gemini´s client isn´t initialized")
 	}
-
+	
 	prompt , err := prompt_builder(curriculum, job)
 	if err != nil {
-		return "", fmt.Errorf("failed to build prompt for AI analysis: %w", err)
+		return nullreturn, fmt.Errorf("failed to build prompt for AI analysis: %w", err)
 	}
-
+	
 	response, err := a.client.GeminiSearch(ctx, prompt)
 	if err != nil {
-		return "", fmt.Errorf("error to get prompt response: %w", err)
+		return nullreturn, fmt.Errorf("error to get prompt response: %w", err)
 	}
+	
 	responseText := response.Text()
 	if responseText == "" {
-		return "", fmt.Errorf("no text content returned from gemini: %s", responseText)
+		return nullreturn, fmt.Errorf("no text content returned from gemini: %s", responseText)
 	}
-	return response.Text(), nil
+
+	var analysis model.ResumeAnalysis
+	cleanedJSON := strings.TrimPrefix(responseText, "```json\n")
+	cleanedJSON = strings.TrimSuffix(cleanedJSON, "\n```")
+
+	err = json.Unmarshal([]byte(cleanedJSON), &analysis)
+	if err != nil {
+		return nullreturn, fmt.Errorf("error to struct response: %w", err)
+	}
+	return analysis, nil
 }

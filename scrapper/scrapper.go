@@ -2,6 +2,7 @@ package scrapper
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"web-scrapper/model"
@@ -27,6 +28,14 @@ func (s *jobScraper) ScrapeJobs() ([]*model.Job, error) {
 
 	detailCollector.OnHTML("body", func(e *colly.HTMLElement) {
 		jobPtr := e.Request.Ctx.GetAny("job").(*model.Job)
+
+		descriptionHTML:= e.ChildText("span.jobdescription ul")
+		if descriptionHTML == "" {
+			fmt.Println("Erro ao extrair HTML da descrição:")
+			jobPtr.Description = ""
+		} else {
+			jobPtr.Description = strings.TrimSpace(descriptionHTML)
+		}
 		jobIDstr := e.ChildText("span[data-careersite-propertyid=facility]")
 		jobID, err := strconv.Atoi(jobIDstr)
 		if err != nil {
@@ -74,6 +83,6 @@ func (s *jobScraper) ScrapeJobs() ([]*model.Job, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	log.Printf("Retornando: %v", jobs)
 	return jobs, nil
 }
