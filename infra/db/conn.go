@@ -8,8 +8,7 @@ import(
 )
 
 const (
-	//host = "go_scrapper_db"
-	host = "localhost"
+	host = "go_scrapper_db"	
 	port = 5432
 	user = "postgres"
 	password = "postgres"
