@@ -1,13 +1,22 @@
 # ScrapJobs
 
-ScrapJobs é um projeto desenvolvido em Go para realizar o scraping de vagas de emprego, armazenando as informações em um banco de dados PostgreSQL e, caso encontre novas vagas, notificar por e-mail via AWS SES.
+ScrapJobs é um projeto desenvolvido em Go para realizar o scraping de vagas de emprego, armazenando as informações em um banco de dados PostgreSQL. Quando novas vagas são encontradas, o sistema notifica os usuários por e-mail, fornecendo um link para a vaga e uma análise de compatibilidade entre o currículo do usuário e os requisitos da vaga, incluindo dicas de melhorias e pontos fortes.
 
-## Funcionalidades
+## Funcionamento do Sistema
+
+O sistema opera em uma instância EC2 da AWS e é acionado automaticamente em dias úteis, de hora em hora, durante o horário comercial (aproximadamente das 08:00 às 18:00). A cada hora, a rotina de scraping é executada para buscar e analisar novas vagas.
+
+## Funcionalidades Principais
 
 - **Web Scraping de Vagas:** Coleta vagas de emprego (com foco em "developer" e "software") em sites de grandes empresas, extraindo dados como título, localização, empresa, link da vaga e ID da requisição.
-- **Banco de Dados:** Armazena as vagas encontradas em um banco PostgreSQL, prevenindo duplicatas através do ID da requisição.
-- **Envio de Notificações por E-mail:** Ao identificar novas vagas, envia e-mail de notificação usando AWS SES.
-- **API REST:** Disponibiliza um endpoint HTTP `/scrape` para acionar o scraper manualmente e inserir novas vagas.
+- **Análise de Compatibilidade (Match) com Currículo:** Ao encontrar uma nova vaga, o sistema compara os requisitos da vaga com o currículo cadastrado pelo usuário.
+- **Notificações Inteligentes por E-mail:** Usuários são alertados via AWS SES sobre novas vagas. O e-mail inclui:
+    - Link direto para a vaga.
+    - Percentual de compatibilidade entre o currículo do usuário e a vaga.
+    - Destaque dos pontos fortes do currículo em relação à vaga.
+    - Sugestões de melhorias no currículo para aumentar a compatibilidade.
+- **Banco de Dados:** Armazena as vagas encontradas e informações de usuários/currículos em um banco PostgreSQL, prevenindo duplicatas de vagas através do ID da requisição.
+- **API REST:** Disponibiliza um endpoint HTTP `/scrape` para acionar o scraper manualmente e inserir novas vagas (utilizado principalmente para desenvolvimento e testes).
 
 ## Tecnologias Utilizadas
 
@@ -15,59 +24,7 @@ ScrapJobs é um projeto desenvolvido em Go para realizar o scraping de vagas de 
 - [Gin](https://github.com/gin-gonic/gin) (framework web)
 - [Colly](https://github.com/gocolly/colly) (web scraping)
 - [PostgreSQL](https://www.postgresql.org/) (banco de dados relacional)
+- [AWS EC2](https://aws.amazon.com/ec2/) (hospedagem da aplicação)
 - [AWS SES](https://aws.amazon.com/ses/) (envio de e-mails)
-
-## Como Executar
-
-### Pré-requisitos
-
-- Docker (opcional, para facilitar a execução)
-- Variáveis/configurações da AWS para envio de e-mail via SES
-- Banco PostgreSQL disponível
-
-### Usando Docker
-
-1. **Clone o repositório:**
-   ```bash
-   git clone https://github.com/LeonardoKlaser/ScrapJobs.git
-   cd ScrapJobs
-   ```
-
-2. **Build e execução (ajuste variáveis de ambiente se necessário):**
-   ```bash
-   docker-compose up -d --build .
-   ```
-
-### Executando Localmente
-
-1. Instale as dependências do Go.
-2. Ajuste as configurações de banco e AWS conforme necessário.
-3. Execute:
-   ```bash
-   go run scrapper.go
-   ```
-
-## Estrutura Básica
-
-- `scrapper.go` — Inicialização da aplicação e rotas HTTP.
-- `scrapper/` — Lógica de scraping web.
-- `repository/` — Acesso ao banco de dados.
-- `infra/db/` — Conexão com o banco de dados.
-- `infra/ses/` — Integração com AWS SES para envio de e-mails.
-- `usecase/` — Regras de negócio (armazenamento e notificação).
-- `controller/` — Camada de controle da API.
-
-## Exemplo de Uso da API
-
-- **GET** `/scrape`
-  - Aciona manualmente a coleta de vagas e retorna as novas inseridas.
-
-## Observações
-
-- As vagas são filtradas por palavras-chave no título (“developer” ou “software”) e localizadas em São Leopoldo.
-- É necessário configurar corretamente as credenciais AWS e permissões SES para envio de e-mails.
-- O projeto pode ser expandido para rastrear outros sites e/ou cidades alterando a lógica do scraper.
-- Para adicionar migrations -> migrate create -ext sql -dir migrations -seq createCurriculumTable
-
-
-Desenvolvido por [Leonardo Klaser](https://github.com/LeonardoKlaser)
+- [Docker](https://www.docker.com/) (para facilitar a execução e deploy)
+- *[Mencionar aqui bibliotecas de IA/NLP, se aplicável, para a análise de currículo vs vaga]*
