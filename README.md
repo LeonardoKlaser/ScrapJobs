@@ -4,7 +4,7 @@ ScrapJobs é um projeto desenvolvido em Go para realizar o scraping de vagas de 
 
 ## Funcionalidades
 
-- **Web Scraping de Vagas:** Coleta vagas de emprego (com foco em "developer" e "software") do site [jobs.sap.com](https://jobs.sap.com/search/?q=&locationsearch=S%C3%A3o+Leopoldo&location=S%C3%A3o+Leopoldo&scrollToTable=true), extraindo dados como título, localização, empresa, link da vaga e ID da requisição.
+- **Web Scraping de Vagas:** Coleta vagas de emprego (com foco em "developer" e "software") em sites de grandes empresas, extraindo dados como título, localização, empresa, link da vaga e ID da requisição.
 - **Banco de Dados:** Armazena as vagas encontradas em um banco PostgreSQL, prevenindo duplicatas através do ID da requisição.
 - **Envio de Notificações por E-mail:** Ao identificar novas vagas, envia e-mail de notificação usando AWS SES.
 - **API REST:** Disponibiliza um endpoint HTTP `/scrape` para acionar o scraper manualmente e inserir novas vagas.
