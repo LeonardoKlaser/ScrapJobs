@@ -27,4 +27,3 @@ O sistema opera em uma instância EC2 da AWS e é acionado automaticamente em di
 - [AWS EC2](https://aws.amazon.com/ec2/) (hospedagem da aplicação)
 - [AWS SES](https://aws.amazon.com/ses/) (envio de e-mails)
 - [Docker](https://www.docker.com/) (para facilitar a execução e deploy)
-- *[Mencionar aqui bibliotecas de IA/NLP, se aplicável, para a análise de currículo vs vaga]*
