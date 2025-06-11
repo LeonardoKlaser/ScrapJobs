@@ -7,6 +7,7 @@ import (
 
 type CurriculumUsecase struct {
 	CurriculumRepository repository.CurriculumRepository
+	
 }
 
 func NewCurriculumUsecase (repository repository.CurriculumRepository) CurriculumUsecase{
