@@ -20,7 +20,7 @@ func NewSiteCareerRepository(db *sql.DB) SiteCareerRepository{
 func (st *SiteCareerRepository) InsertNewSiteCareer(site model.SiteScrapingConfig) (model.SiteScrapingConfig, error){
 	nilReturn := model.SiteScrapingConfig{}
 
-	query := "INSERT INTO site_career (site_name, base_url, job_list_item_selector, title_selector, link_selector, link_attribute," +
+	query := "INSERT INTO site_scraping_config (site_name, base_url, job_list_item_selector, title_selector, link_selector, link_attribute," +
 									" location_selector, next_page_selector, job_descrpt_selector, job_req_id_selector, target_words) " +
 									"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *"
 	queryPrepare, err := st.connection.Prepare(query)
@@ -66,5 +66,9 @@ func (st *SiteCareerRepository) InsertNewSiteCareer(site model.SiteScrapingConfi
 
 	queryPrepare.Close()
 	return siteCreated, nil
+	
+}
+
+func (st *SiteCareerRepository) getAllSites() ([]model.SiteScrapingConfig, error){
 	
 }
