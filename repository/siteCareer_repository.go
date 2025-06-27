@@ -69,6 +69,52 @@ func (st *SiteCareerRepository) InsertNewSiteCareer(site model.SiteScrapingConfi
 	
 }
 
-func (st *SiteCareerRepository) getAllSites() ([]model.SiteScrapingConfig, error){
-	
+func (st *SiteCareerRepository) GetAllSites() ([]model.SiteScrapingConfig, error){
+	var listOfSites []model.SiteScrapingConfig;
+
+	query := "SELECT * FROM site_scraping_config"
+	rows, err := st.connection.Query(query)
+
+	if err != nil {
+		return listOfSites, fmt.Errorf("error to querie: %w", err)
+	}
+
+	defer rows.Close()
+
+	var targetWordsJSON []byte
+
+	for rows.Next() {
+		var site model.SiteScrapingConfig
+		err := rows.Scan(
+			&site.ID,
+			&site.SiteName,
+			&site.BaseURL,
+			&site.JobListItemSelector,
+			&site.TitleSelector,
+			&site.LinkSelector,
+			&site.LinkAttribute,
+			&site.LocationSelector,
+			&site.NextPageSelector,
+			&site.JobDescriptionSelector,
+			&site.JobRequisitionIdSelector,
+			&targetWordsJSON,
+		)
+
+		if err != nil{
+			if err == sql.ErrNoRows{
+				return []model.SiteScrapingConfig{}, fmt.Errorf("error to get site: %w", err)
+			}
+			return []model.SiteScrapingConfig{}, err
+		}
+
+		if len(targetWordsJSON) > 0 {
+			if err := json.Unmarshal(targetWordsJSON, &site.TargetWords); err != nil{
+				return []model.SiteScrapingConfig{}, fmt.Errorf("error to get targetWords: %w", err)
+			}
+		}
+
+		listOfSites = append(listOfSites, site)
+	}
+
+	return listOfSites, nil
 }
