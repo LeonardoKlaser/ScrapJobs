@@ -3,7 +3,6 @@ package repository
 import (
 	"database/sql"
 	"web-scrapper/model"
-	"encoding/json"
 	"fmt"
 )
 
@@ -30,15 +29,10 @@ func (st *SiteCareerRepository) InsertNewSiteCareer(site model.SiteScrapingConfi
 	}
 
 	var siteCreated model.SiteScrapingConfig
-	var targetWordsJSON []byte
 
-	targetWords, err := json.Marshal(site.TargetWords)
-	if err != nil {
-		return nilReturn, fmt.Errorf("error to serialize target words: %w", err)
-	}
 
 	err = queryPrepare.QueryRow(site.SiteName, site.BaseURL, site.JobListItemSelector, site.TitleSelector, site.LinkSelector, site.LinkAttribute,
-								site.LocationSelector, site.NextPageSelector, site.JobDescriptionSelector, site.JobRequisitionIdSelector, targetWords).Scan(
+								site.LocationSelector, site.NextPageSelector, site.JobDescriptionSelector, site.JobRequisitionIdSelector).Scan(
 										&siteCreated.SiteName,
 										&siteCreated.BaseURL,
 										&siteCreated.JobListItemSelector,
@@ -49,7 +43,6 @@ func (st *SiteCareerRepository) InsertNewSiteCareer(site model.SiteScrapingConfi
 										&siteCreated.NextPageSelector,
 										&siteCreated.JobDescriptionSelector,
 										&siteCreated.JobRequisitionIdSelector,
-										targetWordsJSON,
 								)
 	if err != nil {
 		if err == sql.ErrNoRows{
@@ -58,11 +51,6 @@ func (st *SiteCareerRepository) InsertNewSiteCareer(site model.SiteScrapingConfi
 		return nilReturn, err
 	}
 	
-	if len(targetWordsJSON) > 0 {
-		if err := json.Unmarshal(targetWordsJSON, &siteCreated.TargetWords); err != nil {
-			return nilReturn, fmt.Errorf("error to get target words informations: %w", err )
-		}
-	}
 
 	queryPrepare.Close()
 	return siteCreated, nil
@@ -81,8 +69,6 @@ func (st *SiteCareerRepository) GetAllSites() ([]model.SiteScrapingConfig, error
 
 	defer rows.Close()
 
-	var targetWordsJSON []byte
-
 	for rows.Next() {
 		var site model.SiteScrapingConfig
 		err := rows.Scan(
@@ -97,7 +83,6 @@ func (st *SiteCareerRepository) GetAllSites() ([]model.SiteScrapingConfig, error
 			&site.NextPageSelector,
 			&site.JobDescriptionSelector,
 			&site.JobRequisitionIdSelector,
-			&targetWordsJSON,
 		)
 
 		if err != nil{
@@ -107,11 +92,6 @@ func (st *SiteCareerRepository) GetAllSites() ([]model.SiteScrapingConfig, error
 			return []model.SiteScrapingConfig{}, err
 		}
 
-		if len(targetWordsJSON) > 0 {
-			if err := json.Unmarshal(targetWordsJSON, &site.TargetWords); err != nil{
-				return []model.SiteScrapingConfig{}, fmt.Errorf("error to get targetWords: %w", err)
-			}
-		}
 
 		listOfSites = append(listOfSites, site)
 	}

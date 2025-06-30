@@ -9,6 +9,5 @@ CREATE TABLE site_scraping_config (
     location_selector TEXT NOT NULL,
     next_page_selector TEXT,
     job_description_selector TEXT,
-    job_requisition_id_selector TEXT,
-    target_words JSON 
+    job_requisition_id_selector TEXT
 );
