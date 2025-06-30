@@ -7,6 +7,7 @@ import(
 	_ "github.com/lib/pq"
 )
 
+
 func ConnectDB(host string, port string, user string ,password string, dbname string) (*sql.DB, error){
 	portNumber, err := strconv.Atoi(port)
 	if err != nil {

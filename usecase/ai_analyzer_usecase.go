@@ -51,6 +51,7 @@ func getPromptTemplateString() string{
 		4.  **Sugestões de Melhoria ACIONÁVEIS para o Currículo (foco nesta vaga):**
 			*   Forneça sugestões concretas e onde aplicá-las no currículo.
 			*   Se possível, dê exemplos de texto.
+		5.  **Responda em PT-br**
 
 		**Formato da Resposta Esperado (JSON):**
 		` + "```json\n" +
