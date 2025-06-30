@@ -19,7 +19,7 @@ import (
 func main() {
 	server := gin.Default()
 	godotenv.Load()
-	dbConnection, err := db.ConnectDB()
+	dbConnection, err := db.ConnectDB(os.Getenv("HOST_DB"), os.Getenv("PORT_DB"),os.Getenv("USER_DB"),os.Getenv("PASSWORD_DB"),os.Getenv("DBNAME"))
 	if(err != nil){
 		panic((err))
 	}

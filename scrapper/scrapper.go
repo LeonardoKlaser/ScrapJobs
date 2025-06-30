@@ -30,14 +30,14 @@ func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Jo
 	detailCollector.OnHTML("body", func(e *colly.HTMLElement) {
 		jobPtr := e.Request.Ctx.GetAny("job").(*model.Job)
 
-		descriptionHTML:= e.ChildText("span.jobdescription ul")
+		descriptionHTML:= e.ChildText(selectors.JobDescriptionSelector)
 		if descriptionHTML == "" {
 			fmt.Println("Erro ao extrair HTML da descrição:")
 			jobPtr.Description = ""
 		} else {
 			jobPtr.Description = strings.TrimSpace(descriptionHTML)
 		}
-		jobIDstr := e.ChildText("span[data-careersite-propertyid=facility]")
+		jobIDstr := e.ChildText(selectors.JobRequisitionIdSelector)
 		jobID, err := strconv.Atoi(jobIDstr)
 		if err != nil {
 			fmt.Println("Erro ao converter ID:", err)
@@ -46,33 +46,28 @@ func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Jo
 		}
 	})
 
-	c.OnHTML("table#searchresults tr.data-row", func(e *colly.HTMLElement) {
-		Title := e.ChildText("span.jobTitle.hidden-phone a.jobTitle-link")
-		JobLink := e.ChildAttr("span.jobTitle.hidden-phone a.jobTitle-link", "href")
-		Location := e.ChildText("td.colLocation span.jobLocation")
-		target := "developer"
-		target2 := "software"
+	c.OnHTML(selectors.JobListItemSelector, func(e *colly.HTMLElement) {
+		Title := e.ChildText(selectors.TitleSelector)
+		JobLink := e.ChildAttr(selectors.LinkSelector, "href")
+		Location := e.ChildText(selectors.LocationSelector)
 
-		if strings.Contains(strings.ToUpper(Title), strings.ToUpper(target)) ||
-			strings.Contains(strings.ToUpper(Title), strings.ToUpper(target2)) {
-			job := &model.Job{
-				Title:    Title,
-				Location: Location,
-				Job_link: JobLink,
-			}
-
-			if JobLink != "" {
-				jobURL := e.Request.AbsoluteURL(JobLink)
-				ctx := colly.NewContext()
-				ctx.Put("job", job)
-				detailCollector.Request("GET", jobURL, nil, ctx, nil)
-			}
-
-			jobs = append(jobs, job)
+		job := &model.Job{
+			Title:    Title,
+			Location: Location,
+			Job_link: JobLink,
 		}
+
+		if JobLink != "" {
+			jobURL := e.Request.AbsoluteURL(JobLink)
+			ctx := colly.NewContext()
+			ctx.Put("job", job)
+			detailCollector.Request("GET", jobURL, nil, ctx, nil)
+		}
+
+		jobs = append(jobs, job)
 	})
 
-	c.OnHTML("a.paginationItemLast", func(e *colly.HTMLElement) {
+	c.OnHTML(selectors.NextPageSelector, func(e *colly.HTMLElement) {
 		nextPage := e.Request.AbsoluteURL(e.Attr("href"))
 		if nextPage != "" {
 			fmt.Printf("Visiting next page: %s\n", nextPage)
@@ -80,7 +75,7 @@ func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Jo
 		}
 	})
 
-	err := c.Visit("https://jobs.sap.com/search/?q=&locationsearch=S%C3%A3o+Leopoldo&location=S%C3%A3o+Leopoldo&scrollToTable=true")
+	err := c.Visit(selectors.BaseURL)
 	if err != nil {
 		return nil, err
 	}

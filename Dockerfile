@@ -6,6 +6,6 @@ COPY . .
 
 EXPOSE 8080
 
-RUN go build -o main scrapper.go
+RUN go build -o main main.go
 
 CMD ["./main"]
