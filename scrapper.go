@@ -57,7 +57,7 @@ func main() {
 	UserSiteRepository := repository.NewUserSiteRepository(dbConnection)
 	JobRepository := repository.NewJobRepository(dbConnection)
 	siteConfigRepository := repository.NewSiteCareerRepository(dbConnection)
-	JobUsecase := usecase.NewJobUseCase(JobRepository, mailSender, AiAnalyser, UserUsecase, CurriculumUsecase)
+	JobUsecase := usecase.NewJobUseCase(JobRepository)
 	NotificationUsecase := usecase.NewNotificationUsecase(UserSiteRepository, CurriculumRepository, AiAnalyser, emailservice)
 	orchesrator := usecase.NewScrapingOrchestrator(siteConfigRepository, JobUsecase, NotificationUsecase )
 	JobController := controller.NewJobController(orchesrator)

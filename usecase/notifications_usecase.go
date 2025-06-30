@@ -62,7 +62,7 @@ func (s *NotificationsUsecase) FindMatchesAndNotify(siteId int, jobs []*model.Jo
 				err = s.emailService.SendAnalysisEmail(context.Background(), user.Email, *job, analysis)
 
 				if err != nil{
-					return fmt.Errorf("error to send email notification for %s about %s : %w", user.Email, job.Title, err)
+					log.Printf("error to send email notification for %s about %s : %v", user.Email, job.Title, err)
 				}
 
 			}

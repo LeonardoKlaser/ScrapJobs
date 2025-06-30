@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"web-scrapper/infra/ses"
 	"web-scrapper/model"
 	"web-scrapper/repository"
 	"web-scrapper/scrapper"
@@ -12,19 +11,11 @@ import (
 
 type JobUseCase struct{
 	Repository repository.JobRepository
-	MailSender *ses.SESMailSender
-	aiAnalyser *AiAnalyser
-	user UserUsecase
-	curriculum CurriculumUsecase
 }
 
-func NewJobUseCase(jobRepo repository.JobRepository, mailSender *ses.SESMailSender, analyser *AiAnalyser, usr UserUsecase, curric CurriculumUsecase) *JobUseCase{
+func NewJobUseCase(jobRepo repository.JobRepository) *JobUseCase{
 	return &JobUseCase{
 		Repository: jobRepo,
-		MailSender: mailSender,
-		aiAnalyser: analyser,
-		user: usr,
-		curriculum: curric,
 	}
 }
 
