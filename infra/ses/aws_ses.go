@@ -14,17 +14,11 @@ type SESMailSender struct {
 }
 
 // NewSESMailSender cria uma instância do SESMailSender carregando a configuração AWS
-func NewSESMailSender(ctx context.Context, from string) (*SESMailSender, error) {
-    cfg, err := LoadAWSConfig(ctx)
-    if err != nil {
-        return nil, err
-    }
-    client := ses.NewFromConfig(cfg)
-	println("criou NewSESMailSender")
-    return &SESMailSender{
-        client: client,
-        from:   from,
-    }, nil
+func NewSESMailSender(sesClient *ses.Client, from string) (*SESMailSender) {
+   return &SESMailSender{
+		client: sesClient,
+		from:   from,
+	} 
 }
 
 // SendEmail envia um e-mail simples (texto) usando o SES

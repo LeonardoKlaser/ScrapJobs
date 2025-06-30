@@ -6,21 +6,22 @@ import (
 	"strconv"
 	"strings"
 	"web-scrapper/model"
-
 	"github.com/gocolly/colly"
 )
 
 type JobScrapper interface {
-	ScrapeJobs() ([]*model.Job, error)
+	ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Job, error)
 }
 
-type jobScraper struct{}
+type jobScraper struct{
+}
 
 func NewJobScraper() JobScrapper {
-	return &jobScraper{}
+	return &jobScraper{
+	}
 }
 
-func (s *jobScraper) ScrapeJobs() ([]*model.Job, error) {
+func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Job, error) {
 	var jobs []*model.Job
 	c := colly.NewCollector()
 	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"

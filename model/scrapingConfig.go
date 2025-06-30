@@ -13,5 +13,4 @@ type SiteScrapingConfig struct {
 	NextPageSelector string `db:"next_page_selector"`
 	JobDescriptionSelector string `db:"job_descrpt_selector"`
 	JobRequisitionIdSelector string `db:"job_req_id_selector"`
-	TargetWords []string `db:"target_words"`
 }

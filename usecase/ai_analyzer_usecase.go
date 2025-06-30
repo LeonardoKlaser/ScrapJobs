@@ -20,8 +20,8 @@ type AiAnalyser struct{
 	client *gemini.GeminiClient
 }
 
-func NewAiAnalyser (configuration *gemini.GeminiClient) AiAnalyser{
-	return AiAnalyser{
+func NewAiAnalyser (configuration *gemini.GeminiClient) *AiAnalyser{
+	return &AiAnalyser{
 		client: configuration,
 	}
 }
@@ -129,7 +129,7 @@ func prompt_builder(curriculum model.Curriculum, job model.Job) (string, error) 
 	return populatedPrompt.String(), nil
 }
 
-func (a *AiAnalyser) AiAnalyzerMatch(ctx context.Context ,curriculum model.Curriculum, job model.Job) (model.ResumeAnalysis, error) {
+func (a *AiAnalyser) Analyze(ctx context.Context ,curriculum model.Curriculum, job model.Job) (model.ResumeAnalysis, error) {
 	nullreturn := model.ResumeAnalysis{}
 	if a.client == nil {
 		return nullreturn, errors.New("gemini´s client isn´t initialized")
