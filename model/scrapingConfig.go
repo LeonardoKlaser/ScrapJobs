@@ -11,6 +11,6 @@ type SiteScrapingConfig struct {
 	LinkAttribute string `db:"link_attribute"`
 	LocationSelector string `db:"location_selector"`
 	NextPageSelector string `db:"next_page_selector"`
-	JobDescriptionSelector string `db:"job_descrpt_selector"`
-	JobRequisitionIdSelector string `db:"job_req_id_selector"`
+	JobDescriptionSelector string `db:"job_description_selector"`
+	JobRequisitionIdSelector string `db:"job_requisition_id_selector"`
 }
