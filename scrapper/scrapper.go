@@ -22,6 +22,7 @@ func NewJobScraper() JobScrapper {
 }
 
 func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Job, error) {
+	log.Printf("DEBUG: Seletores recebidos: %+v\n", selectors)
 	var jobs []*model.Job
 	c := colly.NewCollector()
 	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
@@ -32,7 +33,7 @@ func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Jo
 
 		descriptionHTML:= e.ChildText(selectors.JobDescriptionSelector)
 		if descriptionHTML == "" {
-			fmt.Println("Erro ao extrair HTML da descrição:")
+			log.Printf("Erro ao extrair HTML da descrição na vaga %s:", jobPtr.Title)
 			jobPtr.Description = ""
 		} else {
 			jobPtr.Description = strings.TrimSpace(descriptionHTML)
@@ -48,7 +49,7 @@ func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Jo
 
 	c.OnHTML(selectors.JobListItemSelector, func(e *colly.HTMLElement) {
 		Title := e.ChildText(selectors.TitleSelector)
-		JobLink := e.ChildAttr(selectors.LinkSelector, "href")
+		JobLink := e.ChildAttr(selectors.LinkSelector, selectors.LinkAttribute)
 		Location := e.ChildText(selectors.LocationSelector)
 
 		job := &model.Job{

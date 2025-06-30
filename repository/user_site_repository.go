@@ -21,7 +21,7 @@ func (dep *UserSiteRepository) GetUsersBySiteId(siteId int) ([]model.UserSite, e
 	query := `
         SELECT
             I.id,
-            I.name,
+            I.user_name,
             I.email,
             I.curriculum_id,
 			U.filters
