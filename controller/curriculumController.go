@@ -3,9 +3,10 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"web-scrapper/model"
 	"web-scrapper/usecase"
-    "strconv"
+
 	"github.com/gin-gonic/gin"
 )
 

@@ -10,7 +10,6 @@ import (
 	"web-scrapper/infra/ses"
 	"web-scrapper/repository"
 	"web-scrapper/usecase"
-
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -20,7 +19,7 @@ import (
 func main() {
 	server := gin.Default()
 	godotenv.Load()
-	dbConnection, err := db.ConnectDB()
+	dbConnection, err := db.ConnectDB(os.Getenv("HOST_DB"), os.Getenv("PORT_DB"),os.Getenv("USER_DB"),os.Getenv("PASSWORD_DB"),os.Getenv("DBNAME"))
 	if(err != nil){
 		panic((err))
 	}
@@ -38,8 +37,10 @@ func main() {
 	}
 
 	AiAnalyser := usecase.NewAiAnalyser(client)
-		
-	mailSender, err := ses.NewSESMailSender(context.Background(), "leobkklaser@gmail.com")
+	cfg , err := ses.LoadAWSConfig(context.Background())
+	clientSES := ses.LoadAWSClient(cfg)
+
+	mailSender := ses.NewSESMailSender(clientSES, "leobkklaser@gmail.com")
 	if err != nil {
 		println("Erro ao criar o SESMailSender:", err)
 	}
@@ -52,9 +53,14 @@ func main() {
 	UserUsecase := usecase.NewUserUsercase(UserRepository)
 	UserController := controller.NewUserController(UserUsecase)
 
+	emailservice := usecase.NewSESSenderAdapter(mailSender)
+	UserSiteRepository := repository.NewUserSiteRepository(dbConnection)
 	JobRepository := repository.NewJobRepository(dbConnection)
-	UserUseCase := usecase.NewJobUseCase(JobRepository, mailSender, AiAnalyser, UserUsecase, CurriculumUsecase)
-	JobController := controller.NewJobController(UserUseCase)
+	siteConfigRepository := repository.NewSiteCareerRepository(dbConnection)
+	JobUsecase := usecase.NewJobUseCase(JobRepository)
+	NotificationUsecase := usecase.NewNotificationUsecase(UserSiteRepository, CurriculumRepository, AiAnalyser, emailservice)
+	orchesrator := usecase.NewScrapingOrchestrator(siteConfigRepository, JobUsecase, NotificationUsecase )
+	JobController := controller.NewJobController(orchesrator)
 
 
 	server.GET("/scrape", JobController.ScrappeAndInsert)

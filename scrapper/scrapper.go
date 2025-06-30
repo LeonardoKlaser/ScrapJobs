@@ -6,21 +6,23 @@ import (
 	"strconv"
 	"strings"
 	"web-scrapper/model"
-
 	"github.com/gocolly/colly"
 )
 
 type JobScrapper interface {
-	ScrapeJobs() ([]*model.Job, error)
+	ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Job, error)
 }
 
-type jobScraper struct{}
+type jobScraper struct{
+}
 
 func NewJobScraper() JobScrapper {
-	return &jobScraper{}
+	return &jobScraper{
+	}
 }
 
-func (s *jobScraper) ScrapeJobs() ([]*model.Job, error) {
+func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Job, error) {
+	log.Printf("DEBUG: Seletores recebidos: %+v\n", selectors)
 	var jobs []*model.Job
 	c := colly.NewCollector()
 	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
@@ -29,14 +31,14 @@ func (s *jobScraper) ScrapeJobs() ([]*model.Job, error) {
 	detailCollector.OnHTML("body", func(e *colly.HTMLElement) {
 		jobPtr := e.Request.Ctx.GetAny("job").(*model.Job)
 
-		descriptionHTML:= e.ChildText("span.jobdescription ul")
+		descriptionHTML:= e.ChildText(selectors.JobDescriptionSelector)
 		if descriptionHTML == "" {
-			fmt.Println("Erro ao extrair HTML da descrição:")
+			log.Printf("Erro ao extrair HTML da descrição na vaga %s:", jobPtr.Title)
 			jobPtr.Description = ""
 		} else {
 			jobPtr.Description = strings.TrimSpace(descriptionHTML)
 		}
-		jobIDstr := e.ChildText("span[data-careersite-propertyid=facility]")
+		jobIDstr := e.ChildText(selectors.JobRequisitionIdSelector)
 		jobID, err := strconv.Atoi(jobIDstr)
 		if err != nil {
 			fmt.Println("Erro ao converter ID:", err)
@@ -45,33 +47,28 @@ func (s *jobScraper) ScrapeJobs() ([]*model.Job, error) {
 		}
 	})
 
-	c.OnHTML("table#searchresults tr.data-row", func(e *colly.HTMLElement) {
-		Title := e.ChildText("span.jobTitle.hidden-phone a.jobTitle-link")
-		JobLink := e.ChildAttr("span.jobTitle.hidden-phone a.jobTitle-link", "href")
-		Location := e.ChildText("td.colLocation span.jobLocation")
-		target := "developer"
-		target2 := "software"
+	c.OnHTML(selectors.JobListItemSelector, func(e *colly.HTMLElement) {
+		Title := e.ChildText(selectors.TitleSelector)
+		JobLink := e.ChildAttr(selectors.LinkSelector, selectors.LinkAttribute)
+		Location := e.ChildText(selectors.LocationSelector)
 
-		if strings.Contains(strings.ToUpper(Title), strings.ToUpper(target)) ||
-			strings.Contains(strings.ToUpper(Title), strings.ToUpper(target2)) {
-			job := &model.Job{
-				Title:    Title,
-				Location: Location,
-				Job_link: JobLink,
-			}
-
-			if JobLink != "" {
-				jobURL := e.Request.AbsoluteURL(JobLink)
-				ctx := colly.NewContext()
-				ctx.Put("job", job)
-				detailCollector.Request("GET", jobURL, nil, ctx, nil)
-			}
-
-			jobs = append(jobs, job)
+		job := &model.Job{
+			Title:    Title,
+			Location: Location,
+			Job_link: JobLink,
 		}
+
+		if JobLink != "" {
+			jobURL := e.Request.AbsoluteURL(JobLink)
+			ctx := colly.NewContext()
+			ctx.Put("job", job)
+			detailCollector.Request("GET", jobURL, nil, ctx, nil)
+		}
+
+		jobs = append(jobs, job)
 	})
 
-	c.OnHTML("a.paginationItemLast", func(e *colly.HTMLElement) {
+	c.OnHTML(selectors.NextPageSelector, func(e *colly.HTMLElement) {
 		nextPage := e.Request.AbsoluteURL(e.Attr("href"))
 		if nextPage != "" {
 			fmt.Printf("Visiting next page: %s\n", nextPage)
@@ -79,7 +76,7 @@ func (s *jobScraper) ScrapeJobs() ([]*model.Job, error) {
 		}
 	})
 
-	err := c.Visit("https://jobs.sap.com/search/?q=&locationsearch=S%C3%A3o+Leopoldo&location=S%C3%A3o+Leopoldo&scrollToTable=true")
+	err := c.Visit(selectors.BaseURL)
 	if err != nil {
 		return nil, err
 	}

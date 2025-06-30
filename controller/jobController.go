@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"net/http"
 	"web-scrapper/usecase"
 
@@ -8,21 +9,18 @@ import (
 )
 
 type jobController struct {
-	JobUseCase usecase.JobUseCase
+	orchestrator *usecase.ScrapingOrchestrator
 }
 
-func NewJobController(jobUseCase usecase.JobUseCase) jobController {
+func NewJobController(orchestrator *usecase.ScrapingOrchestrator) jobController {
 	return jobController{
-		JobUseCase: jobUseCase,
+		orchestrator: orchestrator,
 	}
 }
 
-func (controller *jobController) ScrappeAndInsert(ctx *gin.Context){
+func (c *jobController) ScrappeAndInsert(ctx *gin.Context){
+	
+	go c.orchestrator.ExecuteScrapingCycle(context.Background())
 
-	jobs ,err := controller.JobUseCase.ScrapeAndStoreJobs(ctx)
-	if(err != nil){
-		ctx.JSON(http.StatusInternalServerError, err)
-		return
-	}
-	ctx.JSON(http.StatusCreated, jobs)
+	ctx.JSON(http.StatusCreated, gin.H{"Message" : "Scrapping Cycle initialized in background"})
 }

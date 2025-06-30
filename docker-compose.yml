@@ -19,15 +19,15 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=web_scrapper
+      - POSTGRES_USER=${USER_DB}
+      - POSTGRES_PASSWORD=${PASSWORD_DB}
+      - POSTGRES_DB=${DBNAME}
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
       - go_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${USER_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -38,12 +38,14 @@ services:
     volumes:
       - ./migrations:/migrations
     depends_on:
-      - go_scrapper_db
+      go_scrapper_db:
+        condition: service_healthy
+
     networks:
       - go_network
     command: >
       -path=/migrations
-      -database=postgres://postgres:postgres@go_scrapper_db:5432/web_scrapper?sslmode=disable
+      -database=postgres://${USER_DB}:${PASSWORD_DB}@go_scrapper_db:5432/${DBNAME}?sslmode=disable
       up
 
 networks:
