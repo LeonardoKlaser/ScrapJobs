@@ -7,7 +7,6 @@ variable "aws_region" {
 variable "my_ip" {
     description = "IP para acesso SSH"
     type        = string
-    default     = "200.201.202.203/32"
 }
 
 variable "project_name" {
