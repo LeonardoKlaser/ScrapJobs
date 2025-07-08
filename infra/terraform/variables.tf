@@ -16,7 +16,7 @@ variable "project_name" {
 }
 
 variable "ses_domain_name" {
-    description = "Dominio verificacao SES"
+    description = "Dominio de verificacao SES"
     type        = string
     default     = "ScrapJobs.com"
 }
