@@ -1,4 +1,4 @@
-resource "aws_instance" "servidor"{
+resource "aws_instance" "servidor" {
     ami = "ami-05ffe3c48a9991133"
     instance_type = "t2.micro"
     subnet_id  = aws_subnet.public.id
@@ -8,10 +8,10 @@ resource "aws_instance" "servidor"{
     vpc_security_groups_ids = [aws_security_group.ec2_sg.id]
 
     tags = {
-        Name = "${var.project_name}-server
+        Name = "${var.project_name}-server"
     }
 }
-#just a comment to commmit something
+
 output "ip_publico_servidor" {
   description = "IP Público da instância EC2. Use este IP no seu frontend e nos segredos do GitHub."
   value       = aws_instance.app_server.public_ip

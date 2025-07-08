@@ -38,6 +38,9 @@ jobs:
       - name: Terraform init
         run: terraform init
       
+      #- name: Terraform Init
+        #run: terraform init -migrate-state -- quando rodar pela segunda vez
+      
       - name: Terraform Validate
         run: terraform validate
       
