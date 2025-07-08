@@ -3,7 +3,7 @@ resource "aws_instance" "servidor" {
     instance_type = "t2.micro"
     subnet_id  = aws_subnet.public.id
     iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
-    key_name  = var.key_name
+    key_name  = "scrapjobs-key"
     user_data = file("user_data.sh")
     vpc_security_groups_ids = [aws_security_group.ec2_sg.id]
 
