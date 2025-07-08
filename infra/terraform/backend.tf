@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "terraform_state" {
-  bucket = "${lower(var.project_name)}-terraform-state-bucket"
+  bucket = "scrapjobs-terraform-state-bucket"
 
   lifecycle {
     prevent_destroy = true
@@ -14,7 +14,7 @@ resource "aws_s3_bucket_versioning" "terraform_state_versioning" {
 }
 
 resource "aws_dynamodb_table" "terraform_state_lock" {
-  name           = "${lower(var.project_name)}-terraform-lock"
+  name           = "scrapjobs-terraform-lock"
   billing_mode   = "PAY_PER_REQUEST" 
   hash_key       = "LockID"
 
