@@ -62,6 +62,35 @@ resource "aws_iam_role_policy_attachment" "ecr_attach" {
 }
 
 
+resource "aws_iam_policy" "dynamodb_lock_policy" {
+  name        = "${var.project_name}-DynamoDBLockPolicy"
+  description = "Permite que o Terraform gerencie a tabela de lock do DynamoDB"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "dynamodb:CreateTable",
+          "dynamodb:DescribeTable",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:DeleteItem"
+        ],
+        
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.project_name}-terraform-lock"
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "dynamodb_attach" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = aws_iam_policy.dynamodb_lock_policy.arn
+}
+
+
+
 resource "aws_iam_instance_profile" "ec2_profile" {
     name = "${var.project_name}-ec2-profile"
     role = aws_iam_role.ec2_role.name
