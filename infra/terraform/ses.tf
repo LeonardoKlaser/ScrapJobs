@@ -1,3 +1,3 @@
-resource "aws_ses_domain_identity" "my_email" {
+resource "aws_ses_email_identity" "my_email" {
   email = "leobkklaser@gmail.com"
 }

@@ -37,7 +37,7 @@ resource "aws_iam_policy" "ses_policy" {
 }
 
 resource "aws_iam_role_policy_attachment" "ses_attach" {
-    role       = aws_iam_role.ec2_ses_role.name 
+    role       = aws_iam_role.ec2_role.name 
     policy_arn = aws_iam_policy.ses_policy.arn
 }
 
@@ -64,5 +64,5 @@ resource "aws_iam_role_policy_attachment" "ecr_attach" {
 
 resource "aws_iam_instance_profile" "ec2_profile" {
     name = "${var.project_name}-ec2-profile"
-    role = aws_iam_role.ec2_ses_role.name
+    role = aws_iam_role.ec2_role.name
 }
