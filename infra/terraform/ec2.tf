@@ -5,7 +5,7 @@ resource "aws_instance" "servidor" {
     iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
     key_name  = "scrapjobs-key"
     user_data = file("user_data.sh")
-    vpc_security_groups_ids = [aws_security_group.ec2_sg.id]
+    vpc_security_group_ids = [aws_security_group.ec2_sg.id]
 
     tags = {
         Name = "${var.project_name}-server"
