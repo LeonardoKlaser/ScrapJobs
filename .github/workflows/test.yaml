@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/test.yml' 
+      - '.github/workflows/test.yaml' 
 jobs:
   build:
     runs-on: ubuntu-latest
