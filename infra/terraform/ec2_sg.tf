@@ -4,7 +4,7 @@ resource "aws_security_group" "ec2_sg"{
     vpc_id  = aws_vpc.main.id
 
     ingress {
-        description = "permite acesso à API pela porta 80 (frontend)"
+        description = "permite acesso a API pela porta 80 (frontend)"
         from_port = 80
         to_port = 80
         protocol = "tcp"
@@ -12,7 +12,7 @@ resource "aws_security_group" "ec2_sg"{
     }
 
     ingress {
-        description = "permite acesso à SSH somente pelo meu IP e gitHubActions"
+        description = "permite acesso a SSH somente pelo meu IP e gitHubActions"
         from_port = 22
         to_port = 22
         protocol = "tcp"

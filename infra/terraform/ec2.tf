@@ -13,6 +13,6 @@ resource "aws_instance" "servidor" {
 }
 
 output "ip_publico_servidor" {
-  description = "IP Público da instância EC2. Use este IP no seu frontend e nos segredos do GitHub."
+  description = "IP Publico da instância EC2. Use este IP no seu frontend e nos segredos do GitHub."
   value       = aws_instance.servidor.public_ip
 }
