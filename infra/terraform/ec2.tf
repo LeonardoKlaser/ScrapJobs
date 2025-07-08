@@ -11,7 +11,7 @@ resource "aws_instance" "servidor"{
         Name = "${var.project_name}-server
     }
 }
-#just a comment to commmit something
+#just a comment to commmit somethinggg
 output "ip_publico_servidor" {
   description = "IP Público da instância EC2. Use este IP no seu frontend e nos segredos do GitHub."
   value       = aws_instance.app_server.public_ip
