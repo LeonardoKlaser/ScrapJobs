@@ -10,12 +10,14 @@ import (
 	"web-scrapper/infra/ses"
 	"web-scrapper/repository"
 	"web-scrapper/usecase"
+
 	"github.com/gin-gonic/gin"
+	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
 )
 
 
-
+const redisAddr = "127.0.0.1:6379"
 func main() {
 	server := gin.Default()
 	godotenv.Load()
@@ -35,6 +37,9 @@ func main() {
 		println("Erro ao criar o GeminiClient:", err)
 		return
 	}
+	
+	clientAsynq := asynq.NewClient(asynq.RedisClientOpt{Addr: redisAddr})
+    defer clientAsynq.Close()
 
 	AiAnalyser := usecase.NewAiAnalyser(client)
 	cfg , err := ses.LoadAWSConfig(context.Background())
@@ -56,14 +61,15 @@ func main() {
 	emailservice := usecase.NewSESSenderAdapter(mailSender)
 	UserSiteRepository := repository.NewUserSiteRepository(dbConnection)
 	JobRepository := repository.NewJobRepository(dbConnection)
-	siteConfigRepository := repository.NewSiteCareerRepository(dbConnection)
+	//siteConfigRepository := repository.NewSiteCareerRepository(dbConnection)
 	JobUsecase := usecase.NewJobUseCase(JobRepository)
 	NotificationUsecase := usecase.NewNotificationUsecase(UserSiteRepository, CurriculumRepository, AiAnalyser, emailservice)
-	orchesrator := usecase.NewScrapingOrchestrator(siteConfigRepository, JobUsecase, NotificationUsecase )
-	JobController := controller.NewJobController(orchesrator)
+	//orchesrator := usecase.NewTaskPr(JobUsecase, NotificationUsecase, clientAsynq)
+	taskProcessor := controller.NewTaskProcessor(*JobUsecase, *NotificationUsecase, clientAsynq)
 
 
-	server.GET("/scrape", JobController.ScrappeAndInsert)
+
+	//server.GET("/scrape", JobController.ScrappeAndInsert)
 	server.GET("/curriculum/:id", CurriculumController.GetCurriculumByUserId)
 	server.POST("/curriculum", CurriculumController.CreateCurriculum)
 	server.POST("/user", UserController.CreateUser)

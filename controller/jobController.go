@@ -9,10 +9,10 @@ import (
 )
 
 type jobController struct {
-	orchestrator *usecase.ScrapingOrchestrator
+	orchestrator *usecase.TaskEnqueuer
 }
 
-func NewJobController(orchestrator *usecase.ScrapingOrchestrator) jobController {
+func NewJobController(orchestrator *usecase.TaskEnqueuer) jobController {
 	return jobController{
 		orchestrator: orchestrator,
 	}

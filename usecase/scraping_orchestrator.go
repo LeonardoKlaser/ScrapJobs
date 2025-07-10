@@ -2,54 +2,45 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"log"
-	"web-scrapper/model"
 	"web-scrapper/repository"
+	"web-scrapper/tasks"
+	"github.com/hibiken/asynq"
 )
 
-type SiteScraper interface {
-    ScrapeAndStoreJobs(ctx context.Context, site model.SiteScrapingConfig) ([]*model.Job, error)
+type TaskEnqueuer struct {
+	_siteRepo repository.SiteCareerRepository
+	_client *asynq.Client
 }
 
-type MatchFinderNotifier interface {
-    FindMatchesAndNotify(siteID int, jobs []*model.Job) error
+func NewTaskEnqueuer (siteRepo repository.SiteCareerRepository, client *asynq.Client) *TaskEnqueuer{
+	return &TaskEnqueuer{
+		_siteRepo: siteRepo,
+		_client: client,
+	}
 }
 
-type ScrapingOrchestrator struct{
-	siteRepo repository.SiteCareerRepository
-	scraper SiteScraper
-	notifier MatchFinderNotifier
-}
-
-func NewScrapingOrchestrator(
-	siteRepo repository.SiteCareerRepository,
-	scraper SiteScraper,
-	notifier MatchFinderNotifier) *ScrapingOrchestrator{
-		return &ScrapingOrchestrator{
-			siteRepo:  siteRepo,
-			scraper:   scraper,
-			notifier:  notifier,
-		}
-}
-
-func (o *ScrapingOrchestrator) ExecuteScrapingCycle(ctx context.Context){
-	sites, err := o.siteRepo.GetAllSites()
+func (o *TaskEnqueuer) ExecuteScrapingCycle(ctx context.Context){
+	sites, err := o._siteRepo.GetAllSites()
 	if err != nil {
-		log.Printf("error to get all sites: %v", err)
+		log.Printf("ERROR: TaskEnqueuer cant get the sites from database: %v", err)
 	}
 
 	for _, site := range sites{
-		newJobs, err := o.scraper.ScrapeAndStoreJobs(ctx, site)
+		payload, _ := json.Marshal(tasks.ScrapeSitePayload{
+			SiteID: site.ID,
+			SiteScrapingConfig: site,
+		})
+
+		task := asynq.NewTask(tasks.TypeScrapSite, payload)
+
+		info, err := o._client.EnqueueContext(ctx, task)
+
 		if err != nil {
-			log.Printf("error to scraping site %s : %v", site.SiteName, err)
-		}
-
-		if len(newJobs) == 0{
-			continue
-		}
-
-		if err := o.notifier.FindMatchesAndNotify(site.ID, newJobs); err != nil {
-			log.Printf("error to process notification for site: %s : %v", site.SiteName, err)
+			log.Printf("ERROR: Error to enqueue task to site %s : %v", site.SiteName, err)
+		}else{
+			log.Printf("INFO: task to scrape %s enqueued. ID: %s ", site.SiteName, info.ID)
 		}
 	}
 }
