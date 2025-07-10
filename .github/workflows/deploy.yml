@@ -8,7 +8,6 @@ on:
       - '**.go'         
       - 'go.mod'
       - 'go.sum'
-      - 'Dockerfile'
 
 jobs:
   deploy:
@@ -50,11 +49,18 @@ jobs:
           mkdir -p ~/app && cd ~/app
 
           echo "${{ secrets.DOCKER_COMPOSE_YML }}" > docker-compose.yml
+          echo "IMAGE_NAME=${{ steps.build-image.outputs.image }}" > .env
+          echo "USER_DB=${{ secrets.USER_DB }}" >> .env
+          echo "PASSWORD_DB=${{ secrets.PASSWORD_DB }}" >> .env
+          echo "DBNAME=${{ secrets.DBNAME }}" >> .env
+          echo "GEMINI_KEY=${{ secrets.GEMINI_KEY }}" >> .env
 
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
 
           docker-compose pull
 
-          docker-compose up -d --remove-orphans
+          docker-compose run --rm migrate
+
+          docker-compose up -d go_app go_scrapper_db
 
           docker image prune -af

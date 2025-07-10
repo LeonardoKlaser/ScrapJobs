@@ -1,10 +1,13 @@
 services:
   go_app:
     container_name: go_scrapper_app
-    image: go_web_scrapper
+    image: ${IMAGE_NAME}
     environment:
       - AWS_REGION=us-east-1
-    build: .
+      - USER_DB=${USER_DB}
+      - PASSWORD_DB=${PASSWORD_DB}
+      - DBNAME=${DBNAME}
+      - GEMINI_KEY=${GEMINI_KEY}
     ports:
       - "8080:8080"
     depends_on:
@@ -33,18 +36,14 @@ services:
       retries: 5
 
   migrate:
-    container_name: go_scrapper_migrate
-    image: migrate/migrate
-    volumes:
-      - ./migrations:/migrations
+    image: ${IMAGE_NAME}
     depends_on:
       go_scrapper_db:
         condition: service_healthy
-
     networks:
       - go_network
     command: >
-      -path=/migrations
+      -path=./migrations
       -database=postgres://${USER_DB}:${PASSWORD_DB}@go_scrapper_db:5432/${DBNAME}?sslmode=disable
       up
 
