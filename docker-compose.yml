@@ -1,7 +1,8 @@
 services:
-  go_app:
-    container_name: go_scrapper_app
+  api:
+    container_name: go_scrapper_api
     image: ${IMAGE_NAME}
+    command: /bin/api 
     environment:
       - AWS_REGION=us-east-1
       - USER_DB=${USER_DB}
@@ -16,12 +17,58 @@ services:
     depends_on:
       go_scrapper_db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - go_network
+  
+  worker:
+    container_name: go_scrapper_worker
+    image: ${IMAGE_NAME} 
+    command: /bin/worker  
+    environment:
+      - AWS_REGION=us-east-1
+      - USER_DB=${USER_DB}
+      - PASSWORD_DB=${PASSWORD_DB}
+      - DBNAME=${DBNAME}
+      - GEMINI_KEY=${GEMINI_KEY}
+      - AI_MODEL=${AI_MODEL}
+      - HOST_DB=${HOST_DB}
+      - PORT_DB=${PORT_DB}
+      - REDIS_ADDR=redis:6379
+    depends_on:
+      go_scrapper_db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - go_network
+
+  scheduler:
+    container_name: go_scrapper_scheduler
+    image: ${IMAGE_NAME} 
+    command: /bin/scheduler 
+    environment:
+      - AWS_REGION=us-east-1
+      - USER_DB=${USER_DB}
+      - PASSWORD_DB=${PASSWORD_DB}
+      - DBNAME=${DBNAME}
+      - GEMINI_KEY=${GEMINI_KEY}
+      - AI_MODEL=${AI_MODEL}
+      - HOST_DB=${HOST_DB}
+      - PORT_DB=${PORT_DB}
+      - REDIS_ADDR=redis:6379
+    depends_on:
+      go_scrapper_db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - go_network
 
   go_scrapper_db:
     container_name: go_scrapper_db
-    image: postgres:latest
+    image: postgres:14-alpine
     ports:
       - "5432:5432"
     environment:
@@ -34,9 +81,22 @@ services:
       - go_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${USER_DB}"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
+    
+  redis:
+    container_name: redis
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - go_network
+    healthcheck:
+        test: ["CMD", "redis-cli", "ping"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
 
   migrate:
     image: ${IMAGE_NAME}

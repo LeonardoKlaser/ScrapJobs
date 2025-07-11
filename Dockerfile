@@ -1,11 +1,22 @@
-FROM golang:1.24
+FROM golang:1.21-alpine AS builder
 
-WORKDIR /go/src/app
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
 
 COPY . .
 
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /bin/api ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /bin/worker ./cmd/worker
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /bin/scheduler ./cmd/scheduler
+
+FROM alpine:latest
+
+COPY --from=builder /bin/api /bin/api
+COPY --from=builder /bin/worker /bin/worker
+COPY --from=builder /bin/scheduler /bin/scheduler
+
 EXPOSE 8080
 
-RUN go build -o main main.go
-
-CMD ["./main"]
+CMD ["/bin/api"]
