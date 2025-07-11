@@ -54,6 +54,9 @@ jobs:
           echo "PASSWORD_DB=${{ secrets.PASSWORD_DB }}" >> .env
           echo "DBNAME=${{ secrets.DBNAME }}" >> .env
           echo "GEMINI_KEY=${{ secrets.GEMINI_KEY }}" >> .env
+          echo "AI_MODEL=${{ secrets.AI_MODEL }}" >> .env
+          echo "HOST_DB=${{ secrets.HOST_DB }}" >> .env
+          echo "PORT_DB=${{ secrets.PORT_DB }}" >> .env
 
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
 

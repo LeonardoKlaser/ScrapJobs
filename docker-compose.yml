@@ -8,6 +8,9 @@ services:
       - PASSWORD_DB=${PASSWORD_DB}
       - DBNAME=${DBNAME}
       - GEMINI_KEY=${GEMINI_KEY}
+      - AI_MODEL=${AI_MODEL}
+      - HOST_DB=${HOST_DB}
+      - PORT_DB=${PORT_DB}
     ports:
       - "8080:8080"
     depends_on:
