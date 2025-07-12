@@ -2,8 +2,10 @@ package repository
 
 import (
 	"database/sql"
+	"log"
 	"web-scrapper/model"
 )
+
 type JobRepository struct {
 	connection *sql.DB
 }
@@ -46,4 +48,20 @@ func (usr *JobRepository) FindJobByRequisitionID(requisition_ID int) (bool, erro
 
 	queryPrepare.Close()
 	return count > 0, nil
+}
+
+func (usr *JobRepository) UpdateLastSeen(requisition_ID int) error{
+	query := `UPDATE jobs SET last_seen_at = CURRENT_TIMESTAMP WHERE requisition_ID = $1`
+	result, err := usr.connection.Exec(query, requisition_ID)
+	if err != nil {
+		log.Printf("error to update last seen for job id : %d - %v", requisition_ID, err)
+	}
+
+	_, err = result.RowsAffected()
+	if err != nil {
+		log.Printf("error to update last seen for job id : %d - %v", requisition_ID, err)
+	}
+
+	log.Printf("last seen updated for job id : %d  ", requisition_ID)
+	return nil
 }

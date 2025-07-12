@@ -58,7 +58,9 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
 				Requisition_ID: job.Requisition_ID,
 			}
             uc.Repository.CreateJob(jobToInsert)
-        }
+        }else{
+			uc.Repository.UpdateLastSeen(job.Requisition_ID)
+		}
     }
     return newJobsToDatabase, nil
 }
