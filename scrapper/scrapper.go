@@ -27,6 +27,11 @@ func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Jo
 	c := colly.NewCollector()
 	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
 	detailCollector := c.Clone()
+	nextPageVisitedOnThisRequest := false
+
+	c.OnRequest(func(r *colly.Request) {
+        nextPageVisitedOnThisRequest = false
+    })
 
 	detailCollector.OnHTML("body", func(e *colly.HTMLElement) {
 		jobPtr := e.Request.Ctx.GetAny("job").(*model.Job)
@@ -69,16 +74,19 @@ func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Jo
 	})
 
 	c.OnHTML(selectors.NextPageSelector, func(e *colly.HTMLElement) {
-		nextPage := e.Request.AbsoluteURL(e.Attr("href"))
-		if nextPage != "" {
-			fmt.Printf("Visiting next page: %s\n", nextPage)
-			e.Request.Visit(nextPage)
-		}
+		if !nextPageVisitedOnThisRequest {
+            nextPage := e.Request.AbsoluteURL(e.Attr("href"))
+            if nextPage != "" {
+                fmt.Printf("Visiting next page: %s\n", nextPage)
+                nextPageVisitedOnThisRequest = true 
+                e.Request.Visit(nextPage)
+            }
+        }
 	})
 
 	err := c.Visit(selectors.BaseURL)
 	if err != nil {
-		return nil, err
+		return jobs, err
 	}
 	log.Printf("Retornando: %v", jobs)
 	return jobs, nil

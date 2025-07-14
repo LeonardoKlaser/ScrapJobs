@@ -54,16 +54,16 @@ func (usr *JobRepository) FindJobByRequisitionID(requisition_ID int) (bool, erro
 }
 
 func (usr *JobRepository) FindJobsByRequisitionIDs(requisition_IDs []int) (map[int]bool, error){
-	query := `SELECT requisition_ID FROM jobs WHERE requisition_ID NOT IN ($1)`
+	query := `SELECT requisition_ID FROM jobs WHERE requisition_ID = ANY($1)`
 	
-	notExists := make(map[int]bool)
+	Exists := make(map[int]bool)
     if len(requisition_IDs) == 0 {
-        return notExists, nil
+        return Exists, nil
     }
 
 	rows, err := usr.connection.Query(query, pq.Array(requisition_IDs) )
 	if err != nil {
-		return notExists, fmt.Errorf("error fetching jobs %d: %w", requisition_IDs, err)
+		return Exists, fmt.Errorf("error fetching jobs %d: %w", requisition_IDs, err)
     }
 	
 	defer rows.Close()
@@ -73,10 +73,10 @@ func (usr *JobRepository) FindJobsByRequisitionIDs(requisition_IDs []int) (map[i
 		if err := rows.Scan(&requisitionID); err != nil {
 			return nil, fmt.Errorf("error scanning notified job requisition ID: %w", err)
 		}
-		notExists[requisitionID] = true
+		Exists[requisitionID] = true
 	}
 
-	return notExists, rows.Err()
+	return Exists, rows.Err()
 }
 
 func (usr *JobRepository) UpdateLastSeen(requisition_ID int) error{

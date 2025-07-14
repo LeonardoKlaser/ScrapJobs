@@ -1,0 +1,101 @@
+# docker-compose.local.yml
+
+services:
+  api:
+    container_name: go_scrapper_api_local
+    build: . # Constrói a imagem usando o Dockerfile na raiz
+    command: /app/api 
+    env_file:
+      - .env 
+    ports:
+      - "8080:8080"
+    depends_on:
+      go_scrapper_db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - go_network
+  
+  worker:
+    container_name: go_scrapper_worker_local
+    build: .
+    command: /app/worker  
+    env_file:
+      - .env
+    depends_on:
+      go_scrapper_db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - go_network
+
+  scheduler:
+    container_name: go_scrapper_scheduler_local
+    build: .
+    command: /app/scheduler 
+    env_file:
+      - .env
+    depends_on:
+      go_scrapper_db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - go_network
+
+  go_scrapper_db:
+    container_name: go_scrapper_db_local
+    image: postgres:14-alpine
+    ports:
+      - "5433:5432" # Mapeado para 5433 para não conflitar com um postgres local
+    environment:
+      - POSTGRES_USER=${USER_DB}
+      - POSTGRES_PASSWORD=${PASSWORD_DB}
+      - POSTGRES_DB=${DBNAME}
+    volumes:
+      - pgdata_local:/var/lib/postgresql/data
+    networks:
+      - go_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${USER_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+  redis:
+    container_name: redis_local
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    volumes:
+      - redisdata_local:/data
+    networks:
+      - go_network
+    healthcheck:
+        test: ["CMD", "redis-cli", "ping"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
+  migrate:
+    build: . # Também constrói a partir do Dockerfile local
+    env_file:
+      - .env
+    depends_on:
+      go_scrapper_db:
+        condition: service_healthy
+    networks:
+      - go_network
+    # A URL do banco é construída com as variáveis do .env.local
+    command: >
+      /app/migrate -path /app/migrations -database "postgres://${USER_DB}:${PASSWORD_DB}@go_scrapper_db:5432/${DBNAME}?sslmode=disable" up
+
+networks:
+  go_network:
+    driver: bridge
+
+volumes:
+  pgdata_local: {}
+  redisdata_local: {}

@@ -48,7 +48,7 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
 		return nil, err
 	}
     for _, job := range jobs {
-        if _ , ok := exist[job.Requisition_ID]; ok {
+        if _ , ok := exist[job.Requisition_ID]; !ok {
             newJobsToDatabase = append(newJobsToDatabase, job)
 			jobToInsert := model.Job{
 				Title: job.Title,

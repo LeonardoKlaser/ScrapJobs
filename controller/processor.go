@@ -21,7 +21,7 @@ func NewTaskProcessor(scraper usecase.JobUseCase, notifier usecase.Notifications
 	return &TaskProcessor{_scraper: scraper, _notifier: notifier, _client: client}
 }
 
-func (p *TaskProcessor) HandleScrapeSiteTask (ctx context.Context, t *asynq.Task) error{
+func (p *TaskProcessor) HandleScrapeSiteTask(ctx context.Context, t *asynq.Task) error{
 	var payload tasks.ScrapeSitePayload
 
 	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
@@ -32,7 +32,7 @@ func (p *TaskProcessor) HandleScrapeSiteTask (ctx context.Context, t *asynq.Task
 
 	newJobs, err := p._scraper.ScrapeAndStoreJobs(ctx, payload.SiteScrapingConfig)
 	if err != nil {
-		return fmt.Errorf("error to scrape site id: %d: %w", payload.SiteID, err)
+		log.Printf("WARN: ScrapeAndStoreJobs for site %d failed but task will not be retried. Error: %v", payload.SiteID, err)
 	}
 
 	if len(newJobs) == 0 {
@@ -48,7 +48,8 @@ func (p *TaskProcessor) HandleScrapeSiteTask (ctx context.Context, t *asynq.Task
 	nextTask := asynq.NewTask(tasks.TypeProcessResults, resultsPayload)
 	info, err := p._client.EnqueueContext(ctx, nextTask)
 	if err != nil {
-		return fmt.Errorf("error to enqueue site: %d result task : %w", payload.SiteID,err)
+		log.Printf("error to enqueue site: %d result task : %v", payload.SiteID,err)
+		return nil
 	}
 
 	log.Printf("INFO: siteID: %d scrap finished. Process task enqueued: %s", payload.SiteID, info.ID)

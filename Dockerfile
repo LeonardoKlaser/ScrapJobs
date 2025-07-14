@@ -1,27 +1,31 @@
 FROM golang:1.24-alpine as builder
 
-RUN apk update && apk add --no-cache ca-certificates git && \
-    apk upgrade && \
-    rm -rf /var/cache/apk/*
+RUN apk update && apk add --no-cache ca-certificates git
 
 WORKDIR /app
+
+RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -a -installsuffix cgo -o /bin/api ./cmd/api
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -a -installsuffix cgo -o /bin/worker ./cmd/worker
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -a -installsuffix cgo -o /bin/scheduler ./cmd/scheduler
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/api ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/worker ./cmd/worker
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/scheduler ./cmd/scheduler
 
 FROM gcr.io/distroless/static-debian12:nonroot
 
-COPY --from=builder /bin/api /bin/api
-COPY --from=builder /bin/worker /bin/worker  
-COPY --from=builder /bin/scheduler /bin/scheduler
+WORKDIR /app
+
+COPY --from=builder /go/bin/migrate /app/migrate
+COPY --from=builder /app/api /app/api
+COPY --from=builder /app/worker /app/worker
+COPY --from=builder /app/scheduler /app/scheduler
+COPY --from=builder /app/migrations /app/migrations
 
 EXPOSE 8080
 USER nonroot
 
-CMD ["/bin/api"]
+CMD ["/app/api"]
