@@ -46,7 +46,7 @@ func (st *SiteCareerRepository) InsertNewSiteCareer(site model.SiteScrapingConfi
 								)
 	if err != nil {
 		if err == sql.ErrNoRows{
-			return nilReturn, fmt.Errorf("error to insert data in the database: %w", err)
+			return nilReturn, fmt.Errorf("error to insert data in the database : %w", err)
 		}
 		return nilReturn, err
 	}
