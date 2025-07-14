@@ -34,10 +34,10 @@ jobs:
         ECR_REGISTRY: ${{steps.login-ecr.outputs.registry}}
         ECR_REPOSITORY: scrapjobs-repo
         IMAGE_TAG: ${{github.sha}}
-      run:
+      run: |
         docker build -t  $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
     - name: Deploy to EC2
       uses: appleboy/ssh-action@master
