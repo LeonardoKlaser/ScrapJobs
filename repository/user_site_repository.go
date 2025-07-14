@@ -75,7 +75,7 @@ func (dep *UserSiteRepository) GetUsersBySiteId(siteId int) ([]model.UserSiteCur
             }
         }
 
-		if skills.Valid { // Checa se um dos campos obrigatórios do currículo não é nulo
+		if skills.Valid { 
             curriculum := &model.Curriculum{}
             curriculum.Skills = skills.String
             curriculum.Languages = languages.String
@@ -97,6 +97,10 @@ func (dep *UserSiteRepository) GetUsersBySiteId(siteId int) ([]model.UserSiteCur
 
 		users = append(users, user)
 	}
+
+	if err = rows.Err(); err != nil {
+        return nil, fmt.Errorf("error during rows iteration: %w", err)
+    }
 
 	return users, nil
 }

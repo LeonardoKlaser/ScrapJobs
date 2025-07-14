@@ -42,13 +42,13 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
         return nil, err
     }
     var newJobsToDatabase []*model.Job
+	ids := takeIDs(jobs)
+	exist, err := uc.Repository.FindJobsByRequisitionIDs(ids)
+	if err != nil{
+		return nil, err
+	}
     for _, job := range jobs {
-        exist, err := uc.Repository.FindJobByRequisitionID(job.Requisition_ID)
-		
-        if err != nil {
-            return nil, err
-        }
-        if !exist {
+        if _ , ok := exist[job.Requisition_ID]; ok {
             newJobsToDatabase = append(newJobsToDatabase, job)
 			jobToInsert := model.Job{
 				Title: job.Title,
@@ -63,4 +63,12 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
 		}
     }
     return newJobsToDatabase, nil
+}
+
+func takeIDs(jobs []*model.Job) []int{
+	var ids []int 
+	for _, job := range(jobs){
+		ids = append(ids, job.Requisition_ID)
+	}
+	return ids
 }

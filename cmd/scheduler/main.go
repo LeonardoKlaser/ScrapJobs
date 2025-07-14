@@ -2,16 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
+	"os"
+	"sync"
 	"time"
-	"web-scrapper/tasks" // Importa a definição da sua tarefa
-    "web-scrapper/repository" // Para buscar os sites
-    "web-scrapper/infra/db" // Para conectar ao banco
-    "encoding/json"
-    "os"
+	"web-scrapper/infra/db"
+	"web-scrapper/model"
+	"web-scrapper/repository"
+	"web-scrapper/tasks"
 
 	"github.com/hibiken/asynq"
-    "github.com/joho/godotenv"
+	"github.com/joho/godotenv"
 )
 
 const redisAddr = "redis:6379"
@@ -28,18 +30,28 @@ func main() {
         log.Fatalf("Scheduler could not connect to db: %v", err)
     }
     siteRepo := repository.NewSiteCareerRepository(dbConnection)
+    jobRepo := repository.NewJobRepository(dbConnection)
 
     // Ticker to run hourly
     ticker := time.NewTicker(1 * time.Hour)
     defer ticker.Stop()
 
+    tickerDeleteJobs := time.NewTicker(24 * time.Hour)
+    defer tickerDeleteJobs.Stop()
+
     for {
-        enqueueScrapingTasks(context.Background(), siteRepo, client)
-
-        log.Println("Tasks enqueued. Scheduler is now waiting for the next hour.")
-
-        <-ticker.C
+        select{
+        case <-ticker.C:
+            go enqueueScrapingTasks(context.Background(), siteRepo, client)
+        case <-tickerDeleteJobs.C:
+            go func(){
+                if err := jobRepo.DeleteOldJobs(); err != nil{
+                    log.Printf("ERROR: failed to delete old jobs: %v", err)
+                }
+            }()
+        }
     }
+
 }
 
 func enqueueScrapingTasks(ctx context.Context, siteRepo repository.SiteCareerRepository, client *asynq.Client) {
@@ -49,18 +61,28 @@ func enqueueScrapingTasks(ctx context.Context, siteRepo repository.SiteCareerRep
         return
     }
 
+    var wg sync.WaitGroup
     for _, site := range sites {
-        payload, _ := json.Marshal(tasks.ScrapeSitePayload{
-            SiteID:             site.ID,
-            SiteScrapingConfig: site,
-        })
+        wg.Add(1)
+        go func(s model.SiteScrapingConfig){
+            defer wg.Done()
+            payload, err := json.Marshal(tasks.ScrapeSitePayload{
+                SiteID: s.ID,
+                SiteScrapingConfig: s,
+            })
+            if err != nil {
+                log.Printf("ERROR: Could not marshal task for site %s: %v", s.SiteName, err)
+                return
+            }
 
-        task := asynq.NewTask(tasks.TypeScrapSite, payload)
-        info, err := client.EnqueueContext(ctx, task)
-        if err != nil {
-            log.Printf("ERROR: Could not enqueue task for site %s: %v", site.SiteName, err)
-        } else {
-            log.Printf("INFO: Task enqueued for site %s. ID: %s", site.SiteName, info.ID)
-        }
+            task := asynq.NewTask(tasks.TypeScrapSite, payload)
+            info, err := client.EnqueueContext(ctx, task)
+            if err != nil {
+                log.Printf("ERROR: Could not enqueue task for site %s: %v", s.SiteName, err)
+            } else {
+                log.Printf("INFO: Task enqueued for site %s. ID: %s", s.SiteName, info.ID)
+            }
+        }(site)
     }
+    wg.Wait()
 }

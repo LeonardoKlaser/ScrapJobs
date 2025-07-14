@@ -28,7 +28,7 @@ func (db *NotificationRepository) InsertNewNotification (jobId int, userId int) 
 	return nil
 }
 
-func (db *NotificationRepository) GetNotifiedJobIDsForUser (userId int, jobs []int) (map[int]bool, error){
+func (db *NotificationRepository) GetNotifiedJobIDsForUser(userId int, jobs []int) (map[int]bool, error){
 	notified := make(map[int]bool)
     if len(jobs) == 0 {
         return notified, nil

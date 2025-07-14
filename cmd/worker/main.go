@@ -57,7 +57,6 @@ func main() {
 
 	clientAsynq := asynq.NewClient(asynq.RedisClientOpt{Addr: redisAddr})
     defer clientAsynq.Close()
-	// --- Injeção de Dependência para os Handlers ---
 	
 	// Repositories
 	jobRepository := repository.NewJobRepository(dbConnection)
