@@ -22,6 +22,7 @@ type NotificationsUsecase struct{
 	curriculumRepo repository.CurriculumRepository
 	analysisService AnalysisService
 	emailService EmailService
+	notificationRepository repository.NotificationRepository
 }
 
 func NewNotificationUsecase(
@@ -29,31 +30,45 @@ func NewNotificationUsecase(
     curriculumRepo repository.CurriculumRepository,
     analysisService AnalysisService,
     emailService EmailService,
+	notificationRepository repository.NotificationRepository,
 ) *NotificationsUsecase{
 	return &NotificationsUsecase{
 		userSiteRepo:    userSiteRepo,
         curriculumRepo:  curriculumRepo,
         analysisService: analysisService,
         emailService:    emailService,
+		notificationRepository: notificationRepository,
 	}
 }
 
 func (s *NotificationsUsecase) FindMatchesAndNotify(siteId int, jobs []*model.Job) error{
-	users, err := s.userSiteRepo.GetUsersBySiteId(siteId)
+	userWithCurriculum, err := s.userSiteRepo.GetUsersBySiteId(siteId)
 	if err != nil {
 		return fmt.Errorf("error to get users by site Id %d: %w", siteId, err)
 	}
 
-	for _, user := range users{
+	jobsById := make(map[int]*model.Job)
+	for _, job := range jobs {
+		jobsById[job.ID] = job
+	}
+
+	for _, user := range userWithCurriculum{
+		var matchedJobIDs []int
 		for _, job := range jobs{
 			if s.matchJobWithFilters(*job, user.TargetWords){
-				curriculum, err := s.curriculumRepo.FindCurriculumByUserID(user.UserId)
-				if err != nil {
-					log.Printf("error to get user %s curriculum: %v", user.Name, err)
-					continue	
-				}
+				matchedJobIDs = append(matchedJobIDs, job.ID)
+			}
+		}
+		notifiedJobsMap, err := s.notificationRepository.GetNotifiedJobIDsForUser(user.UserId, matchedJobIDs)
+		if err != nil{
+			return err
+		}
 
-				analysis, err := s.analysisService.Analyze(context.Background(), curriculum, *job)
+		for _, jobId := range  matchedJobIDs {
+			if _, alreadyNotified := notifiedJobsMap[jobId]; !alreadyNotified {
+				job := jobsById[jobId]
+
+				analysis, err := s.analysisService.Analyze(context.Background(), *user.Curriculum, *job)
 				if err != nil {
 					log.Printf("error to get AI analysis for user: %s about vacancy: %s: %v", user.Name, job.Title, err)
 					continue
@@ -65,6 +80,10 @@ func (s *NotificationsUsecase) FindMatchesAndNotify(siteId int, jobs []*model.Jo
 					log.Printf("error to send email notification for %s about %s : %v", user.Email, job.Title, err)
 				}
 
+				err = s.notificationRepository.InsertNewNotification(job.ID, user.UserId)
+                if err != nil {
+                     log.Printf("FATAL: could not insert notification record for user %d, job %d: %v", user.UserId, job.ID, err)
+                }
 			}
 		}
 	}

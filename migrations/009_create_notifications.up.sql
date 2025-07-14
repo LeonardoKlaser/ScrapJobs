@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS job_notifications (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    sent_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (user_id, job_id)
+);
