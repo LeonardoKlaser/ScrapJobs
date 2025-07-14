@@ -57,6 +57,10 @@ jobs:
           echo "AI_MODEL=${{ secrets.AI_MODEL }}" >> .env
           echo "HOST_DB=${{ secrets.HOST_DB }}" >> .env
           echo "PORT_DB=${{ secrets.PORT_DB }}" >> .env
+          echo "REDIS_ADDR=${{ secrets.REDIS_ADDR }}" >> .env
+          echo "REDIS_PORT=${{ secrets.REDIS_PORT }}" >> .env
+          echo "PORT_DB=${{ secrets.REDIS_HOST }}" >> .env
+          echo "${{ secrets.REDIS_CONF }}" > redis.conf
 
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
 
@@ -64,6 +68,6 @@ jobs:
 
           docker-compose run --rm migrate
 
-          docker-compose up -d go_app go_scrapper_db
+          docker-compose up -d api worker scheduler redis go_scrapper_db
 
           docker image prune -af

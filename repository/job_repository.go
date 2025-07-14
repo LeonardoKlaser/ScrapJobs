@@ -20,7 +20,7 @@ func NewJobRepository(db *sql.DB) JobRepository {
 }
 
 func (usr *JobRepository) CreateJob(job model.Job) (int, error) {
-	query := `INSERT INTO jobs (title, location, company, job_link, requisition_ID) VALUES ($1, $2, $3, $4, $5)`
+	query := `INSERT INTO jobs (title, location, company, job_link, requisition_ID) VALUES ($1, $2, $3, $4, $5) RETURNING id`
 	queryPrepare, err := usr.connection.Prepare(query)
 
 	if(err != nil){

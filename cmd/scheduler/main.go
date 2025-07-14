@@ -16,12 +16,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const redisAddr = "redis:6379"
-
 func main() {
     godotenv.Load()
     log.Println("Scheduler starting...")
-
+    
+    var redisAddr = os.Getenv("REDIS_ADDR")
     client := asynq.NewClient(asynq.RedisClientOpt{Addr: redisAddr})
     defer client.Close()
 

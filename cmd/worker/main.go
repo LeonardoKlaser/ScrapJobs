@@ -16,11 +16,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// just to remember to change to env variable
-const redisAddr = "redis:6379"
+
 
 func main() {
 	godotenv.Load()
+	var redisAddr = os.Getenv("REDIS_ADDR")
 	dbConnection, err := db.ConnectDB(os.Getenv("HOST_DB"), os.Getenv("PORT_DB"), os.Getenv("USER_DB"), os.Getenv("PASSWORD_DB"), os.Getenv("DBNAME"))
 	if err != nil {
 		log.Fatalf("could not connect to db: %v", err)
