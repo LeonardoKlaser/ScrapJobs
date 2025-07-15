@@ -90,7 +90,7 @@ services:
       - go_network
     # A URL do banco é construída com as variáveis do .env.local
     command: >
-      /app/migrate -path /app/migrations -database "postgres://${USER_DB}:${PASSWORD_DB}@go_scrapper_db:5432/${DBNAME}?sslmode=disable" up
+      /app/migrate -path /app/migrations -database "postgres://${USER_DB}:${PASSWORD_DB}@go_scrapper_db_local:5432/${DBNAME}?sslmode=disable" up
 
 networks:
   go_network:

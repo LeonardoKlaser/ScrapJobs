@@ -32,7 +32,7 @@ func main() {
     jobRepo := repository.NewJobRepository(dbConnection)
 
     // Ticker to run hourly
-    ticker := time.NewTicker(10 * time.Minute)
+    ticker := time.NewTicker(3 * time.Minute)
     defer ticker.Stop()
 
     tickerDeleteJobs := time.NewTicker(24 * time.Hour)

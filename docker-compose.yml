@@ -2,7 +2,7 @@ services:
   api:
     container_name: go_scrapper_api
     image: ${IMAGE_NAME}
-    command: /bin/api 
+    command: /app/api 
     environment:
       - AWS_REGION=us-east-1
       - USER_DB=${USER_DB}
@@ -25,7 +25,7 @@ services:
   worker:
     container_name: go_scrapper_worker
     image: ${IMAGE_NAME} 
-    command: /bin/worker  
+    command: /app/worker  
     environment:
       - AWS_REGION=us-east-1
       - USER_DB=${USER_DB}
@@ -47,7 +47,7 @@ services:
   scheduler:
     container_name: go_scrapper_scheduler
     image: ${IMAGE_NAME} 
-    command: /bin/scheduler 
+    command: /app/scheduler 
     environment:
       - AWS_REGION=us-east-1
       - USER_DB=${USER_DB}
@@ -110,9 +110,7 @@ services:
     networks:
       - go_network
     command: >
-      -path=./migrations
-      -database=postgres://${USER_DB}:${PASSWORD_DB}@go_scrapper_db:5432/${DBNAME}?sslmode=disable
-      up
+      /app/migrate -path /app/migrations -database "postgres://${USER_DB}:${PASSWORD_DB}@go_scrapper_db:5432/${DBNAME}?sslmode=disable" up
 
 networks:
   go_network:

@@ -24,7 +24,14 @@ func NewJobScraper() JobScrapper {
 func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Job, error) {
 	log.Printf("DEBUG: Seletores recebidos: %+v\n", selectors)
 	var jobs []*model.Job
-	c := colly.NewCollector()
+	c := colly.NewCollector(
+		colly.Async(true),
+	)
+	c.Limit(&colly.LimitRule{
+        DomainGlob:  "*",
+        Parallelism: 8, 
+    })
+
 	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
 	detailCollector := c.Clone()
 	nextPageVisitedOnThisRequest := false
@@ -88,6 +95,9 @@ func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Jo
 	if err != nil {
 		return jobs, err
 	}
+
+	c.Wait()
+	
 	log.Printf("Retornando: %v", jobs)
 	return jobs, nil
 }

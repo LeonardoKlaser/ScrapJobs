@@ -2,9 +2,10 @@ package usecase
 
 import (
 	"context"
-	"log"
 	"fmt"
+	"log"
 	"strings"
+	"sync"
 	"web-scrapper/model"
 	"web-scrapper/repository"
 )
@@ -42,6 +43,7 @@ func NewNotificationUsecase(
 }
 
 func (s *NotificationsUsecase) FindMatchesAndNotify(siteId int, jobs []*model.Job) error{
+	log.Printf("Jobs: %v", jobs)
 	userWithCurriculum, err := s.userSiteRepo.GetUsersBySiteId(siteId)
 	if err != nil {
 		return fmt.Errorf("error to get users by site Id %d: %w", siteId, err)
@@ -53,12 +55,24 @@ func (s *NotificationsUsecase) FindMatchesAndNotify(siteId int, jobs []*model.Jo
 	}
 
 	for _, user := range userWithCurriculum{
+
+		if user.Curriculum == nil {
+			log.Printf("INFO: User %s (ID: %d) has no curriculum, skipping notifications for this user.", user.Name, user.UserId)
+			continue
+		}
+
+		var jobsToSend []*model.Job
 		var matchedJobIDs []int
 		for _, job := range jobs{
 			if s.matchJobWithFilters(*job, user.TargetWords){
 				matchedJobIDs = append(matchedJobIDs, job.ID)
 			}
 		}
+
+		if len(matchedJobIDs) == 0 {
+			continue 
+		}
+
 		notifiedJobsMap, err := s.notificationRepository.GetNotifiedJobIDsForUser(user.UserId, matchedJobIDs)
 		if err != nil{
 			return err
@@ -66,26 +80,54 @@ func (s *NotificationsUsecase) FindMatchesAndNotify(siteId int, jobs []*model.Jo
 
 		for _, jobId := range  matchedJobIDs {
 			if _, alreadyNotified := notifiedJobsMap[jobId]; !alreadyNotified {
-				job := jobsById[jobId]
-
-				analysis, err := s.analysisService.Analyze(context.Background(), *user.Curriculum, *job)
-				if err != nil {
-					log.Printf("error to get AI analysis for user: %s about vacancy: %s: %v", user.Name, job.Title, err)
-					continue
-				}
-
-				err = s.emailService.SendAnalysisEmail(context.Background(), user.Email, *job, analysis)
-
-				if err != nil{
-					log.Printf("error to send email notification for %s about %s : %v", user.Email, job.Title, err)
-				}
-
-				err = s.notificationRepository.InsertNewNotification(job.ID, user.UserId)
-                if err != nil {
-                     log.Printf("FATAL: could not insert notification record for user %d, job %d: %v", user.UserId, job.ID, err)
-                }
+				jobsToSend = append(jobsToSend, jobsById[jobId])
 			}
 		}
+
+		if len(jobsToSend) == 0 {
+			continue 
+		}
+
+		//inicializa worker pool para melhorar performance (executar mais de uma notificação/analise ao mesmo tempo)
+		const numWorkers = 5
+		jobsChan := make(chan *model.Job, len(jobsToSend))
+		var wg sync.WaitGroup
+
+		for i := 0; i < numWorkers; i++ {
+			wg.Add(1)
+			go func(workerID int){
+				defer wg.Done()
+
+				for job := range jobsChan{
+					log.Printf("actual job: %v", job)
+					analysis, err := s.analysisService.Analyze(context.Background(), *user.Curriculum, *job)
+					if err != nil {
+						log.Printf("[Worker %d] ERROR: AI analysis failed for job %s: %v", workerID, job.Title, err)
+						continue 
+					}
+
+					err = s.emailService.SendAnalysisEmail(context.Background(), user.Email, *job, analysis)
+					if err != nil {
+						log.Printf("[Worker %d] ERROR: Email sending failed for job %s: %v", workerID, job.Title, err)
+						continue
+					}
+
+					err = s.notificationRepository.InsertNewNotification(job.ID, user.UserId)
+					if err != nil {
+						log.Printf("[Worker %d] FATAL: Failed to insert notification record for job %d: %v", workerID, job.ID, err)
+					}
+				}
+			}(i)
+		}
+
+		for _, job := range jobsToSend {
+			jobsChan <- job
+		}
+		close(jobsChan) 
+
+		wg.Wait()
+		log.Printf("Finished notification pool for user %s.", user.Name)
+
 	}
 	return nil
 }

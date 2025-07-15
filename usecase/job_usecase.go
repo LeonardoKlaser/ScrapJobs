@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"log"
 	"web-scrapper/model"
 	"web-scrapper/repository"
 	"web-scrapper/scrapper"
@@ -49,7 +50,6 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
 	}
     for _, job := range jobs {
         if _ , ok := exist[job.Requisition_ID]; !ok {
-            newJobsToDatabase = append(newJobsToDatabase, job)
 			jobToInsert := model.Job{
 				Title: job.Title,
 				Location: job.Location,
@@ -57,7 +57,12 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
 				Job_link: job.Job_link,
 				Requisition_ID: job.Requisition_ID,
 			}
-            uc.Repository.CreateJob(jobToInsert)
+            ID, err := uc.Repository.CreateJob(jobToInsert)
+			if err != nil {
+				log.Printf("Error to create job %v : %v", job, err)
+			}
+			job.ID = ID
+			newJobsToDatabase = append(newJobsToDatabase, job)
         }else{
 			uc.Repository.UpdateLastSeen(job.Requisition_ID)
 		}

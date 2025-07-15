@@ -10,13 +10,13 @@ type NotificationRepository struct{
 	connection *sql.DB
 }
 
-func NewNotificationRepository (db *sql.DB) *NotificationRepository{
+func NewNotificationRepository(db *sql.DB) *NotificationRepository{
 	return &NotificationRepository{
 		connection: db,
 	}
 }
 
-func (db *NotificationRepository) InsertNewNotification (jobId int, userId int) error{
+func (db *NotificationRepository) InsertNewNotification(jobId int, userId int) error{
 	query := `INSERT INTO job_notifications (user_id, job_id) VALUES($1, $2)`
 
 	_, err := db.connection.Exec(query , userId, jobId)
@@ -37,7 +37,7 @@ func (db *NotificationRepository) GetNotifiedJobIDsForUser(userId int, jobs []in
     query := `
         SELECT job_id 
         FROM job_notifications 
-        WHERE user_id = $1 AND job_id = ANY($2)`
+        WHERE user_id = $1 AND job_id = ANY($2) RETURNING job_id`
 
 	rows, err := db.connection.Query(query, userId, pq.Array(jobs) )
 	if err != nil {
