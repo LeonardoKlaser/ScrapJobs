@@ -37,7 +37,7 @@ func (db *NotificationRepository) GetNotifiedJobIDsForUser(userId int, jobs []in
     query := `
         SELECT job_id 
         FROM job_notifications 
-        WHERE user_id = $1 AND job_id = ANY($2) RETURNING job_id`
+        WHERE user_id = $1 AND job_id = ANY($2)`
 
 	rows, err := db.connection.Query(query, userId, pq.Array(jobs) )
 	if err != nil {

@@ -72,7 +72,7 @@ func (s *NotificationsUsecase) FindMatchesAndNotify(siteId int, jobs []*model.Jo
 		if len(matchedJobIDs) == 0 {
 			continue 
 		}
-
+		log.Printf("usuario encontrando para enviar notificacao: %s", user.Name)
 		notifiedJobsMap, err := s.notificationRepository.GetNotifiedJobIDsForUser(user.UserId, matchedJobIDs)
 		if err != nil{
 			return err
@@ -84,6 +84,7 @@ func (s *NotificationsUsecase) FindMatchesAndNotify(siteId int, jobs []*model.Jo
 			}
 		}
 
+		log.Printf("Criado lista de jobs para notificar")
 		if len(jobsToSend) == 0 {
 			continue 
 		}
@@ -105,13 +106,14 @@ func (s *NotificationsUsecase) FindMatchesAndNotify(siteId int, jobs []*model.Jo
 						log.Printf("[Worker %d] ERROR: AI analysis failed for job %s: %v", workerID, job.Title, err)
 						continue 
 					}
+					log.Printf("analise feita para usuario %s com job %s", user.Name, job.Title)
 
 					err = s.emailService.SendAnalysisEmail(context.Background(), user.Email, *job, analysis)
 					if err != nil {
 						log.Printf("[Worker %d] ERROR: Email sending failed for job %s: %v", workerID, job.Title, err)
 						continue
 					}
-
+					log.Printf("email feita para usuario %s com job %s", user.Name, job.Title)
 					err = s.notificationRepository.InsertNewNotification(job.ID, user.UserId)
 					if err != nil {
 						log.Printf("[Worker %d] FATAL: Failed to insert notification record for job %d: %v", workerID, job.ID, err)

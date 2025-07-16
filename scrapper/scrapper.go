@@ -5,6 +5,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 	"web-scrapper/model"
 	"github.com/gocolly/colly"
 )
@@ -24,16 +25,21 @@ func NewJobScraper() JobScrapper {
 func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Job, error) {
 	log.Printf("DEBUG: Seletores recebidos: %+v\n", selectors)
 	var jobs []*model.Job
+	var wg sync.WaitGroup
+
 	c := colly.NewCollector(
 		colly.Async(true),
 	)
+
 	c.Limit(&colly.LimitRule{
         DomainGlob:  "*",
         Parallelism: 8, 
     })
 
 	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+
 	detailCollector := c.Clone()
+
 	nextPageVisitedOnThisRequest := false
 
 	c.OnRequest(func(r *colly.Request) {
@@ -41,6 +47,8 @@ func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Jo
     })
 
 	detailCollector.OnHTML("body", func(e *colly.HTMLElement) {
+		defer wg.Done()
+
 		jobPtr := e.Request.Ctx.GetAny("job").(*model.Job)
 
 		descriptionHTML:= e.ChildText(selectors.JobDescriptionSelector)
@@ -52,6 +60,7 @@ func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Jo
 		}
 		jobIDstr := e.ChildText(selectors.JobRequisitionIdSelector)
 		jobID, err := strconv.Atoi(jobIDstr)
+		log.Printf("job id for %s : %d", jobPtr.Title, jobID)
 		if err != nil {
 			fmt.Println("Erro ao converter ID:", err)
 		} else {
@@ -71,6 +80,7 @@ func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Jo
 		}
 
 		if JobLink != "" {
+			wg.Add(1)
 			jobURL := e.Request.AbsoluteURL(JobLink)
 			ctx := colly.NewContext()
 			ctx.Put("job", job)
@@ -97,7 +107,11 @@ func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Jo
 	}
 
 	c.Wait()
+
+	wg.Wait()
 	
-	log.Printf("Retornando: %v", jobs)
+	for _, job := range jobs{
+		log.Printf("job %s retornando com requisition id %d", job.Title, job.Requisition_ID)
+	}
 	return jobs, nil
 }

@@ -65,6 +65,7 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
 			newJobsToDatabase = append(newJobsToDatabase, job)
         }else{
 			uc.Repository.UpdateLastSeen(job.Requisition_ID)
+			newJobsToDatabase = append(newJobsToDatabase, job)
 		}
     }
     return newJobsToDatabase, nil
