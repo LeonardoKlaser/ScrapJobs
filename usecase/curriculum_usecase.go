@@ -16,7 +16,7 @@ func NewCurriculumUsecase (repository repository.CurriculumRepository) Curriculu
 	}
 }
 
-func (cur *CurriculumUsecase) CreateCurriculum (curriculum model.Curriculum) (model.Curriculum, error){
+func (cur *CurriculumUsecase) CreateCurriculum(curriculum model.Curriculum) (model.Curriculum, error){
 	res, err := cur.CurriculumRepository.CreateCurriculum(curriculum)
 	if err != nil {
 		return model.Curriculum{}, err

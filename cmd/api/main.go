@@ -8,6 +8,7 @@ import (
 	"web-scrapper/infra/db"
 	"web-scrapper/repository"
 	"web-scrapper/usecase"
+	"web-scrapper/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -23,6 +24,8 @@ func main() {
 	}
 	log.Print("Connected to the database!")
 	
+	
+
 	// Repositories
 	userRepository := repository.NewUserRepository(dbConnection)
 	curriculumRepository := repository.NewCurriculumRepository(dbConnection)
@@ -35,10 +38,13 @@ func main() {
 	userController := controller.NewUserController(userUsecase)
 	curriculumController := controller.NewCurriculumController(curriculumUsecase)
 
-	server.GET("/curriculum/:id", curriculumController.GetCurriculumByUserId)
-	server.POST("/curriculum", curriculumController.CreateCurriculum)
-	server.POST("/user", userController.CreateUser)
-	server.GET("/user/:email", userController.GetUserByEmail)
+	//middleware
+	middlewareAuth := middleware.NewMiddleware(&userUsecase)
+
+	server.GET("/curriculum/:id", middlewareAuth.RequireAuth ,curriculumController.GetCurriculumByUserId)
+	server.POST("/curriculum", middlewareAuth.RequireAuth ,curriculumController.CreateCurriculum)
+	server.POST("/register", userController.SignUp)
+	server.GET("/login", userController.SignIn)
 
 
 

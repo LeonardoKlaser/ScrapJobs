@@ -3,7 +3,6 @@ package controller
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"web-scrapper/model"
 	"web-scrapper/usecase"
 
@@ -21,10 +20,24 @@ func NewCurriculumController (usecase usecase.CurriculumUsecase) CurriculumContr
 }
 
 func (c *CurriculumController) CreateCurriculum(ctx *gin.Context) {
+	userInterface, exists := ctx.Get("user")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
+		return
+	}
+
+	user, ok := userInterface.(model.User)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Tipo de usuário inválido no contexto"})
+		return
+	}
+
 	var curriculum model.Curriculum
 	if err := ctx.ShouldBindJSON(&curriculum); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error" : fmt.Errorf("error to deserialize new job json body: %w", err)})
 	}
+
+	curriculum.UserID = user.Id
 
 	res, err := c.curriculumUsecase.CreateCurriculum(curriculum)
 	if err != nil{
@@ -37,13 +50,19 @@ func (c *CurriculumController) CreateCurriculum(ctx *gin.Context) {
 
 
 func (c *CurriculumController) GetCurriculumByUserId(ctx *gin.Context) {
-	userId := ctx.Param("id")
-	userIdInt, err := strconv.Atoi(userId)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error" : fmt.Errorf("error to deserialize new job json body: %w", err)})
+	userInterface, exists := ctx.Get("user")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
+		return
 	}
 
-	res, err := c.curriculumUsecase.GetCurriculumByUserId(userIdInt)
+	user, ok := userInterface.(model.User)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Tipo de usuário inválido no contexto"})
+		return
+	}
+
+	res, err := c.curriculumUsecase.GetCurriculumByUserId(user.Id)
 	if err != nil{
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

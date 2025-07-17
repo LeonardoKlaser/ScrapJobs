@@ -30,3 +30,11 @@ func (usr *UserUsecase) GetUserByEmail(userEmail string) (model.User, error){
 	}
 	return res, nil
 }
+
+func (usr *UserUsecase) GetUserById(Id int) (model.User, error){
+	res, err := usr.repository.GetUserById(Id)
+	if err != nil{
+		return model.User{}, err
+	}
+	return res, nil
+}
