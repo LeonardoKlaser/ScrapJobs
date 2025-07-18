@@ -104,3 +104,22 @@ func (dep *UserSiteRepository) GetUsersBySiteId(siteId int) ([]model.UserSiteCur
 
 	return users, nil
 }
+
+func (dep *UserSiteRepository) InsertNewUserSite(userId int, siteId int, filters []string) error{
+	query := `INSERT INTO user_site(user_id, site_id, filters) VALUES($1, $2, $3)`
+
+	jsonFilters, err := json.Marshal(filters)
+    if err != nil {
+        return fmt.Errorf("erro ao serializar os filtros para JSON: %w", err)
+    }
+
+	_, err = dep.connection.Exec(query , userId, siteId, jsonFilters)
+
+	if err != nil{
+		return fmt.Errorf("error to insert register user %d to site %d: %w", userId, siteId, err)
+	}
+
+	return nil
+
+
+}

@@ -14,3 +14,8 @@ type UserSiteCurriculum struct{
 	Curriculum *Curriculum `json:"curriculum,omitempty"`
 	TargetWords []string `db:"target_words"`
 }
+
+type UserSiteRequest struct{
+	SiteId int `json:"site_id"`
+	TargetWords []string `db:"target_words"`
+}
