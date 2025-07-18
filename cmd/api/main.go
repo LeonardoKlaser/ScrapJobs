@@ -52,7 +52,7 @@ func main() {
 	server.POST("/register", userController.SignUp)
 	server.POST("/login", userController.SignIn)
 	server.POST("/userSite", middlewareAuth.RequireAuth, userSiteController.InsertUserSite)
-	server.POST("/siteCareer", siteCareerController.InsertNewSiteCareer)
+	server.POST("/siteCareer", middlewareAuth.RequireAuth ,siteCareerController.InsertNewSiteCareer)
 
 	//GET
 	server.GET("/curriculum/:id", middlewareAuth.RequireAuth ,curriculumController.GetCurriculumByUserId)
