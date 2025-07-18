@@ -30,16 +30,19 @@ func main() {
 	userRepository := repository.NewUserRepository(dbConnection)
 	curriculumRepository := repository.NewCurriculumRepository(dbConnection)
 	userSiteRepository := repository.NewUserSiteRepository(dbConnection)
+	siteCareerRepository := repository.NewSiteCareerRepository(dbConnection)
 
 	// Usecases
 	userUsecase := usecase.NewUserUsercase(userRepository)
 	curriculumUsecase := usecase.NewCurriculumUsecase(curriculumRepository)
 	UserSiteUsecase := usecase.NewUserSiteUsecase(&userSiteRepository)
+	SiteCareerUsecase := usecase.NewSiteCareerUsecase(&siteCareerRepository)
 
 	// Controllers
 	userController := controller.NewUserController(userUsecase)
 	curriculumController := controller.NewCurriculumController(curriculumUsecase)
 	userSiteController := controller.NewUserSiteController(UserSiteUsecase)
+	siteCareerController := controller.NewSiteCareerController(SiteCareerUsecase)
 
 	//middleware
 	middlewareAuth := middleware.NewMiddleware(&userUsecase)
@@ -49,6 +52,7 @@ func main() {
 	server.POST("/register", userController.SignUp)
 	server.POST("/login", userController.SignIn)
 	server.POST("/userSite", middlewareAuth.RequireAuth, userSiteController.InsertUserSite)
+	server.POST("/siteCareer", siteCareerController.InsertNewSiteCareer)
 
 	//GET
 	server.GET("/curriculum/:id", middlewareAuth.RequireAuth ,curriculumController.GetCurriculumByUserId)
