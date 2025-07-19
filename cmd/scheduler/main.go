@@ -53,7 +53,7 @@ func main() {
 
 }
 
-func enqueueScrapingTasks(ctx context.Context, siteRepo repository.SiteCareerRepository, client *asynq.Client) {
+func enqueueScrapingTasks(ctx context.Context, siteRepo *repository.SiteCareerRepository, client *asynq.Client) {
     sites, err := siteRepo.GetAllSites()
     if err != nil {
         log.Printf("ERROR: Scheduler can't get sites from database: %v", err)

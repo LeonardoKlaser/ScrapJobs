@@ -2,14 +2,14 @@ package usecase
 
 import (
 	"web-scrapper/model"
-	"web-scrapper/repository"
+	"web-scrapper/interfaces"
 )
 
 type UserUsecase struct {
-	repository repository.UserRepository
+	repository interfaces.UserRepositoryInterface
 }
 
-func NewUserUsercase (repo repository.UserRepository) UserUsecase{
+func NewUserUsercase (repo interfaces.UserRepositoryInterface) UserUsecase{
 	return UserUsecase{
 		repository: repo,
 	}

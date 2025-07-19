@@ -4,15 +4,15 @@ import (
 	"context"
 	"log"
 	"web-scrapper/model"
-	"web-scrapper/repository"
+	"web-scrapper/interfaces"
 	"web-scrapper/scrapper"
 )
 
 type JobUseCase struct{
-	Repository repository.JobRepository
+	Repository interfaces.JobRepositoryInterface
 }
 
-func NewJobUseCase(jobRepo repository.JobRepository) *JobUseCase{
+func NewJobUseCase(jobRepo interfaces.JobRepositoryInterface) *JobUseCase{
 	return &JobUseCase{
 		Repository: jobRepo,
 	}

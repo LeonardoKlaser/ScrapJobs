@@ -13,8 +13,8 @@ type JobRepository struct {
 	connection *sql.DB
 }
 
-func NewJobRepository(db *sql.DB) JobRepository {
-	return JobRepository{
+func NewJobRepository(db *sql.DB) *JobRepository {
+	return &JobRepository{
 		connection: db,
 	}
 }

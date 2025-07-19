@@ -2,16 +2,17 @@ package usecase
 
 import (
 	"web-scrapper/model"
-	"web-scrapper/repository"
+	"web-scrapper/interfaces"
 )
 
+
 type CurriculumUsecase struct {
-	CurriculumRepository repository.CurriculumRepository
+	CurriculumRepository interfaces.CurriculumRepositoryInterface
 	
 }
 
-func NewCurriculumUsecase (repository repository.CurriculumRepository) CurriculumUsecase{
-	return CurriculumUsecase{
+func NewCurriculumUsecase (repository interfaces.CurriculumRepositoryInterface) *CurriculumUsecase{
+	return &CurriculumUsecase{
 		CurriculumRepository: repository,
 	}
 }

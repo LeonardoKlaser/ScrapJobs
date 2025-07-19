@@ -36,7 +36,7 @@ func main() {
 	userUsecase := usecase.NewUserUsercase(userRepository)
 	curriculumUsecase := usecase.NewCurriculumUsecase(curriculumRepository)
 	UserSiteUsecase := usecase.NewUserSiteUsecase(userSiteRepository)
-	SiteCareerUsecase := usecase.NewSiteCareerUsecase(&siteCareerRepository)
+	SiteCareerUsecase := usecase.NewSiteCareerUsecase(siteCareerRepository)
 
 	// Controllers
 	userController := controller.NewUserController(userUsecase)

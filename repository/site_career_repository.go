@@ -10,8 +10,8 @@ type SiteCareerRepository struct {
 	connection *sql.DB
 }
 
-func NewSiteCareerRepository(db *sql.DB) SiteCareerRepository{
-	return SiteCareerRepository{
+func NewSiteCareerRepository(db *sql.DB) *SiteCareerRepository{
+	return &SiteCareerRepository{
 		connection: db,
 	}
 }

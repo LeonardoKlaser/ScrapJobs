@@ -6,8 +6,8 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"web-scrapper/interfaces"
 	"web-scrapper/model"
-	"web-scrapper/repository"
 )
 
 type AnalysisService interface {
@@ -19,17 +19,17 @@ type EmailService interface {
 }
 
 type NotificationsUsecase struct{
-	userSiteRepo repository.UserSiteRepositoryInterface
+	userSiteRepo interfaces.UserSiteRepositoryInterface
 	analysisService AnalysisService
 	emailService EmailService
-	notificationRepository repository.NotificationRepositoryInterface
+	notificationRepository interfaces.NotificationRepositoryInterface
 }
 
 func NewNotificationUsecase(
-	userSiteRepo repository.UserSiteRepositoryInterface,
+	userSiteRepo interfaces.UserSiteRepositoryInterface,
     analysisService AnalysisService,
     emailService EmailService,
-	notificationRepository repository.NotificationRepositoryInterface,
+	notificationRepository interfaces.NotificationRepositoryInterface,
 ) *NotificationsUsecase{
 	return &NotificationsUsecase{
 		userSiteRepo:    userSiteRepo,

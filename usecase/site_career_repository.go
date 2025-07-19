@@ -2,14 +2,14 @@ package usecase
 
 import (
 	"web-scrapper/model"
-	"web-scrapper/repository"
+	"web-scrapper/interfaces"
 )
 
 type SiteCareerUsecase struct{
-	repo *repository.SiteCareerRepository
+	repo interfaces.SiteCareerRepositoryInterface
 }
 
-func NewSiteCareerUsecase(repo *repository.SiteCareerRepository) *SiteCareerUsecase {
+func NewSiteCareerUsecase(repo interfaces.SiteCareerRepositoryInterface) *SiteCareerUsecase {
 	return &SiteCareerUsecase{
 		repo: repo,
 	}

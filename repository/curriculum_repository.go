@@ -11,8 +11,8 @@ type CurriculumRepository struct {
 	connection *sql.DB
 }
 
-func NewCurriculumRepository(db *sql.DB) CurriculumRepository {
-	return CurriculumRepository{
+func NewCurriculumRepository(db *sql.DB) *CurriculumRepository {
+	return &CurriculumRepository{
 		connection: db,
 	}
 }

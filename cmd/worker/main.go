@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
-	"web-scrapper/controller"
+	"web-scrapper/processor"
 	"web-scrapper/infra/db"
 	"web-scrapper/infra/gemini"
 	"web-scrapper/infra/ses"
@@ -70,8 +70,8 @@ func main() {
 	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, aiAnalyser, emailService, NotificationRepository)
 	
 	// O TaskProcessor é o coração do nosso worker
-	taskProcessor := controller.NewTaskProcessor(*jobUsecase, *notificationUsecase, clientAsynq)
-
+	taskProcessor := processor.NewTaskProcessor(*jobUsecase, *notificationUsecase, clientAsynq)
+	
 
 	// --- Mapeamento das Tarefas para os Handlers ---
 	mux := asynq.NewServeMux()

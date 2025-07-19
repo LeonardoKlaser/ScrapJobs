@@ -10,11 +10,11 @@ import (
 )
 
 type CurriculumController struct {
-	curriculumUsecase usecase.CurriculumUsecase
+	curriculumUsecase *usecase.CurriculumUsecase
 }
 
-func NewCurriculumController (usecase usecase.CurriculumUsecase) CurriculumController{
-	return CurriculumController{
+func NewCurriculumController (usecase *usecase.CurriculumUsecase) *CurriculumController{
+	return &CurriculumController{
 		curriculumUsecase: usecase,
 	}
 }
