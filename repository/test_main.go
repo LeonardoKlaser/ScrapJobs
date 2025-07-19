@@ -63,7 +63,13 @@ func OpenConnection() (close func()){
 	}
 
 	close = func() {
-		resource.Close()
+		if err := dbConnection.Close(); err != nil {
+			log.Printf("Could not close database connection: %s", err)
+		}
+		
+		if err := pool.Purge(resource); err != nil {
+			log.Printf("Could not purge resource: %s", err)
+		}
 	}
 
 	return
