@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 	"web-scrapper/model"
-	"web-scrapper/repository/mocks" // Importando os mocks
+	"web-scrapper/repository/mocks" 
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
