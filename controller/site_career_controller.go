@@ -31,7 +31,7 @@ func (usecase *SiteCareerController) InsertNewSiteCareer(ctx *gin.Context){
 		return
 	}
 
-	if user.Email != "adminScrapjobs@gmail.com" {
+	if user.Email != "adminScrapjobs@gmail.com"{
 		ctx.JSON(http.StatusBadRequest, gin.H{"error" : "only admins can add new sites"})
 	}
 
