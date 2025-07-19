@@ -7,12 +7,18 @@ import (
 	"web-scrapper/model"
 )
 
+type UserSiteRepositoryInterface interface {
+    GetUsersBySiteId(siteId int) ([]model.UserSiteCurriculum, error)
+    InsertNewUserSite(userId int, siteId int, filters []string) error
+}
+
+
 type UserSiteRepository struct {
 	connection *sql.DB
 }
 
-func NewUserSiteRepository(db *sql.DB) UserSiteRepository{
-	return UserSiteRepository{
+func NewUserSiteRepository(db *sql.DB) *UserSiteRepository{
+	return &UserSiteRepository{
 		connection: db,
 	}
 }

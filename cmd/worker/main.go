@@ -61,14 +61,13 @@ func main() {
 	// Repositories
 	jobRepository := repository.NewJobRepository(dbConnection)
 	userSiteRepository := repository.NewUserSiteRepository(dbConnection)
-	curriculumRepository := repository.NewCurriculumRepository(dbConnection)
 	NotificationRepository := repository.NewNotificationRepository(dbConnection)
 	
 	// Services & Usecases
 	aiAnalyser := usecase.NewAiAnalyser(geminiClient)
 	emailService := usecase.NewSESSenderAdapter(mailSender)
 	jobUsecase := usecase.NewJobUseCase(jobRepository)
-	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, curriculumRepository, aiAnalyser, emailService, *NotificationRepository)
+	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, aiAnalyser, emailService, NotificationRepository)
 	
 	// O TaskProcessor é o coração do nosso worker
 	taskProcessor := controller.NewTaskProcessor(*jobUsecase, *notificationUsecase, clientAsynq)

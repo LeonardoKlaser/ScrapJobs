@@ -19,23 +19,20 @@ type EmailService interface {
 }
 
 type NotificationsUsecase struct{
-	userSiteRepo repository.UserSiteRepository
-	curriculumRepo repository.CurriculumRepository
+	userSiteRepo repository.UserSiteRepositoryInterface
 	analysisService AnalysisService
 	emailService EmailService
-	notificationRepository repository.NotificationRepository
+	notificationRepository repository.NotificationRepositoryInterface
 }
 
 func NewNotificationUsecase(
-	userSiteRepo repository.UserSiteRepository,
-    curriculumRepo repository.CurriculumRepository,
+	userSiteRepo repository.UserSiteRepositoryInterface,
     analysisService AnalysisService,
     emailService EmailService,
-	notificationRepository repository.NotificationRepository,
+	notificationRepository repository.NotificationRepositoryInterface,
 ) *NotificationsUsecase{
 	return &NotificationsUsecase{
 		userSiteRepo:    userSiteRepo,
-        curriculumRepo:  curriculumRepo,
         analysisService: analysisService,
         emailService:    emailService,
 		notificationRepository: notificationRepository,

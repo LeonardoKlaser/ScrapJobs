@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func generateEmailBody (analysis model.ResumeAnalysis) string {
+func generateEmailBody(analysis model.ResumeAnalysis) string {
 	var sb strings.Builder
 
 
