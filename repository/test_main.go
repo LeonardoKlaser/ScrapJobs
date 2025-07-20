@@ -18,7 +18,7 @@ func OpenConnection() (close func()){
 
 	dbUser := "user_test"
 	dbPass := "pass_test"
-	dbName := "db_test"
+	dbName :=  "db_test"
 
 	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
 		Repository: "postgres", 
