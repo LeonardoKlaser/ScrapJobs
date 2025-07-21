@@ -9,11 +9,11 @@ import (
 	"github.com/ory/dockertest/v3/docker"
 )
 
-func OpenConnection() (close func()){
+func OpenConnection() (*sql.DB, func()){
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		log.Fatalf("Could not construct pool: %s", err)
-		return
+		return nil, nil
 	}
 
 	dbUser := "user_test"
@@ -35,7 +35,7 @@ func OpenConnection() (close func()){
 
 	if err != nil {
 		log.Fatalf("Could not creat postgre container: %s", err)
-		return
+		return nil, nil
 	}
 
 	var dbConnection *sql.DB
@@ -62,7 +62,7 @@ func OpenConnection() (close func()){
 		log.Fatalf("Could not connect to database: %s", err)
 	}
 
-	close = func() {
+	closeFunc := func() {
 		if err := dbConnection.Close(); err != nil {
 			log.Printf("Could not close database connection: %s", err)
 		}
@@ -72,5 +72,5 @@ func OpenConnection() (close func()){
 		}
 	}
 
-	return
+	return dbConnection, closeFunc
 }
