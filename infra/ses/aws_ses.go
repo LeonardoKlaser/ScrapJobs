@@ -22,7 +22,7 @@ func NewSESMailSender(sesClient *ses.Client, from string) (*SESMailSender) {
 }
 
 // SendEmail envia um e-mail simples (texto) usando o SES
-func (s *SESMailSender) SendEmail(ctx context.Context ,to string, subject string, body string) error {
+func (s *SESMailSender) SendEmail(ctx context.Context ,to string, subject string, bodyText string, bodyHtml string) error {
     input := &ses.SendEmailInput{
         Source: aws.String(s.from),
         Destination: &types.Destination{
@@ -33,8 +33,13 @@ func (s *SESMailSender) SendEmail(ctx context.Context ,to string, subject string
                 Data: aws.String(subject),
             },
             Body: &types.Body{
+                Html: &types.Content{
+                    Data:    aws.String(bodyHtml),
+                    Charset: aws.String("UTF-8"),
+                },
                 Text: &types.Content{
-                    Data: aws.String(body),
+                    Data:    aws.String(bodyText),
+                    Charset: aws.String("UTF-8"),
                 },
             },
         },
