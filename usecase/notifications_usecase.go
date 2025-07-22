@@ -10,25 +10,18 @@ import (
 	"web-scrapper/model"
 )
 
-type AnalysisService interface {
-    Analyze(ctx context.Context, curriculum model.Curriculum, job model.Job) (model.ResumeAnalysis, error)
-}
-
-type EmailService interface {
-    SendAnalysisEmail(ctx context.Context, userEmail string, job model.Job, analysis model.ResumeAnalysis) error
-}
 
 type NotificationsUsecase struct{
 	userSiteRepo interfaces.UserSiteRepositoryInterface
-	analysisService AnalysisService
-	emailService EmailService
+	analysisService interfaces.AnalysisService
+	emailService interfaces.EmailService
 	notificationRepository interfaces.NotificationRepositoryInterface
 }
 
 func NewNotificationUsecase(
 	userSiteRepo interfaces.UserSiteRepositoryInterface,
-    analysisService AnalysisService,
-    emailService EmailService,
+    analysisService interfaces.AnalysisService,
+    emailService interfaces.EmailService,
 	notificationRepository interfaces.NotificationRepositoryInterface,
 ) *NotificationsUsecase{
 	return &NotificationsUsecase{

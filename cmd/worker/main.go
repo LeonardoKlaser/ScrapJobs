@@ -4,16 +4,17 @@ import (
 	"context"
 	"log"
 	"os"
-	"web-scrapper/processor"
 	"web-scrapper/infra/db"
 	"web-scrapper/infra/gemini"
 	"web-scrapper/infra/ses"
+	"web-scrapper/processor"
 	"web-scrapper/repository"
 	"web-scrapper/tasks"
 	"web-scrapper/usecase"
 
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
+	"golang.org/x/time/rate"
 )
 
 
@@ -67,7 +68,12 @@ func main() {
 	aiAnalyser := usecase.NewAiAnalyser(geminiClient)
 	emailService := usecase.NewSESSenderAdapter(mailSender)
 	jobUsecase := usecase.NewJobUseCase(jobRepository)
-	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, aiAnalyser, emailService, NotificationRepository)
+
+	aiApiLimiter := rate.NewLimiter(rate.Limit(30.0/60.0), 1)
+
+	rateLimitedAiService := usecase.NewRateLimitedAiAnalyser(aiAnalyser, aiApiLimiter)
+
+	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, rateLimitedAiService, emailService, NotificationRepository)
 	
 	// O TaskProcessor é o coração do nosso worker
 	taskProcessor := processor.NewTaskProcessor(*jobUsecase, *notificationUsecase, clientAsynq)

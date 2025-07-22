@@ -12,10 +12,6 @@ import (
 	"web-scrapper/model"
 )
 
-type AiAnalyserService interface {
-	AnalyzeMatch(ctx context.Context, curriculum model.Curriculum, job model.Job) (string, error)
-}
-
 type AiAnalyser struct{
 	client *gemini.GeminiClient
 }
