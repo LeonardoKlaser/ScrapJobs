@@ -18,6 +18,9 @@ jobs:
         working-directory: ./infra/terraform
     env:
       TF_VAR_my_ip: ${{ secrets.MY_IP_FOR_SSH }}
+      TF_VAR_dbname: ${{ secrets.DB_NAME }}
+      TF_VAR_dbuser: ${{ secrets.DB_USER }}
+      TF_VAR_dbpassword: ${{ secrets.DB_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -38,9 +41,6 @@ jobs:
       - name: Terraform init
         run: terraform init
       
-      #- name: Terraform Init
-        #run: terraform init -migrate-state -- quando rodar pela segunda vez
-      
       - name: Terraform Validate
         run: terraform validate
       
@@ -49,6 +49,10 @@ jobs:
         run: terraform plan -no-color
         continue-on-error: true
       
+      - name: Terraform Plan for Main
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform plan -out=tfplan
+      
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve "tfplan"

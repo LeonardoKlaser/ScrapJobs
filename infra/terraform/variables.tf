@@ -18,5 +18,23 @@ variable "project_name" {
 variable "ses_domain_name" {
     description = "Dominio verificacao SES"
     type        = string
-    default     = "ScrapJobs.com"
+    default     = "scrapjobs.com.br"
+}
+
+variable "dbname" {
+    description = "databse name"
+    type        = string
+    sensitive   = true
+}
+
+variable "dbuser" {
+    description = "database user"
+    type        = string
+    sensitive   = true
+}
+
+variable "dbpassword" {
+    description = "database password"
+    type        = string
+    sensitive   = true
 }
