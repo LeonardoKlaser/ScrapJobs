@@ -11,7 +11,6 @@ import (
 )
 
 func generateEmailBodyHTML(analysis model.ResumeAnalysis, job model.Job) (string, error) {
-    // Template HTML para o corpo do e-mail
     const emailTemplate = `
     <!DOCTYPE html>
     <html lang="pt-BR">
@@ -82,7 +81,6 @@ func generateEmailBodyHTML(analysis model.ResumeAnalysis, job model.Job) (string
     </html>
     `
 
-    // Prepara os dados para o template
     data := struct {
         Analysis model.ResumeAnalysis
         Job      model.Job
