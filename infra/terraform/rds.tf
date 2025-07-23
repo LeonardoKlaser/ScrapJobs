@@ -10,7 +10,7 @@ resource "aws_db_instance" "default"{
     identifier      = "scrapjobs-db"
     allocated_storage = 20
     engine          = "postgres"
-    engine_version  = "14.10"
+    engine_version  = "17"
     instance_class  = "db.t3.micro"
     db_name               = var.dbname   
     username              = var.dbuser
