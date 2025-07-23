@@ -37,13 +37,13 @@ func (usecase *SiteCareerController) InsertNewSiteCareer(ctx *gin.Context){
 
 	var body model.SiteScrapingConfig
 	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error" : fmt.Errorf("error to deserialize new job json body: %w", err)})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error" : fmt.Errorf("error to deserialize new job json body: %w", err).Error()})
 	}
 
 	res, err := usecase.usecase.InsertNewSiteCareer(body)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error" : fmt.Errorf("ERROR to insert new site career:  %w", err),
+			"error" : fmt.Errorf("ERROR to insert new site career:  %w", err).Error(),
 		})
 		return
 	}
