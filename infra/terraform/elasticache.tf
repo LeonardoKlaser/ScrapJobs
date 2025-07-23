@@ -1,6 +1,6 @@
 resource "aws_elasticache_subnet_group" "default" {
   name       = "${var.project_name}-elasticache-subnet-group"
-  subnet_ids = [aws_subnet.public.id] 
+  subnet_ids = [aws_subnet.public.id, aws_subnet.public_b.id] 
 }
 
 # Cluster ElastiCache (Redis)

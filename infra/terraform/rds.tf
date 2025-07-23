@@ -1,6 +1,6 @@
 resource "aws_db_subnet_group" "default" {
   name       = "scrapjobs-rds-subnet-group"
-  subnet_ids = [aws_subnet.public.id] 
+  subnet_ids = [aws_subnet.public.id, aws_subnet.public_b.id] 
   tags = {
     Name = "${var.project_name}-rds-subnet-group"
   }
