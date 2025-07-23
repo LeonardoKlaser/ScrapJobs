@@ -64,7 +64,7 @@ resource "aws_iam_role_policy_attachment" "ecr_attach" {
 
 # resource "aws_iam_policy" "dynamodb_lock_policy" {
 #   name        = "${var.project_name}-DynamoDBLockPolicy"
-#   description = "Permite que o Terraform gerencie a tabela de lock do DynamoDB"
+#   description = "Permite que o Terraform gerencie a tabela de  lock do DynamoDB"
 #   policy = jsonencode({
 #     Version = "2012-10-17"
 #     Statement = [

@@ -43,7 +43,7 @@ func main() {
 	clientSES := ses.LoadAWSClient(awsCfg)
 	mailSender := ses.NewSESMailSender(clientSES, "leobkklaser@gmail.com")
 
-	// O Worker precisa do SERVIDOR Asynq
+	
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: redisAddr},
 		asynq.Config{
@@ -75,7 +75,7 @@ func main() {
 
 	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, rateLimitedAiService, emailService, NotificationRepository)
 	
-	// O TaskProcessor é o coração do nosso worker
+	// TaskProcessor 
 	taskProcessor := processor.NewTaskProcessor(*jobUsecase, *notificationUsecase, clientAsynq)
 	
 
