@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"web-scrapper/model"
 )
@@ -56,6 +57,10 @@ func (usr *UserRepository) GetUserByEmail(userEmail string) (model.User, error){
 		&userToReturn.CurriculumId,
 	)
 	if(err != nil){
+		if errors.Is(err, sql.ErrNoRows) {
+			
+			return model.User{}, nil 
+		}
 		return model.User{}, fmt.Errorf("error to get user from database: %w", err)	
 	}
 

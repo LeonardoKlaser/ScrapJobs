@@ -1,8 +1,12 @@
 package usecase
 
 import (
-	"web-scrapper/model"
+	"errors"
+	"fmt"
 	"web-scrapper/interfaces"
+	"web-scrapper/model"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserUsecase struct {
@@ -16,6 +20,22 @@ func NewUserUsercase (repo interfaces.UserRepositoryInterface) *UserUsecase{
 }
 
 func (usr *UserUsecase) CreateUser(user model.User) (model.User, error){
+	exist, err := usr.repository.GetUserByEmail(user.Email)
+	if err != nil{
+		return model.User{}, err
+	}
+
+	if exist.Email != "" {
+		return model.User{}, errors.New("user already exists")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return model.User{}, fmt.Errorf("erro ao criptografar a senha: %w", err)
+	}
+
+	user.Password = string(hashedPassword)
+
 	res, err := usr.repository.CreateUser(user)
 	if err != nil{
 		return model.User{}, err
