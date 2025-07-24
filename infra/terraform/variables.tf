@@ -51,7 +51,7 @@ variable "db_port" {
   type        = string
   sensitive   = true
 }
--
+
 variable "ai_model" {
   description = "AI Model"
   type        = string
