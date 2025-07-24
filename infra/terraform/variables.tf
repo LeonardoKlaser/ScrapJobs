@@ -83,7 +83,7 @@ variable "redis_host" {
 }
 
 variable "redis_port" {
-  description = "redis_port "
+  description = "redis_port"
   type        = string
   sensitive   = true
 }
