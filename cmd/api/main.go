@@ -4,16 +4,18 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 	"web-scrapper/controller"
 	"web-scrapper/infra/db"
 	"web-scrapper/middleware"
+	"web-scrapper/model"
 	"web-scrapper/repository"
 	"web-scrapper/usecase"
+	"web-scrapper/utils"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"golang.org/x/time/rate"
-	"time"
 )
 
 
@@ -28,11 +30,34 @@ func main() {
         MaxAge: 12 * time.Hour,
 	}))
 
-	godotenv.Load()
-	dbConnection, err := db.ConnectDB(os.Getenv("HOST_DB"), os.Getenv("PORT_DB"),os.Getenv("USER_DB"),os.Getenv("PASSWORD_DB"),os.Getenv("DBNAME"))
+	if os.Getenv("GIN_MODE") != "release"{
+		godotenv.Load()	
+	}
+
+	var err error
+	var secrets *model.AppSecrets
+
+	secretName := os.Getenv("APP_SECRET_NAME")
+	if secretName  != ""{
+		secrets, err = utils.GetAppSecrets(secretName)
+		if err != nil {
+            panic("Failed to get secrets from AWS Secrets Manager: " + err.Error())
+        }
+	} else {
+        secrets = &model.AppSecrets{
+            DBHost:     os.Getenv("HOST_DB"),
+            DBPort:     os.Getenv("PORT_DB"),
+            DBUser: os.Getenv("USER_DB"),
+            DBPassword: os.Getenv("PASSWORD_DB"),
+            DBName:   os.Getenv("DBNAME"),
+        }
+    }
+
+	dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort,secrets.DBUser,secrets.DBPassword,secrets.DBName)
 	if(err != nil){
 		panic((err))
 	}
+	
 	log.Print("Connected to the database!")
 	
 	

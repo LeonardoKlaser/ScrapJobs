@@ -7,6 +7,7 @@ variable "aws_region" {
 variable "my_ip" {
     description = "IP para acesso SSH"
     type        = string
+    sensitive   = true
 }
 
 variable "project_name" {
@@ -37,4 +38,76 @@ variable "dbpassword" {
     description = "database password"
     type        = string
     sensitive   = true
+}
+
+variable "db_host" {
+  description = "Database endpoint"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_port" {
+  description = "Database port"
+  type        = string
+  sensitive   = true
+}
+-
+variable "ai_model" {
+  description = "AI Model"
+  type        = string
+  sensitive   = true
+}
+
+variable "aws_access_key" {
+  description = "aws_access_key"
+  type        = string
+  sensitive   = true
+}
+
+variable "aws_secret_access_key" {
+  description = "aws_secret_access_key"
+  type        = string
+  sensitive   = true
+}
+
+variable "ec2_host_ip" {
+  description = "ec2_host_ip"
+  type        = string
+  sensitive   = true
+}
+
+variable "ec2_ssh_private_key" {
+  description = "ec2_ssh_private_key"
+  type        = string
+  sensitive   = true
+}
+
+variable "gemini_key" {
+  description = "gemini_key"
+  type        = string
+  sensitive   = true
+}
+
+variable "redis_addr" {
+  description = "redis_addr"
+  type        = string
+  sensitive   = true
+}
+
+variable "redis_conf" {
+  description = "redis_conf"
+  type        = string
+  sensitive   = true
+}
+
+variable "redis_host" {
+  description = "redis_host"
+  type        = string
+  sensitive   = true
+}
+
+variable "redis_port" {
+  description = "redis_port"
+  type        = string
+  sensitive   = true
 }

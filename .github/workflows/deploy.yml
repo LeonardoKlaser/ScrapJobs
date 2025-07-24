@@ -49,26 +49,13 @@ jobs:
         script:
           mkdir -p ~/app && cd ~/app
 
-          echo "${{ secrets.DOCKER_COMPOSE_YML }}" > docker-compose.yml
           echo "IMAGE_NAME=${{ steps.build-image.outputs.image }}" > .env
-          echo "USER_DB=${{ secrets.USER_DB }}" >> .env
-          echo "PASSWORD_DB=${{ secrets.PASSWORD_DB }}" >> .env
-          echo "DBNAME=${{ secrets.DBNAME }}" >> .env
-          echo "GEMINI_KEY=${{ secrets.GEMINI_KEY }}" >> .env
-          echo "AI_MODEL=${{ secrets.AI_MODEL }}" >> .env
-          echo "HOST_DB=${{ secrets.HOST_DB }}" >> .env
-          echo "PORT_DB=${{ secrets.PORT_DB }}" >> .env
-          echo "REDIS_ADDR=${{ secrets.REDIS_ADDR }}" >> .env
-          echo "REDIS_PORT=${{ secrets.REDIS_PORT }}" >> .env
-          echo "PORT_DB=${{ secrets.REDIS_HOST }}" >> .env
-          echo "${{ secrets.REDIS_CONF }}" > redis.conf
+          echo "GIN_MODE=release" >> .env
+          echo "APP_SECRET_NAME=ScrapJobs-db-credentials" >> .env
 
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
 
           docker-compose pull
-
           docker-compose run --rm migrate
-
           docker-compose up -d api worker scheduler redis go_scrapper_db
-
           docker image prune -af

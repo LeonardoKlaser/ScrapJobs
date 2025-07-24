@@ -11,7 +11,8 @@ import (
 	"web-scrapper/repository"
 	"web-scrapper/tasks"
 	"web-scrapper/usecase"
-
+	"web-scrapper/utils"
+	"web-scrapper/model"
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
 	"golang.org/x/time/rate"
@@ -20,16 +21,40 @@ import (
 
 
 func main() {
-	godotenv.Load()
-	var redisAddr = os.Getenv("REDIS_ADDR")
-	dbConnection, err := db.ConnectDB(os.Getenv("HOST_DB"), os.Getenv("PORT_DB"), os.Getenv("USER_DB"), os.Getenv("PASSWORD_DB"), os.Getenv("DBNAME"))
+	if os.Getenv("GIN_MODE") != "release"{
+		godotenv.Load()	
+	}
+
+	var err error
+	var secrets *model.AppSecrets
+
+	secretName := os.Getenv("APP_SECRET_NAME")
+	if secretName  != ""{
+		secrets, err = utils.GetAppSecrets(secretName)
+		if err != nil {
+            panic("Failed to get secrets from AWS Secrets Manager: " + err.Error())
+        }
+	} else {
+        secrets = &model.AppSecrets{
+            DBHost:     os.Getenv("HOST_DB"),
+            DBPort:     os.Getenv("PORT_DB"),
+            DBUser: os.Getenv("USER_DB"),
+            DBPassword: os.Getenv("PASSWORD_DB"),
+            DBName:   os.Getenv("DBNAME"),
+            RedisAddr: os.Getenv("REDIS_ADDR"),
+			GeminiKey: os.Getenv("GEMINI_KEY"),
+			AIModel: os.Getenv("AI_MODEL"),
+        }
+    }
+	
+	dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort,secrets.DBUser,secrets.DBPassword,secrets.DBName)
 	if err != nil {
 		log.Fatalf("could not connect to db: %v", err)
 	}
 
 	geminiConfig := gemini.Config{
-		ApiKey:   os.Getenv("GEMINI_KEY"),
-		ApiModel: os.Getenv("AI_MODEL"),
+		ApiKey:   secrets.GeminiKey,
+		ApiModel: secrets.AIModel,
 	}
 	geminiClient, err := gemini.GeminiClientModel(context.Background(), geminiConfig)
 	if err != nil {
@@ -45,7 +70,7 @@ func main() {
 
 	
 	srv := asynq.NewServer(
-		asynq.RedisClientOpt{Addr: redisAddr},
+		asynq.RedisClientOpt{Addr: secrets.RedisAddr},
 		asynq.Config{
 			Concurrency: 10,
 			Queues: map[string]int{
@@ -56,7 +81,7 @@ func main() {
 		},
 	)
 
-	clientAsynq := asynq.NewClient(asynq.RedisClientOpt{Addr: redisAddr})
+	clientAsynq := asynq.NewClient(asynq.RedisClientOpt{Addr: secrets.RedisAddr})
     defer clientAsynq.Close()
 	
 	// Repositories

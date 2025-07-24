@@ -11,20 +11,41 @@ import (
 	"web-scrapper/model"
 	"web-scrapper/repository"
 	"web-scrapper/tasks"
+	"web-scrapper/utils"
 
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-    godotenv.Load()
-    log.Println("Scheduler starting...")
-    
-    var redisAddr = os.Getenv("REDIS_ADDR")
-    client := asynq.NewClient(asynq.RedisClientOpt{Addr: redisAddr})
+    if os.Getenv("GIN_MODE") != "release"{
+		godotenv.Load()	
+	}
+
+	var err error
+	var secrets *model.AppSecrets
+
+	secretName := os.Getenv("APP_SECRET_NAME")
+	if secretName  != ""{
+		secrets, err = utils.GetAppSecrets(secretName)
+		if err != nil {
+            panic("Failed to get secrets from AWS Secrets Manager: " + err.Error())
+        }
+	} else {
+        secrets = &model.AppSecrets{
+            DBHost:     os.Getenv("HOST_DB"),
+            DBPort:     os.Getenv("PORT_DB"),
+            DBUser: os.Getenv("USER_DB"),
+            DBPassword: os.Getenv("PASSWORD_DB"),
+            DBName:   os.Getenv("DBNAME"),
+            RedisAddr: os.Getenv("REDIS_ADDR"),
+        }
+    }
+
+    client := asynq.NewClient(asynq.RedisClientOpt{Addr: secrets.RedisAddr})
     defer client.Close()
 
-    dbConnection, err := db.ConnectDB(os.Getenv("HOST_DB"), os.Getenv("PORT_DB"), os.Getenv("USER_DB"), os.Getenv("PASSWORD_DB"), os.Getenv("DBNAME"))
+    dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort,secrets.DBUser,secrets.DBPassword,secrets.DBName)
     if err != nil {
         log.Fatalf("Scheduler could not connect to db: %v", err)
     }
