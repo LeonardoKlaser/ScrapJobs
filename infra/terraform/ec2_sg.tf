@@ -12,7 +12,7 @@ resource "aws_security_group" "ec2_sg"{
     }
 
     ingress {
-        description = "permite acesso a SSH somente pelo meu IP e gitHubActions"
+        description = "permite acesso a SSH somente pelo meu IP e gitHubActions "
         from_port = 22
         to_port = 22
         protocol = "tcp"
