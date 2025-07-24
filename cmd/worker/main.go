@@ -72,7 +72,7 @@ func main() {
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: secrets.RedisAddr},
 		asynq.Config{
-			Concurrency: 10,
+			Concurrency: 4,
 			Queues: map[string]int{
 				"critical": 6,
 				"default":  3,

@@ -45,7 +45,7 @@ func (p *TaskProcessor) HandleScrapeSiteTask(ctx context.Context, t *asynq.Task)
 		Jobs: newJobs,
 	})
 
-	nextTask := asynq.NewTask(tasks.TypeProcessResults, resultsPayload)
+	nextTask := asynq.NewTask(tasks.TypeProcessResults, resultsPayload, asynq.MaxRetry(3))
 	info, err := p._client.EnqueueContext(ctx, nextTask)
 	if err != nil {
 		log.Printf("error to enqueue site: %d result task : %v", payload.SiteID,err)

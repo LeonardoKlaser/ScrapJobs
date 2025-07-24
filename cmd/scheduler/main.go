@@ -95,7 +95,7 @@ func enqueueScrapingTasks(ctx context.Context, siteRepo *repository.SiteCareerRe
                 return
             }
 
-            task := asynq.NewTask(tasks.TypeScrapSite, payload)
+            task := asynq.NewTask(tasks.TypeScrapSite, payload, asynq.MaxRetry(3))
             info, err := client.EnqueueContext(ctx, task)
             if err != nil {
                 log.Printf("ERROR: Could not enqueue task for site %s: %v", s.SiteName, err)
