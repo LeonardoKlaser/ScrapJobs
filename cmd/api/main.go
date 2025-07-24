@@ -9,16 +9,25 @@ import (
 	"web-scrapper/middleware"
 	"web-scrapper/repository"
 	"web-scrapper/usecase"
-
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"golang.org/x/time/rate"
+	"time"
 )
 
 
 
 func main() {
 	server := gin.Default()
+	server.Use(cors.New(cors.Config{
+		AllowOrigins: []string{"http://localhost:8081", "https://scrapjobs.com.br"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+        ExposeHeaders:    []string{"Content-Length"},
+        MaxAge: 12 * time.Hour,
+	}))
+
 	godotenv.Load()
 	dbConnection, err := db.ConnectDB(os.Getenv("HOST_DB"), os.Getenv("PORT_DB"),os.Getenv("USER_DB"),os.Getenv("PASSWORD_DB"),os.Getenv("DBNAME"))
 	if(err != nil){
