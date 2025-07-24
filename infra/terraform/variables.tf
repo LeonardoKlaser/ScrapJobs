@@ -58,18 +58,6 @@ variable "ai_model" {
   sensitive   = true
 }
 
-variable "ec2_host_ip" {
-  description = "ec2_host_ip"
-  type        = string
-  sensitive   = true
-}
-
-variable "ec2_ssh_private_key" {
-  description = "ec2_ssh_private_key"
-  type        = string
-  sensitive   = true
-}
-
 variable "gemini_key" {
   description = "gemini_key"
   type        = string
