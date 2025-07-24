@@ -58,18 +58,6 @@ variable "ai_model" {
   sensitive   = true
 }
 
-variable "aws_access_key" {
-  description = "aws_access_key"
-  type        = string
-  sensitive   = true
-}
-
-variable "aws_secret_access_key" {
-  description = "aws_secret_access_key"
-  type        = string
-  sensitive   = true
-}
-
 variable "ec2_host_ip" {
   description = "ec2_host_ip"
   type        = string
