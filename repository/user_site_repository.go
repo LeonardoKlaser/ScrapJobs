@@ -107,7 +107,7 @@ func (dep *UserSiteRepository) GetUsersBySiteId(siteId int) ([]model.UserSiteCur
 }
 
 func (dep *UserSiteRepository) InsertNewUserSite(userId int, siteId int, filters []string) error{
-	query := `INSERT INTO user_site(user_id, site_id, filters) VALUES($1, $2, $3)`
+	query := `INSERT INTO user_sites(user_id, site_id, filters) VALUES($1, $2, $3)`
 
 	jsonFilters, err := json.Marshal(filters)
     if err != nil {

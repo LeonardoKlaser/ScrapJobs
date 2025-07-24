@@ -20,8 +20,8 @@ func (st *SiteCareerRepository) InsertNewSiteCareer(site model.SiteScrapingConfi
 	nilReturn := model.SiteScrapingConfig{}
 
 	query := "INSERT INTO site_scraping_config (site_name, base_url, job_list_item_selector, title_selector, link_selector, link_attribute," +
-									" location_selector, next_page_selector, job_descrpt_selector, job_req_id_selector, target_words) " +
-									"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *"
+									" location_selector, next_page_selector, job_description_selector, job_requisition_id_selector) " +
+									"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *"
 	queryPrepare, err := st.connection.Prepare(query)
 
 	if err != nil {
@@ -33,6 +33,7 @@ func (st *SiteCareerRepository) InsertNewSiteCareer(site model.SiteScrapingConfi
 
 	err = queryPrepare.QueryRow(site.SiteName, site.BaseURL, site.JobListItemSelector, site.TitleSelector, site.LinkSelector, site.LinkAttribute,
 								site.LocationSelector, site.NextPageSelector, site.JobDescriptionSelector, site.JobRequisitionIdSelector).Scan(
+										&siteCreated.ID,
 										&siteCreated.SiteName,
 										&siteCreated.BaseURL,
 										&siteCreated.JobListItemSelector,

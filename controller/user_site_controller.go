@@ -35,13 +35,13 @@ func (usecase *UserSiteController) InsertUserSite(ctx *gin.Context) {
 
 	var body model.UserSiteRequest
 	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error" : fmt.Errorf("error to deserialize new job json body: %w", err)})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error" : fmt.Errorf("error to deserialize new job json body: %w", err).Error()})
 		return
 	}
 
 	err := usecase.usecase.InsertUserSite(user.Id, body.SiteId, body.TargetWords)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error" : fmt.Errorf("error registering user on the website: %w",err)})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error" : fmt.Errorf("error registering user on the website: %w",err).Error()})
 		return
 	}
 

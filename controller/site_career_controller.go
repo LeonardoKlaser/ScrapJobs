@@ -33,11 +33,13 @@ func (usecase *SiteCareerController) InsertNewSiteCareer(ctx *gin.Context){
 
 	if user.Email != "adminScrapjobs@gmail.com"{
 		ctx.JSON(http.StatusBadRequest, gin.H{"error" : "only admins can add new sites"})
+		return
 	}
 
 	var body model.SiteScrapingConfig
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error" : fmt.Errorf("error to deserialize new job json body: %w", err).Error()})
+		return
 	}
 
 	res, err := usecase.usecase.InsertNewSiteCareer(body)
