@@ -14,7 +14,7 @@ type SESMailSender struct {
 }
 
 // NewSESMailSender cria uma instância do SESMailSender carregando a configuração AWS
-func NewSESMailSender(sesClient *ses.Client, from string) (*SESMailSender) {
+func NewSESMailSender(sesClient *ses.Client, from string) *SESMailSender {
    return &SESMailSender{
 		client: sesClient,
 		from:   from,

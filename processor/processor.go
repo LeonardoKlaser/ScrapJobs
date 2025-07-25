@@ -7,7 +7,7 @@ import (
 	"log"
 	"web-scrapper/tasks"
 	"web-scrapper/usecase"
-
+	"web-scrapper/infra/ses"
 	"github.com/hibiken/asynq"
 )
 
@@ -15,10 +15,11 @@ type TaskProcessor struct{
 	_scraper usecase.JobUseCase
 	_notifier usecase.NotificationsUsecase
 	_client *asynq.Client
+	_email *ses.SESMailSender
 }
 
-func NewTaskProcessor(scraper usecase.JobUseCase, notifier usecase.NotificationsUsecase, client *asynq.Client) *TaskProcessor{
-	return &TaskProcessor{_scraper: scraper, _notifier: notifier, _client: client}
+func NewTaskProcessor(scraper usecase.JobUseCase, notifier usecase.NotificationsUsecase, client *asynq.Client, email *ses.SESMailSender) *TaskProcessor{
+	return &TaskProcessor{_scraper: scraper, _notifier: notifier, _client: client, _email: email}
 }
 
 func (p *TaskProcessor) HandleScrapeSiteTask(ctx context.Context, t *asynq.Task) error{
@@ -72,4 +73,35 @@ func (p *TaskProcessor) HandleProcessResultsTask(ctx context.Context, t *asynq.T
     
     log.Printf("INFO: result process to site %d finished.", payload.SiteID)
 	return nil
+}
+
+func (p *TaskProcessor) HandleDeadQueueLetter(ctx context.Context, t *asynq.Task){
+	retryCount, _ := asynq.GetRetryCount(ctx)
+	
+	log.Printf("ALERT: Received a task in Dead-Letter Queue. TaskID: %s, Type: %s", t.ResultWriter().TaskID(), t.Type())
+
+	subject := fmt.Sprintf("[ALERTA SCRAPJOBS] Tarefa falhou: %s", t.Type())
+	body := fmt.Sprintf(`
+		Uma tarefa falhou permanentemente:
+		Detalhes da tarefa:
+		ID:%s
+		tipo da tarefa: %s
+		Fila: dead
+		Numero de retentativas: %d
+
+		Payload da tarefa:
+		<pre>%s</pre>
+
+
+		Investiga isso aí
+	`, t.ResultWriter().TaskID(), t.Type(), retryCount, string(t.Payload()))
+
+	adminEmail := "admin@scrapjobs.com.br"
+
+	err := p._email.SendEmail(ctx, adminEmail, subject, body, body )
+	if err != nil {
+		log.Printf("FATAL: Could not send DLQ alert email for TaskID %s. Error: %v", t.ResultWriter().TaskID(), err)
+	} else {
+		log.Printf("Admin alert email sent successfully for TaskID: %s", t.ResultWriter().TaskID())
+	}
 }

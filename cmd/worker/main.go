@@ -101,7 +101,7 @@ func main() {
 	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, rateLimitedAiService, emailService, NotificationRepository)
 	
 	// TaskProcessor 
-	taskProcessor := processor.NewTaskProcessor(*jobUsecase, *notificationUsecase, clientAsynq)
+	taskProcessor := processor.NewTaskProcessor(*jobUsecase, *notificationUsecase, clientAsynq, mailSender)
 	
 
 	// --- Mapeamento das Tarefas para os Handlers ---
