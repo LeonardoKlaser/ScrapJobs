@@ -1,13 +1,15 @@
 package main
 
-import(
+import (
 	"context"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 	"web-scrapper/infra/db"
 	"web-scrapper/infra/ses"
 	"web-scrapper/model"
-	"web-scrapper/processor"
 	"web-scrapper/usecase"
 	"web-scrapper/utils"
 
@@ -65,15 +67,26 @@ func main(){
 		},
 	)
 
-	taskProcessor := processor.NewTaskProcessor(usecase.JobUseCase{}, usecase.NotificationsUsecase{}, clientAsynq, emailService)
+	pollingInterval := 5 * time.Minute
+	ticker := time.NewTicker(pollingInterval)
+	defer ticker.Stop()
 
-	mux := asynq.NewServeMux()
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 
-	
-	//mux.HandleFunc(, taskProcessor.HandleDeadQueueLetter())
+	log.Println("Archive monitor worker started. Polling interval:", pollingInterval)
 
-	log.Println("DLQ Worker Server started...")
-	if err := srv.Run(mux); err != nil {
-		log.Fatalf("could not run DLQ worker server: %v", err)
+	for {
+		select {
+		case <-ticker.C:
+			log.Println("Polling for archived tasks...")
+			// Lógica de verificação e notificação entra aqui
+			// processArchivedTasks(ctx, inspector, notifier, redisClient)
+
+		case sig := <-shutdown:
+			log.Printf("Received shutdown signal: %v. Shutting down gracefully...", sig)
+			// Lógica de finalização
+			return
+		}
 	}
 }
