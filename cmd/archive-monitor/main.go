@@ -2,90 +2,127 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"strings"
+	"sync"
 	"syscall"
 	"time"
-	"web-scrapper/infra/db"
 	"web-scrapper/infra/ses"
-	"web-scrapper/model"
+	"web-scrapper/repository"
 	"web-scrapper/usecase"
 	"web-scrapper/utils"
 
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 )
 
-func main(){
+type Config struct {
+	RedisAddr              string
+	PollingInterval        time.Duration
+	AdminNotificationEmail string
+	NotifiedTaskSetKey     string
+	NotifiedTaskTTL        time.Duration
+	QueuesToMonitor        []string
+	SenderEmail            string
+}
+
+func loadConfig() (*Config, error ){
 	if os.Getenv("GIN_MODE") != "release"{
 		godotenv.Load()
 	}
 
-	var err error
-	var secrets *model.AppSecrets
-
-	secretName := os.Getenv("APP_SECRET_NAME")
-	if secretName != "" {
-		secrets, err = utils.GetAppSecrets(secretName)
-		if err != nil {
-			panic("Failed to get secrets from AWS Secrets Manager: " + err.Error())
-		}
-	} else {
-		secrets = &model.AppSecrets{
-			DBHost:     os.Getenv("HOST_DB"),
-			DBPort:     os.Getenv("PORT_DB"),
-			DBUser:     os.Getenv("USER_DB"),
-			DBPassword: os.Getenv("PASSWORD_DB"),
-			DBName:     os.Getenv("DBNAME"),
-			RedisAddr:  os.Getenv("REDIS_ADDR"),
-		}
+	pollingIntervalStr := os.Getenv("MONITOR_POLLING_INTERVAL")
+	if pollingIntervalStr == "" {
+		pollingIntervalStr = "5m" // Default
 	}
-
-	awsCfg, err := ses.LoadAWSConfig(context.Background())
+	pollingInterval, err := time.ParseDuration(pollingIntervalStr)
 	if err != nil {
-		log.Fatalf("could not load aws config: %v", err)
+		return nil, fmt.Errorf("invalid MONITOR_POLLING_INTERVAL: %w", err)
 	}
-	clientSES := ses.LoadAWSClient(awsCfg)
-	mailSender := ses.NewSESMailSender(clientSES, "admin@scrapjobs.com.br")
-	emailService := usecase.NewSESSenderAdapter(mailSender)
 
-	dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort, secrets.DBUser, secrets.DBPassword, secrets.DBName)
+	notifiedTaskTTLStr := os.Getenv("NOTIFIED_TASK_TTL")
+	if notifiedTaskTTLStr == "" {
+		notifiedTaskTTLStr = "168h" // Default 7 days
+	}
+	notifiedTaskTTL, err := time.ParseDuration(notifiedTaskTTLStr)
 	if err != nil {
-		log.Fatalf("could not connect to db: %v", err)
+		return nil, fmt.Errorf("invalid NOTIFIED_TASK_TTL: %w", err)
 	}
-	clientAsynq := asynq.NewClient(asynq.RedisClientOpt{Addr: secrets.RedisAddr})
-	defer clientAsynq.Close()
 
-	srv := asynq.NewServer(
-		asynq.RedisClientOpt{ Addr: secrets.RedisAddr},
-		asynq.Config{
-			Concurrency: 1,
-			Queues: map[string]int{
-				"dead" : 1,
-			},
-		},
-	)
+	queuesStr := os.Getenv("QUEUES_TO_MONITOR")
+	if queuesStr == "" {
+		queuesStr = "critical,default,low"
+	}
 
-	pollingInterval := 5 * time.Minute
-	ticker := time.NewTicker(pollingInterval)
+	return &Config{
+		RedisAddr:              os.Getenv("REDIS_ADDR"),
+		PollingInterval:        pollingInterval,
+		AdminNotificationEmail: os.Getenv("ADMIN_NOTIFICATION_EMAIL"),
+		NotifiedTaskSetKey:     os.Getenv("NOTIFIED_TASK_SET_KEY"),
+		NotifiedTaskTTL:        notifiedTaskTTL,
+		QueuesToMonitor:        strings.Split(queuesStr, ","),
+		SenderEmail:            os.Getenv("SENDER_EMAIL"),
+	}, nil
+}
+
+func main(){
+	log.Println("starting Archive Monitor Service...")
+	cfg, err := loadConfig()
+	if err != nil {
+		log.Fatalf("FATAL: failed to load configuration: %v",err)
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	redisOpt, err := redis.ParseURL(cfg.RedisAddr)
+	if err != nil{
+		log.Fatalf("FATAL: could not parse redis address: %v", err)
+	}
+	redisClient := redis.NewClient(redisOpt)
+	defer redisClient.Close()
+
+	asynqRedisOpt := asynq.RedisClientOpt{Addr: cfg.RedisAddr}
+	inspector := asynq.NewInspector(asynqRedisOpt)
+	defer inspector.Close()
+
+	awsCfg, err := ses.LoadAWSConfig(ctx)
+	if err != nil {
+		log.Fatalf("FATAL: could not load aws config: %v", err)
+	}
+
+	sesClient := ses.LoadAWSClient(awsCfg)
+	mailSender := ses.NewSESMailSender(sesClient, cfg.SenderEmail)
+
+	monitorRepo := repository.NewMonitorRepository(redisClient, cfg.NotifiedTaskSetKey, cfg.NotifiedTaskTTL)
+	monitorUseCase := usecase.NewMonitorUsecase(inspector, monitorRepo, mailSender, cfg.AdminNotificationEmail)
+
+	ticker := time.NewTicker(cfg.PollingInterval)
 	defer ticker.Stop()
-
-	shutdown := make(chan os.Signal, 1)
-	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
-
-	log.Println("Archive monitor worker started. Polling interval:", pollingInterval)
+	var wg sync.WaitGroup
+	log.Printf("Archive monitor started. Polling interval: %s", cfg.PollingInterval)
 
 	for {
 		select {
 		case <-ticker.C:
-			log.Println("Polling for archived tasks...")
-			// Lógica de verificação e notificação entra aqui
-			// processArchivedTasks(ctx, inspector, notifier, redisClient)
-
-		case sig := <-shutdown:
-			log.Printf("Received shutdown signal: %v. Shutting down gracefully...", sig)
-			// Lógica de finalização
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				log.Println("Polling for archived tasks...")
+				for _, qname := range cfg.QueuesToMonitor {
+					if err := monitorUseCase.CheckAndNotifyArchivedTasks(ctx, qname); err != nil {
+						log.Printf("ERROR: Failed to process archived tasks for queue '%s': %v", qname, err)
+					}
+				}
+			}()
+		case <-ctx.Done():
+			log.Println("Shutdown signal received. Waiting for ongoing tasks to complete...")
+			wg.Wait()
+			log.Println("All tasks completed. Shutting down gracefully.")
 			return
 		}
 	}
