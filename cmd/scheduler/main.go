@@ -12,7 +12,7 @@ import (
 	"web-scrapper/repository"
 	"web-scrapper/tasks"
 	"web-scrapper/utils"
-
+	"web-scrapper/middleware"
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
 )
@@ -29,7 +29,7 @@ func main() {
 	if secretName  != ""{
 		secrets, err = utils.GetAppSecrets(secretName)
 		if err != nil {
-            panic("Failed to get secrets from AWS Secrets Manager: " + err.Error())
+            middleware.Logger.Fatal().Err(err).Msg("Failed to get secrets from AWS Secrets Manager")
         }
 	} else {
         secrets = &model.AppSecrets{
@@ -47,7 +47,7 @@ func main() {
 
     dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort,secrets.DBUser,secrets.DBPassword,secrets.DBName)
     if err != nil {
-        log.Fatalf("Scheduler could not connect to db: %v", err)
+        middleware.Logger.Fatal().Err(err).Msg("Scheduler could not connect to db")
     }
     siteRepo := repository.NewSiteCareerRepository(dbConnection)
     jobRepo := repository.NewJobRepository(dbConnection)
@@ -66,7 +66,7 @@ func main() {
         case <-tickerDeleteJobs.C:
             go func(){
                 if err := jobRepo.DeleteOldJobs(); err != nil{
-                    log.Printf("ERROR: failed to delete old jobs: %v", err)
+                    middleware.Logger.Fatal().Err(err).Msg("ERROR: failed to delete old jobs")
                 }
             }()
         }

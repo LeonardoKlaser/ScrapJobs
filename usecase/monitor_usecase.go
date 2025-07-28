@@ -8,7 +8,11 @@ import (
 	"time"
 	"web-scrapper/infra/ses"
 	"web-scrapper/interfaces"
+	"web-scrapper/middleware"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/hibiken/asynq"
 )
 
@@ -16,6 +20,7 @@ type MonitorUsecase struct{
 	inspector *asynq.Inspector
 	monitorRepo interfaces.MonitorRepositoryInterface
 	emailSvc *ses.SESMailSender
+	cloudWatchSvc *cloudwatch.Client
 	adminEmail string
 }
 
@@ -23,17 +28,37 @@ func NewMonitorUsecase(
 	inspector *asynq.Inspector,
 	monitorRepo interfaces.MonitorRepositoryInterface,
 	emailSvc *ses.SESMailSender,
+	cloudWatchSvc *cloudwatch.Client,
 	adminEmail string,
 ) *MonitorUsecase {
 	return &MonitorUsecase{
 		inspector:   inspector,
 		monitorRepo: monitorRepo,
 		emailSvc:    emailSvc,
+		cloudWatchSvc: cloudWatchSvc,
 		adminEmail:  adminEmail,
 	}
 }
 
 func (uc *MonitorUsecase) CheckAndNotifyArchivedTasks(ctx context.Context, queueName string) error{
+	queueInfo, err := uc.inspector.GetQueueInfo(queueName)
+	if err != nil {
+		middleware.Logger.Error().Err(err).Msg("ERROR: Could not get queue info for " + queueName)
+	}
+
+	archivedCount := 0
+	if queueInfo != nil {
+		archivedCount = queueInfo.Archived
+	}
+
+	if err := uc.publishArchivedTasksMetric(ctx, queueName, archivedCount); err != nil {
+		middleware.Logger.Error().Err(err).Msg("ERROR: Failed to publish CloudWatch metric for queue " + queueName)
+	}
+
+	if archivedCount == 0 {
+		return nil 
+	}
+
 	const pageSize = 100
 	pageNum := 1
 	for {
@@ -65,6 +90,26 @@ func (uc *MonitorUsecase) CheckAndNotifyArchivedTasks(ctx context.Context, queue
 	}
 
 	return nil
+}
+
+func (uc *MonitorUsecase) publishArchivedTasksMetric(ctx context.Context, queueName string, count int) error {
+	_, err := uc.cloudWatchSvc.PutMetricData(ctx, &cloudwatch.PutMetricDataInput{
+		Namespace: aws.String("ScrapJobs/Application"),
+		MetricData: []types.MetricDatum{
+			{
+				MetricName: aws.String("AsynqArchivedQueueDepth"),
+				Value:      aws.Float64(float64(count)),
+				Unit:       types.StandardUnitCount,
+				Dimensions: []types.Dimension{ // Adicionar a fila como dimensão é uma boa prática
+					{
+						Name:  aws.String("QueueName"),
+						Value: aws.String(queueName),
+					},
+				},
+			},
+		},
+	})
+	return err
 }
 
 

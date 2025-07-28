@@ -2,7 +2,6 @@
 package main
 
 import (
-	"log"
 	"os"
 	"time"
 	"web-scrapper/controller"
@@ -41,7 +40,7 @@ func main() {
 	if secretName  != ""{
 		secrets, err = utils.GetAppSecrets(secretName)
 		if err != nil {
-            panic("Failed to get secrets from AWS Secrets Manager: " + err.Error())
+			middleware.Logger.Fatal().Err(err).Msg("Could not connect to database")
         }
 	} else {
         secrets = &model.AppSecrets{
@@ -55,10 +54,10 @@ func main() {
 
 	dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort,secrets.DBUser,secrets.DBPassword,secrets.DBName)
 	if(err != nil){
-		panic((err))
+		middleware.Logger.Fatal().Err(err).Msg("Could not connect to database")
 	}
 	
-	log.Print("Connected to the database!")
+	middleware.Logger.Info().Msg("successfully connected to the databse")
 	
 	
 
@@ -87,6 +86,7 @@ func main() {
 	publicRateLimiter := middleware.RateLimiter(rate.Limit(5.0/60.0), 2)
 
 	publicRoutes := server.Group("/")
+	publicRoutes.Use(middleware.GinMiddleware())
 	publicRoutes.Use(publicRateLimiter)
 	{
 		publicRoutes.POST("/register", userController.SignUp)
@@ -97,6 +97,7 @@ func main() {
 	privateRateLimiter := middleware.RateLimiter(rate.Limit(15.0/60.0),10)
 
 	privateRoutes := server.Group("/")
+	privateRoutes.Use(middleware.GinMiddleware())
 	privateRoutes.Use(middlewareAuth.RequireAuth)
 	privateRoutes.Use(privateRateLimiter)
 	{

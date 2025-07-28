@@ -92,7 +92,7 @@ func LoadMonitorConfig() (*MonitorConfig, error) {
 		return nil, fmt.Errorf("invalid NOTIFIED_TASK_TTL format: %w", err)
 	}
 
-	queuesStr := getVal(secrets.QueuesToMonitor, "QUEUES_TO_MONITOR", "critical,default,low")
+	queuesStr := getVal(secrets.QueuesToMonitor, "QUEUES_TO_MONITOR", "default")
 
 	cfg := &MonitorConfig{
 		RedisAddr:              getVal(secrets.RedisAddr, "REDIS_ADDR", ""),

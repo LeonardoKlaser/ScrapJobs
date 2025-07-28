@@ -9,19 +9,21 @@ import (
 	"time"
 
 	"web-scrapper/infra/ses"
+	"web-scrapper/middleware"
 	"web-scrapper/repository"
 	"web-scrapper/usecase"
 	"web-scrapper/utils"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/hibiken/asynq"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
 	log.Println("Starting Archive Monitor service...")
 	cfg, err := utils.LoadMonitorConfig()
 	if err != nil {
-		log.Fatalf("FATAL: Failed to load configuration: %v", err)
+		middleware.Logger.Fatal().Err(err).Msg("FATAL: Failed to load configuration")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -30,7 +32,7 @@ func main() {
 	// Initialize dependencies using the loaded config
 	redisOpt, err := redis.ParseURL(cfg.RedisAddr)
 	if err != nil {
-		log.Fatalf("FATAL: could not parse redis address: %v", err)
+		middleware.Logger.Fatal().Err(err).Msg("FATAL: could not parse redis address")
 	}
 	redisClient := redis.NewClient(redisOpt)
 	defer redisClient.Close()
@@ -41,14 +43,16 @@ func main() {
 
 	awsCfg, err := ses.LoadAWSConfig(ctx)
 	if err != nil {
-		log.Fatalf("FATAL: could not load aws config: %v", err)
+		middleware.Logger.Fatal().Err(err).Msg("FATAL: could not load aws config")
 	}
 	sesClient := ses.LoadAWSClient(awsCfg)
 	mailSender := ses.NewSESMailSender(sesClient, cfg.SenderEmail)
 
+	cloudwatchClient := cloudwatch.NewFromConfig(awsCfg)
+
 	// Instantiate architectural components
 	monitorRepo := repository.NewMonitorRepository(redisClient, cfg.NotifiedTaskSetKey, cfg.NotifiedTaskTTL)
-	monitorUsecase := usecase.NewMonitorUsecase(inspector, monitorRepo, mailSender, cfg.AdminNotificationEmail)
+	monitorUsecase := usecase.NewMonitorUsecase(inspector, monitorRepo, mailSender, cloudwatchClient, cfg.AdminNotificationEmail)
 
 	// Setup main loop
 	ticker := time.NewTicker(cfg.PollingInterval)
@@ -56,18 +60,16 @@ func main() {
 	var wg sync.WaitGroup
 	log.Printf("Archive monitor started. Polling interval: %s", cfg.PollingInterval)
 
+
+	runCheck(ctx, &wg, cfg.QueuesToMonitor, monitorUsecase)
+
 	for {
 		select {
 		case <-ticker.C:
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				log.Println("Polling for archived tasks...")
-				for _, qname := range cfg.QueuesToMonitor {
-					if err := monitorUsecase.CheckAndNotifyArchivedTasks(ctx, qname); err != nil {
-						log.Printf("ERROR: Failed to process archived tasks for queue '%s': %v", qname, err)
-					}
-				}
+				runCheck(ctx, &wg, cfg.QueuesToMonitor, monitorUsecase)
 			}()
 		case <-ctx.Done():
 			log.Println("Shutdown signal received. Waiting for ongoing tasks to complete...")
@@ -76,4 +78,17 @@ func main() {
 			return
 		}
 	}
+}
+
+func runCheck(ctx context.Context, wg *sync.WaitGroup, queues []string, uc *usecase.MonitorUsecase) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		log.Println("Polling for archived tasks...")
+		for _, qname := range queues {
+			if err := uc.CheckAndNotifyArchivedTasks(ctx, qname); err != nil {
+				log.Printf("ERROR: Failed to process archived tasks for queue '%s': %v", qname, err)
+			}
+		}
+	}()
 }

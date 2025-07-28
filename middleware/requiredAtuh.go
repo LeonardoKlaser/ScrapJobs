@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 	"web-scrapper/usecase"
-
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )

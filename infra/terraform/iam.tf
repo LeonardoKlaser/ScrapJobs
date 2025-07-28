@@ -5,7 +5,7 @@ resource "aws_iam_role" "ec2_role"{
         Version = "2012-10-17"
         Statement = [
             {
-                Action = "sts:AssumeRole"
+                Action = ["sts:AssumeRole", "cloudwatch:PutMetricData"]
                 Effect = "Allow"
                 Principal = {
                     Service = "ec2.amazonaws.com"
