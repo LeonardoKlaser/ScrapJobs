@@ -8,7 +8,7 @@ on:
       #- '**.go'         
       #- 'go.mod'
       #- 'go.sum'
-      - 'Dockerfile'
+      #- 'Dockerfile'
 
 jobs:
   deploy:
@@ -57,5 +57,5 @@ jobs:
 
           docker-compose pull
           docker-compose run --rm migrate
-          docker-compose up -d api worker scheduler redis go_scrapper_db
+          docker-compose up -d api worker scheduler archive-monitor
           docker image prune -af

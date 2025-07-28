@@ -14,6 +14,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/api ./cmd/api
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/worker ./cmd/worker
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/scheduler ./cmd/scheduler
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/archive-monitor ./cmd/archive-monitor
 
 FROM gcr.io/distroless/static-debian12:nonroot
 
@@ -23,6 +24,7 @@ COPY --from=builder /go/bin/migrate /app/migrate
 COPY --from=builder /app/api /app/api
 COPY --from=builder /app/worker /app/worker
 COPY --from=builder /app/scheduler /app/scheduler
+COPY --from=builder /app/archive-monitor /app/archive-monitor
 COPY --from=builder /app/migrations /app/migrations
 
 EXPOSE 8080

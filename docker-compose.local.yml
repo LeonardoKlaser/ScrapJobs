@@ -44,6 +44,28 @@ services:
         condition: service_healthy
     networks:
       - go_network
+  
+  archive-monitor: 
+    container_name: go_scrapper_archive_monitor 
+    #image: ${IMAGE_NAME} 
+    build: .
+    command: /app/archive-monitor 
+    environment: 
+      - GIN_MODE=release 
+      - AWS_REGION=us-east-1 
+      - APP_SECRET_NAME=ScrapJobs-db-credentials 
+      - REDIS_ADDR=${REDIS_ADDR} 
+      
+      - ADMIN_NOTIFICATION_EMAIL=seu-email@admin.com # Substitua pelo e-mail real
+      - SENDER_EMAIL=noreply@scrapjobs.com.br # Configure um e-mail verificado no SES
+      - MONITOR_POLLING_INTERVAL=5m
+      - NOTIFIED_TASK_SET_KEY=scrapjobs:notified_archived_tasks
+      - NOTIFIED_TASK_TTL=168h
+    depends_on: 
+      redis:
+        condition: service_healthy 
+    networks:
+      - go_network
 
   go_scrapper_db:
     container_name: go_scrapper_db_local

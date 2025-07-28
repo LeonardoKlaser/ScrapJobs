@@ -15,7 +15,7 @@ import (
 type MonitorUsecase struct{
 	inspector *asynq.Inspector
 	monitorRepo interfaces.MonitorRepositoryInterface
-	emailSvc ses.SESMailSender
+	emailSvc *ses.SESMailSender
 	adminEmail string
 }
 
