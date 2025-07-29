@@ -39,6 +39,10 @@ resource "aws_cloudwatch_metric_alarm" "asynq_archived_queue_depth" {
   threshold           = "0"
   alarm_description   = "Alerta quando uma ou mais tarefas do Asynq falham permanentemente e são arquivadas."
   
+  dimensions = {
+    QueueName = "default" 
+  }
+
   alarm_actions = [aws_sns_topic.alarms_topic.arn]
   ok_actions    = [aws_sns_topic.alarms_topic.arn]
 }

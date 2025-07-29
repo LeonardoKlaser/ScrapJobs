@@ -10,7 +10,7 @@ import (
 
 	"web-scrapper/infra/ses"
 	"web-scrapper/logging"
-	"web-scrapper/repository"
+	//"web-scrapper/repository"
 	"web-scrapper/usecase"
 	"web-scrapper/utils"
 
@@ -30,11 +30,9 @@ func main() {
 	defer stop()
 
 	// Initialize dependencies using the loaded config
-	redisOpt, err := redis.ParseURL(cfg.RedisAddr)
-	if err != nil {
-		logging.Logger.Fatal().Err(err).Msg("FATAL: could not parse redis address")
-	}
-	redisClient := redis.NewClient(redisOpt)
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: cfg.RedisAddr,
+	})
 	defer redisClient.Close()
 
 	asynqRedisOpt := asynq.RedisClientOpt{Addr: cfg.RedisAddr}
@@ -45,14 +43,14 @@ func main() {
 	if err != nil {
 		logging.Logger.Fatal().Err(err).Msg("FATAL: could not load aws config")
 	}
-	sesClient := ses.LoadAWSClient(awsCfg)
-	mailSender := ses.NewSESMailSender(sesClient, cfg.SenderEmail)
+	//sesClient := ses.LoadAWSClient(awsCfg)
+	//mailSender := ses.NewSESMailSender(sesClient, cfg.SenderEmail)
 
 	cloudwatchClient := cloudwatch.NewFromConfig(awsCfg)
 
 	// Instantiate architectural components
-	monitorRepo := repository.NewMonitorRepository(redisClient, cfg.NotifiedTaskSetKey, cfg.NotifiedTaskTTL)
-	monitorUsecase := usecase.NewMonitorUsecase(inspector, monitorRepo, mailSender, cloudwatchClient, cfg.AdminNotificationEmail)
+	//monitorRepo := repository.NewMonitorRepository(redisClient, cfg.NotifiedTaskSetKey, cfg.NotifiedTaskTTL)
+	monitorUsecase := usecase.NewMonitorUsecase(inspector, cloudwatchClient)
 
 	// Setup main loop
 	ticker := time.NewTicker(cfg.PollingInterval)

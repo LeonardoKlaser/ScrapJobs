@@ -1,9 +1,26 @@
 # docker-compose.local.yml
 
 services:
+  localstack:
+    container_name: localstack_main
+    image: localstack/localstack:latest
+    ports:
+      - "127.0.0.1:4566:4566"  
+      - "127.0.0.1:4510-4559:4510-4559"       
+    environment:
+      - SERVICES=cloudwatch,ses,sns,secretsmanager,s3 # Adicione s3, é necessário para a UI
+      - GATEWAY_LISTEN=0.0.0.0:4566 # O substituto moderno para EDGE_PORT
+      - UI_BACKEND_URL=http://localhost:4566 # Diz à UI como encontrar o backend
+      - DEBUG=0
+    volumes:
+      - "./.volume:/var/lib/localstack" 
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - go_network
+
   api:
     container_name: go_scrapper_api_local
-    build: . # Constrói a imagem usando o Dockerfile na raiz
+    build: . 
     command: /app/api 
     env_file:
       - .env 
@@ -47,23 +64,15 @@ services:
   
   archive-monitor: 
     container_name: go_scrapper_archive_monitor 
-    #image: ${IMAGE_NAME} 
     build: .
     command: /app/archive-monitor 
-    environment: 
-      - GIN_MODE=release 
-      - AWS_REGION=us-east-1 
-      - APP_SECRET_NAME=ScrapJobs-db-credentials 
-      - REDIS_ADDR=${REDIS_ADDR} 
-      
-      - ADMIN_NOTIFICATION_EMAIL=seu-email@admin.com # Substitua pelo e-mail real
-      - SENDER_EMAIL=noreply@scrapjobs.com.br # Configure um e-mail verificado no SES
-      - MONITOR_POLLING_INTERVAL=5m
-      - NOTIFIED_TASK_SET_KEY=scrapjobs:notified_archived_tasks
-      - NOTIFIED_TASK_TTL=168h
+    env_file:
+      - .env
     depends_on: 
       redis:
         condition: service_healthy 
+      localstack: 
+        condition: service_healthy
     networks:
       - go_network
 
@@ -71,7 +80,7 @@ services:
     container_name: go_scrapper_db_local
     image: postgres:14-alpine
     ports:
-      - "5433:5432" # Mapeado para 5433 para não conflitar com um postgres local
+      - "5433:5432" 
     environment:
       - POSTGRES_USER=${USER_DB}
       - POSTGRES_PASSWORD=${PASSWORD_DB}
@@ -101,8 +110,21 @@ services:
         timeout: 5s
         retries: 5
 
+  redis-commander:
+    container_name: redis-commander
+    image: rediscommander/redis-commander:latest
+    restart: always
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    networks:
+      - go_network
+    depends_on:
+      - redis  
+
   migrate:
-    build: . # Também constrói a partir do Dockerfile local
+    build: . 
     env_file:
       - .env
     depends_on:
@@ -110,7 +132,6 @@ services:
         condition: service_healthy
     networks:
       - go_network
-    # A URL do banco é construída com as variáveis do .env.local
     command: >
       /app/migrate -path /app/migrations -database "postgres://${USER_DB}:${PASSWORD_DB}@go_scrapper_db_local:5432/${DBNAME}?sslmode=disable" up
 

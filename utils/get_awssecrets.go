@@ -68,40 +68,57 @@ func LoadMonitorConfig() (*MonitorConfig, error) {
 	}
 
 	// Função auxiliar para obter valor do secret ou fallback para env var
-	getVal := func(secretVal, envKey, defaultVal string) string {
-		if secrets != nil && secretVal != "" {
-			return secretVal
+	getVal := func(envKey, defaultVal string) string {
+		if secrets != nil {
+			switch envKey {
+			case "REDIS_ADDR":
+				if secrets.RedisAddr != "" { return secrets.RedisAddr }
+			case "MONITOR_POLLING_INTERVAL":
+				if secrets.MonitorPollingInterval != "" { return secrets.MonitorPollingInterval }
+			case "ADMIN_NOTIFICATION_EMAIL":
+				if secrets.AdminNotificationEmail != "" { return secrets.AdminNotificationEmail }
+			case "NOTIFIED_TASK_SET_KEY":
+				if secrets.NotifiedTaskSetKey != "" { return secrets.NotifiedTaskSetKey }
+			case "NOTIFIED_TASK_TTL":
+				if secrets.NotifiedTaskTTL != "" { return secrets.NotifiedTaskTTL }
+			case "QUEUES_TO_MONITOR":
+				if secrets.QueuesToMonitor != "" { return secrets.QueuesToMonitor }
+			case "SENDER_EMAIL":
+				if secrets.SenderEmail != "" { return secrets.SenderEmail }
+			}
 		}
+
 		val := os.Getenv(envKey)
 		if val != "" {
 			return val
 		}
+
 		return defaultVal
 	}
 
 	// Carrega e processa cada variável de configuração
-	pollingIntervalStr := getVal(secrets.MonitorPollingInterval, "MONITOR_POLLING_INTERVAL", "5m")
+	pollingIntervalStr := getVal( "MONITOR_POLLING_INTERVAL", "5m")
 	pollingInterval, err := time.ParseDuration(pollingIntervalStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid MONITOR_POLLING_INTERVAL format: %w", err)
 	}
 
-	notifiedTaskTTLStr := getVal(secrets.NotifiedTaskTTL, "NOTIFIED_TASK_TTL", "168h")
+	notifiedTaskTTLStr := getVal( "NOTIFIED_TASK_TTL", "168h")
 	notifiedTaskTTL, err := time.ParseDuration(notifiedTaskTTLStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid NOTIFIED_TASK_TTL format: %w", err)
 	}
 
-	queuesStr := getVal(secrets.QueuesToMonitor, "QUEUES_TO_MONITOR", "default")
+	queuesStr := getVal( "QUEUES_TO_MONITOR", "default")
 
 	cfg := &MonitorConfig{
-		RedisAddr:              getVal(secrets.RedisAddr, "REDIS_ADDR", ""),
+		RedisAddr:              getVal("REDIS_ADDR", ""),
 		PollingInterval:        pollingInterval,
-		AdminNotificationEmail: getVal(secrets.AdminNotificationEmail, "ADMIN_NOTIFICATION_EMAIL", ""),
-		NotifiedTaskSetKey:     getVal(secrets.NotifiedTaskSetKey, "NOTIFIED_TASK_SET_KEY", "scrapjobs:notified_archived_tasks"),
+		AdminNotificationEmail: getVal("ADMIN_NOTIFICATION_EMAIL", ""),
+		NotifiedTaskSetKey:     getVal("NOTIFIED_TASK_SET_KEY", "scrapjobs:notified_archived_tasks"),
 		NotifiedTaskTTL:        notifiedTaskTTL,
 		QueuesToMonitor:        strings.Split(queuesStr, ","),
-		SenderEmail:            getVal(secrets.SenderEmail, "SENDER_EMAIL", "noreply@scrapjobs.com.br"),
+		SenderEmail:            getVal("SENDER_EMAIL", "noreply@scrapjobs.com.br"),
 	}
 
 	if cfg.RedisAddr == "" {
