@@ -8,7 +8,7 @@ import (
 	"time"
 	"web-scrapper/infra/ses"
 	"web-scrapper/interfaces"
-	"web-scrapper/middleware"
+	"web-scrapper/logging"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
@@ -43,7 +43,7 @@ func NewMonitorUsecase(
 func (uc *MonitorUsecase) CheckAndNotifyArchivedTasks(ctx context.Context, queueName string) error{
 	queueInfo, err := uc.inspector.GetQueueInfo(queueName)
 	if err != nil {
-		middleware.Logger.Error().Err(err).Msg("ERROR: Could not get queue info for " + queueName)
+		logging.Logger.Error().Err(err).Msg("ERROR: Could not get queue info for " + queueName)
 	}
 
 	archivedCount := 0
@@ -52,7 +52,7 @@ func (uc *MonitorUsecase) CheckAndNotifyArchivedTasks(ctx context.Context, queue
 	}
 
 	if err := uc.publishArchivedTasksMetric(ctx, queueName, archivedCount); err != nil {
-		middleware.Logger.Error().Err(err).Msg("ERROR: Failed to publish CloudWatch metric for queue " + queueName)
+		logging.Logger.Error().Err(err).Msg("ERROR: Failed to publish CloudWatch metric for queue " + queueName)
 	}
 
 	if archivedCount == 0 {

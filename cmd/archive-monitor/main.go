@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"web-scrapper/infra/ses"
-	"web-scrapper/middleware"
+	"web-scrapper/logging"
 	"web-scrapper/repository"
 	"web-scrapper/usecase"
 	"web-scrapper/utils"
@@ -23,7 +23,7 @@ func main() {
 	log.Println("Starting Archive Monitor service...")
 	cfg, err := utils.LoadMonitorConfig()
 	if err != nil {
-		middleware.Logger.Fatal().Err(err).Msg("FATAL: Failed to load configuration")
+		logging.Logger.Fatal().Err(err).Msg("FATAL: Failed to load configuration")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -32,7 +32,7 @@ func main() {
 	// Initialize dependencies using the loaded config
 	redisOpt, err := redis.ParseURL(cfg.RedisAddr)
 	if err != nil {
-		middleware.Logger.Fatal().Err(err).Msg("FATAL: could not parse redis address")
+		logging.Logger.Fatal().Err(err).Msg("FATAL: could not parse redis address")
 	}
 	redisClient := redis.NewClient(redisOpt)
 	defer redisClient.Close()
@@ -43,7 +43,7 @@ func main() {
 
 	awsCfg, err := ses.LoadAWSConfig(ctx)
 	if err != nil {
-		middleware.Logger.Fatal().Err(err).Msg("FATAL: could not load aws config")
+		logging.Logger.Fatal().Err(err).Msg("FATAL: could not load aws config")
 	}
 	sesClient := ses.LoadAWSClient(awsCfg)
 	mailSender := ses.NewSESMailSender(sesClient, cfg.SenderEmail)

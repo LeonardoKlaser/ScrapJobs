@@ -7,13 +7,14 @@ import (
 	"web-scrapper/infra/db"
 	"web-scrapper/infra/gemini"
 	"web-scrapper/infra/ses"
+	"web-scrapper/logging"
+	"web-scrapper/model"
 	"web-scrapper/processor"
 	"web-scrapper/repository"
-	"web-scrapper/middleware"
 	"web-scrapper/tasks"
 	"web-scrapper/usecase"
 	"web-scrapper/utils"
-	"web-scrapper/model"
+
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
 	"golang.org/x/time/rate"
@@ -50,7 +51,7 @@ func main() {
 	
 	dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort,secrets.DBUser,secrets.DBPassword,secrets.DBName)
 	if err != nil {
-		middleware.Logger.Fatal().Err(err).Msg("Could not connect to database")
+		logging.Logger.Fatal().Err(err).Msg("Could not connect to database")
 	}
 
 	geminiConfig := gemini.Config{
@@ -59,12 +60,12 @@ func main() {
 	}
 	geminiClient, err := gemini.GeminiClientModel(context.Background(), geminiConfig)
 	if err != nil {
-		middleware.Logger.Fatal().Err(err).Msg("could not create gemini client")
+		logging.Logger.Fatal().Err(err).Msg("could not create gemini client")
 	}
 	
 	awsCfg, err := ses.LoadAWSConfig(context.Background())
 	if err != nil {
-		middleware.Logger.Fatal().Err(err).Msg("could not load aws config")
+		logging.Logger.Fatal().Err(err).Msg("could not load aws config")
 	}
 	clientSES := ses.LoadAWSClient(awsCfg)
 	mailSender := ses.NewSESMailSender(clientSES, "leobkklaser@gmail.com")
@@ -111,7 +112,7 @@ func main() {
 	mux.HandleFunc(tasks.TypeProcessResults, taskProcessor.HandleProcessResultsTask)
 
 	log.Println("Worker Server started...")
-	if err := srv.Run(middleware.AsynqMiddleware(mux)); err != nil {
-		middleware.Logger.Fatal().Err(err).Msg("Could not run asynq server")
+	if err := srv.Run(logging.AsynqMiddleware(mux)); err != nil {
+		logging.Logger.Fatal().Err(err).Msg("Could not run asynq server")
 	}
 }

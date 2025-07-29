@@ -7,6 +7,7 @@ import (
 	"web-scrapper/controller"
 	"web-scrapper/infra/db"
 	"web-scrapper/middleware"
+	"web-scrapper/logging"
 	"web-scrapper/model"
 	"web-scrapper/repository"
 	"web-scrapper/usecase"
@@ -40,7 +41,7 @@ func main() {
 	if secretName  != ""{
 		secrets, err = utils.GetAppSecrets(secretName)
 		if err != nil {
-			middleware.Logger.Fatal().Err(err).Msg("Could not connect to database")
+			logging.Logger.Fatal().Err(err).Msg("Could not connect to database")
         }
 	} else {
         secrets = &model.AppSecrets{
@@ -54,10 +55,10 @@ func main() {
 
 	dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort,secrets.DBUser,secrets.DBPassword,secrets.DBName)
 	if(err != nil){
-		middleware.Logger.Fatal().Err(err).Msg("Could not connect to database")
+		logging.Logger.Fatal().Err(err).Msg("Could not connect to database")
 	}
 	
-	middleware.Logger.Info().Msg("successfully connected to the databse")
+	logging.Logger.Info().Msg("successfully connected to the databse")
 	
 	
 
@@ -86,7 +87,7 @@ func main() {
 	publicRateLimiter := middleware.RateLimiter(rate.Limit(5.0/60.0), 2)
 
 	publicRoutes := server.Group("/")
-	publicRoutes.Use(middleware.GinMiddleware())
+	publicRoutes.Use(logging.GinMiddleware())
 	publicRoutes.Use(publicRateLimiter)
 	{
 		publicRoutes.POST("/register", userController.SignUp)
@@ -97,7 +98,7 @@ func main() {
 	privateRateLimiter := middleware.RateLimiter(rate.Limit(15.0/60.0),10)
 
 	privateRoutes := server.Group("/")
-	privateRoutes.Use(middleware.GinMiddleware())
+	privateRoutes.Use(logging.GinMiddleware())
 	privateRoutes.Use(middlewareAuth.RequireAuth)
 	privateRoutes.Use(privateRateLimiter)
 	{
