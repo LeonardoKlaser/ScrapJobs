@@ -10,6 +10,9 @@ resource "aws_sns_topic_subscription" "email_subscription_local" {
   endpoint  = "leobkklaser@gmail.com"
 }
 
+resource "aws_ses_email_identity" "sender_email" {
+  email = "leobkklaser@gmail.com"
+}
 
 resource "aws_cloudwatch_metric_alarm" "asynq_archived_queue_depth_local" {
   alarm_name          = "ScrapJobs-Asynq-Archived-Tasks-Local"
