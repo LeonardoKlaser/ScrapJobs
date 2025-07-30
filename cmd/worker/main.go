@@ -96,7 +96,8 @@ func main() {
 	emailService := usecase.NewSESSenderAdapter(mailSender)
 	jobUsecase := usecase.NewJobUseCase(jobRepository)
 
-	aiApiLimiter := rate.NewLimiter(rate.Limit(30.0/60.0), 1)
+	//conferir exatamente os limites da API que for ser usada em produção
+	aiApiLimiter := rate.NewLimiter(rate.Limit(15.0/60.0), 1)
 
 	rateLimitedAiService := usecase.NewRateLimitedAiAnalyser(aiAnalyser, aiApiLimiter)
 

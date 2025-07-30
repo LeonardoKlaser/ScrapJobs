@@ -17,5 +17,5 @@ type UserSiteCurriculum struct{
 
 type UserSiteRequest struct{
 	SiteId int `json:"site_id"`
-	TargetWords []string `db:"target_words"`
+	TargetWords []string `json:"target_words" db:"target_words"`
 }

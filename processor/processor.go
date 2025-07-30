@@ -81,7 +81,7 @@ func (p *TaskProcessor) HandleFindMatchesTask(ctx context.Context, t *asynq.Task
         }
 
 		analysisTask := asynq.NewTask(tasks.TypeAnalyzeUserJob, p_bytes, asynq.MaxRetry(3))
-        _, err = p._client.Enqueue(analysisTask, asynq.Queue("critical"))
+        _, err = p._client.Enqueue(analysisTask, asynq.Queue("default"))
         if err != nil {
             logging.Logger.Error().Err(err).Msg("Failed to enqueue analysis task")
         }
