@@ -79,20 +79,23 @@ func (usr *JobRepository) FindJobsByRequisitionIDs(requisition_IDs []int) (map[i
 	return Exists, rows.Err()
 }
 
-func (usr *JobRepository) UpdateLastSeen(requisition_ID int) error{
-	query := `UPDATE jobs SET last_seen_at = CURRENT_TIMESTAMP WHERE requisition_ID = $1`
-	result, err := usr.connection.Exec(query, requisition_ID)
-	if err != nil {
-		log.Printf("error to update last seen for job id : %d - %v", requisition_ID, err)
+func (usr *JobRepository) UpdateLastSeen(requisition_ID int) (int, error){
+	var id int
+	query := `UPDATE jobs SET last_seen_at = CURRENT_TIMESTAMP WHERE requisition_ID = $1 RETURNING id `
+	queryPrepare, err := usr.connection.Prepare(query)
+	if(err != nil){
+		log.Printf("error to prepare query to update last seen for job id : %d - %v", requisition_ID, err)
+		return id, err
 	}
 
-	_, err = result.RowsAffected()
-	if err != nil {
+	err = queryPrepare.QueryRow(requisition_ID).Scan(&id)
+	if(err != nil){
 		log.Printf("error to update last seen for job id : %d - %v", requisition_ID, err)
+		return id, err
 	}
 
 	log.Printf("last seen updated for job id : %d  ", requisition_ID)
-	return nil
+	return id, nil
 }
 
 func (usr *JobRepository) DeleteOldJobs() error{

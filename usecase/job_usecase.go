@@ -64,7 +64,11 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
 			job.ID = ID
 			newJobsToDatabase = append(newJobsToDatabase, job)
         }else{
-			uc.Repository.UpdateLastSeen(job.Requisition_ID)
+			jobID, err := uc.Repository.UpdateLastSeen(job.Requisition_ID)
+			if err != nil {
+				log.Printf("Error to update last seen job %v : %v", job, err)
+			}
+			job.ID = jobID
 			newJobsToDatabase = append(newJobsToDatabase, job)
 		}
     }
