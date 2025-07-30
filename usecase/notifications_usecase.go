@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"sync"
 	"web-scrapper/interfaces"
+	"web-scrapper/logging"
 	"web-scrapper/model"
+	"web-scrapper/tasks"
+
+	"github.com/hibiken/asynq"
 )
 
 
@@ -16,6 +19,7 @@ type NotificationsUsecase struct{
 	analysisService interfaces.AnalysisService
 	emailService interfaces.EmailService
 	notificationRepository interfaces.NotificationRepositoryInterface
+	asynqClient *asynq.Client
 }
 
 func NewNotificationUsecase(
@@ -23,20 +27,22 @@ func NewNotificationUsecase(
     analysisService interfaces.AnalysisService,
     emailService interfaces.EmailService,
 	notificationRepository interfaces.NotificationRepositoryInterface,
+	asynqClient *asynq.Client,
 ) *NotificationsUsecase{
 	return &NotificationsUsecase{
 		userSiteRepo:    userSiteRepo,
         analysisService: analysisService,
         emailService:    emailService,
 		notificationRepository: notificationRepository,
+		asynqClient: asynqClient,
 	}
 }
 
-func (s *NotificationsUsecase) FindMatchesAndNotify(siteId int, jobs []*model.Job) error{
-	log.Printf("Jobs: %v", jobs)
+func (s *NotificationsUsecase) FindMatches(siteId int, jobs []*model.Job) ([]tasks.AnalyzeUserJobPayload, error){
+	var payloadsToEnqueue []tasks.AnalyzeUserJobPayload
 	userWithCurriculum, err := s.userSiteRepo.GetUsersBySiteId(siteId)
 	if err != nil {
-		return fmt.Errorf("error to get users by site Id %d: %w", siteId, err)
+		return payloadsToEnqueue, fmt.Errorf("error to get users by site Id %d: %w", siteId, err)
 	}
 
 	jobsById := make(map[int]*model.Job)
@@ -47,7 +53,7 @@ func (s *NotificationsUsecase) FindMatchesAndNotify(siteId int, jobs []*model.Jo
 	for _, user := range userWithCurriculum{
 
 		if user.Curriculum == nil {
-			log.Printf("INFO: User %s (ID: %d) has no curriculum, skipping notifications for this user.", user.Name, user.UserId)
+			logging.Logger.Info().Str("user_name", user.Name).Int("user_id", user.UserId).Msg("User has no curriculum, skipping")
 			continue
 		}
 
@@ -65,7 +71,7 @@ func (s *NotificationsUsecase) FindMatchesAndNotify(siteId int, jobs []*model.Jo
 		log.Printf("usuario encontrando para enviar notificacao: %s", user.Name)
 		notifiedJobsMap, err := s.notificationRepository.GetNotifiedJobIDsForUser(user.UserId, matchedJobIDs)
 		if err != nil{
-			return err
+			return payloadsToEnqueue, err
 		}
 
 		for _, jobId := range  matchedJobIDs {
@@ -79,49 +85,15 @@ func (s *NotificationsUsecase) FindMatchesAndNotify(siteId int, jobs []*model.Jo
 			continue 
 		}
 
-		//inicializa worker pool para melhorar performance (executar mais de uma notificação/analise ao mesmo tempo)
-		const numWorkers = 5
-		jobsChan := make(chan *model.Job, len(jobsToSend))
-		var wg sync.WaitGroup
-
-		for i := 0; i < numWorkers; i++ {
-			wg.Add(1)
-			go func(workerID int){
-				defer wg.Done()
-
-				for job := range jobsChan{
-					log.Printf("actual job: %v", job)
-					analysis, err := s.analysisService.Analyze(context.Background(), *user.Curriculum, *job)
-					if err != nil {
-						log.Printf("[Worker %d] ERROR: AI analysis failed for job %s: %v", workerID, job.Title, err)
-						continue 
-					}
-					log.Printf("analise feita para usuario %s com job %s", user.Name, job.Title)
-
-					err = s.emailService.SendAnalysisEmail(context.Background(), user.Email, *job, analysis)
-					if err != nil {
-						log.Printf("[Worker %d] ERROR: Email sending failed for job %s: %v", workerID, job.Title, err)
-						continue
-					}
-					log.Printf("email feita para usuario %s com job %s", user.Name, job.Title)
-					err = s.notificationRepository.InsertNewNotification(job.ID, user.UserId)
-					if err != nil {
-						log.Printf("[Worker %d] FATAL: Failed to insert notification record for job %d: %v", workerID, job.ID, err)
-					}
-				}
-			}(i)
+		for _, job := range jobsToSend{
+			payloadsToEnqueue = append(payloadsToEnqueue, tasks.AnalyzeUserJobPayload{
+				User: user,
+				Job: job,
+			})
 		}
-
-		for _, job := range jobsToSend {
-			jobsChan <- job
-		}
-		close(jobsChan) 
-
-		wg.Wait()
-		log.Printf("Finished notification pool for user %s.", user.Name)
 
 	}
-	return nil
+	return payloadsToEnqueue, nil
 }
 
 func (s *NotificationsUsecase) matchJobWithFilters(job model.Job, filters []string) bool {
@@ -139,4 +111,35 @@ func (s *NotificationsUsecase) matchJobWithFilters(job model.Job, filters []stri
     }
 
     return false 
+}
+
+func (s *NotificationsUsecase) ProcessingJobAnalyze(ctx context.Context, job model.Job, user model.UserSiteCurriculum) (tasks.NotifyUserPayload, error){
+	analysis, err := s.analysisService.Analyze(context.Background(), *user.Curriculum, job)
+	if err != nil {
+		return tasks.NotifyUserPayload{}, fmt.Errorf("ERROR: AI analysis failed for job %s: %v", job.Title, err)				
+	}
+	log.Printf("analise feita para usuario %s com job %s", user.Name, job.Title)
+		
+	payload:= tasks.NotifyUserPayload{
+		User: user,
+		Job: &job,
+		Analysis: analysis,
+	}
+	return payload, nil
+}
+
+
+func (s *NotificationsUsecase) ProcessingSingleNotification(ctx context.Context, job model.Job, user model.UserSiteCurriculum, analysis model.ResumeAnalysis) error{
+
+	err := s.emailService.SendAnalysisEmail(context.Background(), user.Email, job, analysis)
+	if err != nil {
+		return fmt.Errorf("ERROR: Email sending failed for job %s: %v", job.Title, err)			
+	}
+	log.Printf("email feita para usuario %s com job %s", user.Name, job.Title)
+	err = s.notificationRepository.InsertNewNotification(job.ID, user.UserId)
+	if err != nil {
+		return fmt.Errorf("FATAL: Failed to insert notification record for job %d: %v", job.ID, err)
+	}
+
+	return nil
 }

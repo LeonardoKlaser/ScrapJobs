@@ -4,8 +4,9 @@ import (
 	"errors"
 	"testing"
 	"web-scrapper/model"
-	"web-scrapper/repository/mocks" 
+	"web-scrapper/repository/mocks"
 
+	"github.com/hibiken/asynq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -15,12 +16,15 @@ func TestNotificationsUsecase_FindMatchesAndNotify(t *testing.T){
 	mockNotificationRepo := new(mocks.MockNotificationRepository)
 	mockAnalysisService := new(mocks.MockAnalysisService)
 	mockEmailService := new(mocks.MockEmailService)
+    clientAsynq := asynq.NewClient(asynq.RedisClientOpt{Addr: "redis:6379"})
+    defer clientAsynq.Close()
 
 	notificationUsecase := NewNotificationUsecase(
 		mockUserSiteRepo,
 		mockAnalysisService,
 		mockEmailService,
 		mockNotificationRepo,
+        clientAsynq,
 	)
 
 	siteId := 1
@@ -42,7 +46,7 @@ func TestNotificationsUsecase_FindMatchesAndNotify(t *testing.T){
         mockEmailService.On("SendAnalysisEmail", mock.Anything, testUser.Email, *matchingJob, mock.Anything).Return(nil).Once()
         mockNotificationRepo.On("InsertNewNotification", matchingJob.ID, testUser.UserId).Return(nil).Once()
 
-		err := notificationUsecase.FindMatchesAndNotify(siteId, []*model.Job{matchingJob, nonMatchingJob})
+		_,err := notificationUsecase.FindMatches(siteId, []*model.Job{matchingJob, nonMatchingJob})
 
 		assert.NoError(t, err)
 		mockUserSiteRepo.AssertExpectations(t)
@@ -57,7 +61,7 @@ func TestNotificationsUsecase_FindMatchesAndNotify(t *testing.T){
         mockNotificationRepo.On("GetNotifiedJobIDsForUser", testUser.UserId, []int{matchingJob.ID}).Return(alreadyNotifiedMap, nil).Once()
 
         
-        err := notificationUsecase.FindMatchesAndNotify(siteId, []*model.Job{matchingJob})
+        _,err := notificationUsecase.FindMatches(siteId, []*model.Job{matchingJob})
 
         // Asserções
         assert.NoError(t, err)
@@ -75,7 +79,7 @@ func TestNotificationsUsecase_FindMatchesAndNotify(t *testing.T){
         
 
        
-        err := notificationUsecase.FindMatchesAndNotify(siteId, []*model.Job{matchingJob})
+        _, err := notificationUsecase.FindMatches(siteId, []*model.Job{matchingJob})
 
         
         assert.NoError(t, err) 

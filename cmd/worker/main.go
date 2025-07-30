@@ -100,7 +100,7 @@ func main() {
 
 	rateLimitedAiService := usecase.NewRateLimitedAiAnalyser(aiAnalyser, aiApiLimiter)
 
-	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, rateLimitedAiService, emailService, NotificationRepository)
+	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, rateLimitedAiService, emailService, NotificationRepository, clientAsynq)
 	
 	// TaskProcessor 
 	taskProcessor := processor.NewTaskProcessor(*jobUsecase, *notificationUsecase, clientAsynq, mailSender)
@@ -109,7 +109,9 @@ func main() {
 	// --- Mapeamento das Tarefas para os Handlers ---
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(tasks.TypeScrapSite, taskProcessor.HandleScrapeSiteTask)
-	mux.HandleFunc(tasks.TypeProcessResults, taskProcessor.HandleProcessResultsTask)
+	mux.HandleFunc(tasks.TypeProcessResults, taskProcessor.HandleFindMatchesTask)
+	mux.HandleFunc(tasks.TypeAnalyzeUserJob, taskProcessor.HandleAnalyzeJobUserTask)
+	mux.HandleFunc(tasks.TypeNotifyUser, taskProcessor.HandleNotifyTask)
 
 	log.Println("Worker Server started...")
 	if err := srv.Run(logging.AsynqMiddleware(mux)); err != nil {

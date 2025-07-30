@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"web-scrapper/infra/ses"
+	"web-scrapper/logging"
 	"web-scrapper/tasks"
 	"web-scrapper/usecase"
-	"web-scrapper/infra/ses"
+
 	"github.com/hibiken/asynq"
 )
 
@@ -57,7 +59,7 @@ func (p *TaskProcessor) HandleScrapeSiteTask(ctx context.Context, t *asynq.Task)
 	return nil
 }
 
-func (p *TaskProcessor) HandleProcessResultsTask(ctx context.Context, t *asynq.Task) error {
+func (p *TaskProcessor) HandleFindMatchesTask(ctx context.Context, t *asynq.Task) error {
     var payload tasks.ProcessResultsPayload
     if err := json.Unmarshal(t.Payload(), &payload); err != nil {
         return fmt.Errorf("error to get payload results: %w", err)
@@ -66,12 +68,66 @@ func (p *TaskProcessor) HandleProcessResultsTask(ctx context.Context, t *asynq.T
     log.Printf("INFO: processing result to site: %d, jobs: %d", payload.SiteID, len(payload.Jobs))
     
     
-    err := p._notifier.FindMatchesAndNotify(payload.SiteID, payload.Jobs)
+    payloadsToEnqueue, err := p._notifier.FindMatches(payload.SiteID, payload.Jobs)
     if err != nil {
         return fmt.Errorf("error to notify to site %d: %w", payload.SiteID, err)
     }
+
+	for _, analysisPayload := range payloadsToEnqueue{
+		p_bytes, err := json.Marshal(analysisPayload)
+        if err != nil {
+            logging.Logger.Error().Err(err).Msg("Failed to marshal analysis payload, skipping task")
+            continue
+        }
+
+		analysisTask := asynq.NewTask(tasks.TypeAnalyzeUserJob, p_bytes, asynq.MaxRetry(3))
+        _, err = p._client.Enqueue(analysisTask, asynq.Queue("critical"))
+        if err != nil {
+            logging.Logger.Error().Err(err).Msg("Failed to enqueue analysis task")
+        }
+	}
     
     log.Printf("INFO: result process to site %d finished.", payload.SiteID)
+	return nil
+}
+
+func (p *TaskProcessor) HandleAnalyzeJobUserTask(ctx context.Context, t *asynq.Task) error {
+	var payload tasks.AnalyzeUserJobPayload
+	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
+		return fmt.Errorf("error to get payload to analysis: %w", err)
+	}
+
+	jobAnalyzed, err := p._notifier.ProcessingJobAnalyze(ctx, *payload.Job, payload.User)
+	if err != nil {
+		return fmt.Errorf("error to analyze job: %s to user: %d: %w", payload.Job.Title, payload.User.UserId ,err)
+	}
+
+	payloadJobAnalyzed, err := json.Marshal(jobAnalyzed)
+	if err != nil {
+        logging.Logger.Error().Err(err).Msg("Failed to marshal notify user payload")
+		return nil 
+    }
+
+	analyzeTask := asynq.NewTask(tasks.TypeNotifyUser, payloadJobAnalyzed, asynq.MaxRetry(3))
+
+    _, err = p._client.Enqueue(analyzeTask, asynq.Queue("default")) 
+    if err != nil {
+        logging.Logger.Error().Err(err).Int("user_id", jobAnalyzed.User.UserId).Int("job_id", jobAnalyzed.Job.ID).Msg("Failed to enqueue notification task")
+		return err
+    }
+	return nil
+}
+
+func (p *TaskProcessor) HandleNotifyTask(ctx context.Context, t *asynq.Task) error {
+	var payload tasks.NotifyUserPayload
+	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
+		return fmt.Errorf("error to get payload to notify: %w", err)
+	}
+
+	err := p._notifier.ProcessingSingleNotification(ctx, *payload.Job, payload.User, payload.Analysis)
+	if err != nil {
+		return fmt.Errorf("error to send notification job: %s to user: %d : %w", payload.Job.Title, payload.User.UserId, err)
+	}
 	return nil
 }
 
