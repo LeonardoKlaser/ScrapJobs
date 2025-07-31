@@ -6,14 +6,16 @@ import (
 	"time"
 	"web-scrapper/controller"
 	"web-scrapper/infra/db"
-	"web-scrapper/middleware"
 	"web-scrapper/logging"
+	"web-scrapper/middleware"
 	"web-scrapper/model"
 	"web-scrapper/repository"
 	"web-scrapper/usecase"
 	"web-scrapper/utils"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
 	"golang.org/x/time/rate"
 )
@@ -50,6 +52,7 @@ func main() {
             DBUser: os.Getenv("USER_DB"),
             DBPassword: os.Getenv("PASSWORD_DB"),
             DBName:   os.Getenv("DBNAME"),
+			RedisAddr: os.Getenv("REDIS_ADDR"),
         }
     }
 
@@ -60,6 +63,8 @@ func main() {
 	
 	logging.Logger.Info().Msg("successfully connected to the databse")
 	
+	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: os.Getenv("REDIS_ADDR")})
+    defer asynqClient.Close()
 	
 
 	// Repositories
@@ -79,6 +84,7 @@ func main() {
 	curriculumController := controller.NewCurriculumController(curriculumUsecase)
 	userSiteController := controller.NewUserSiteController(UserSiteUsecase)
 	siteCareerController := controller.NewSiteCareerController(SiteCareerUsecase)
+	healthController := controller.NewHealthController(dbConnection, asynqClient)
 
 	//middleware
 	middlewareAuth := middleware.NewMiddleware(userUsecase)
@@ -108,6 +114,12 @@ func main() {
 
 		privateRoutes.GET("/curriculum/:id", curriculumController.GetCurriculumByUserId)
 	}
+
+	 healthRoutes := server.Group("/health")
+    {
+        healthRoutes.GET("/live", healthController.Liveness)
+        healthRoutes.GET("/ready", healthController.Readiness)
+    }
 
 	
 	server.Run(":8080")
