@@ -8,9 +8,9 @@ services:
       - "127.0.0.1:4566:4566"  
       - "127.0.0.1:4510-4559:4510-4559"       
     environment:
-      - SERVICES=cloudwatch,ses,sns,secretsmanager,s3 # Adicione s3, é necessário para a UI
-      - GATEWAY_LISTEN=0.0.0.0:4566 # O substituto moderno para EDGE_PORT
-      - UI_BACKEND_URL=http://localhost:4566 # Diz à UI como encontrar o backend
+      - SERVICES=cloudwatch,ses,sns,secretsmanager,s3 
+      - GATEWAY_LISTEN=0.0.0.0:4566 
+      - UI_BACKEND_URL=http://localhost:4566 
       - DEBUG=0
     volumes:
       - "./.volume:/var/lib/localstack" 
@@ -33,6 +33,14 @@ services:
         condition: service_healthy
     networks:
       - go_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    labels:
+      - "autoheal=true"
   
   worker:
     container_name: go_scrapper_worker_local
@@ -47,6 +55,14 @@ services:
         condition: service_healthy
     networks:
       - go_network
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep worker || exit 1"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    labels:
+      - "autoheal=true"
 
   scheduler:
     container_name: go_scrapper_scheduler_local
@@ -61,6 +77,8 @@ services:
         condition: service_healthy
     networks:
       - go_network
+    labels:
+      - "autoheal=true"
   
   archive-monitor: 
     container_name: go_scrapper_archive_monitor 
@@ -75,6 +93,8 @@ services:
         condition: service_healthy
     networks:
       - go_network
+    labels:
+      - "autoheal=true"
 
   go_scrapper_db:
     container_name: go_scrapper_db_local
@@ -134,6 +154,16 @@ services:
       - go_network
     command: >
       /app/migrate -path /app/migrations -database "postgres://${USER_DB}:${PASSWORD_DB}@go_scrapper_db_local:5432/${DBNAME}?sslmode=disable" up
+  
+  autoheal:
+    image: willfarrell/autoheal
+    restart: always
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - go_network
 
 networks:
   go_network:
