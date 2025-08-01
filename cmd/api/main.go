@@ -111,7 +111,7 @@ func main() {
 		privateRoutes.POST("/curriculum", curriculumController.CreateCurriculum)
 		privateRoutes.POST("/userSite", userSiteController.InsertUserSite)
 		privateRoutes.POST("/siteCareer", siteCareerController.InsertNewSiteCareer)
-
+		privateRoutes.POST("/scrape-sandbox", siteCareerController.SandboxScrape)
 		privateRoutes.GET("/curriculum/:id", curriculumController.GetCurriculumByUserId)
 	}
 

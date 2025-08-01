@@ -52,3 +52,36 @@ func (usecase *SiteCareerController) InsertNewSiteCareer(ctx *gin.Context){
 
 	ctx.JSON(http.StatusCreated, res)
 }
+
+func (usecase *SiteCareerController) SandboxScrape(ctx *gin.Context){
+	var config model.SiteScrapingConfig
+	if err := ctx.ShouldBindJSON(&config); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Corpo da requisição inválido"})
+		return
+	}
+
+	scrapedJobs, err := usecase.usecase.SandboxScrape(config)
+	if err != nil {
+        ctx.JSON(http.StatusInternalServerError, gin.H{
+            "success": false,
+            "error":   err.Error(),
+            "message": "Falha ao executar o scraping com a configuração fornecida.",
+        })
+        return
+    }
+
+	if len(scrapedJobs) == 0 {
+        ctx.JSON(http.StatusOK, gin.H{
+            "success": true,
+            "message": "A configuração funcionou, mas nenhuma vaga foi encontrada na primeira página.",
+            "data":    []model.Job{},
+        })
+        return
+    }
+
+    ctx.JSON(http.StatusOK, gin.H{
+        "success": true,
+        "message": fmt.Sprintf("%d vagas encontradas com sucesso.", len(scrapedJobs)),
+        "data":    scrapedJobs,
+    })
+}

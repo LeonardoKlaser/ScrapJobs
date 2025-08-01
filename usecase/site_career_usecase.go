@@ -1,8 +1,10 @@
 package usecase
 
 import (
-	"web-scrapper/model"
+	"fmt"
 	"web-scrapper/interfaces"
+	"web-scrapper/model"
+	"web-scrapper/scrapper"
 )
 
 type SiteCareerUsecase struct{
@@ -22,4 +24,15 @@ func (repo *SiteCareerUsecase) InsertNewSiteCareer(site model.SiteScrapingConfig
 	}
 
 	return res, nil
+}
+
+func (repo *SiteCareerUsecase) SandboxScrape(config model.SiteScrapingConfig) ([]*model.Job, error){
+	scraper := scrapper.NewJobScraper()
+	
+	jobs, err := scraper.ScrapeJobs(config)
+	if err != nil {
+		return nil, fmt.Errorf("erro durante o processo de scraping: %w ", err)
+	}
+
+	return jobs, nil
 }
