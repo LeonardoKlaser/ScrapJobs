@@ -38,10 +38,13 @@ func (job JobUseCase) FindJobByRequisitionID(requisition_ID int) (bool, error){
 
 
 func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.SiteScrapingConfig) ([]*model.Job, error) {
-    jobs, err := scrapper.NewJobScraper().ScrapeJobs(selectors)
+    scrapInterface, err := scrapper.NewScraperFactory(selectors)
     if err != nil {
         return nil, err
     }
+
+	jobs, err := scrapInterface.Scrape(ctx, selectors)
+	
     var newJobsToDatabase []*model.Job
 	ids := takeIDs(jobs)
 	exist, err := uc.Repository.FindJobsByRequisitionIDs(ids)

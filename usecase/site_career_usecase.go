@@ -5,6 +5,7 @@ import (
 	"web-scrapper/interfaces"
 	"web-scrapper/model"
 	"web-scrapper/scrapper"
+	"context"
 )
 
 type SiteCareerUsecase struct{
@@ -26,10 +27,13 @@ func (repo *SiteCareerUsecase) InsertNewSiteCareer(site model.SiteScrapingConfig
 	return res, nil
 }
 
-func (repo *SiteCareerUsecase) SandboxScrape(config model.SiteScrapingConfig) ([]*model.Job, error){
-	scraper := scrapper.NewJobScraper()
-	
-	jobs, err := scraper.ScrapeJobs(config)
+func (repo *SiteCareerUsecase) SandboxScrape(ctx context.Context,config model.SiteScrapingConfig) ([]*model.Job, error){
+	scrapInterface, err := scrapper.NewScraperFactory(config)
+    if err != nil {
+        return nil, err
+    }
+
+	jobs, err := scrapInterface.Scrape(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("erro durante o processo de scraping: %w ", err)
 	}

@@ -60,7 +60,7 @@ func (usecase *SiteCareerController) SandboxScrape(ctx *gin.Context){
 		return
 	}
 
-	scrapedJobs, err := usecase.usecase.SandboxScrape(config)
+	scrapedJobs, err := usecase.usecase.SandboxScrape(ctx, config)
 	if err != nil {
         ctx.JSON(http.StatusInternalServerError, gin.H{
             "success": false,

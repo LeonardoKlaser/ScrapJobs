@@ -14,7 +14,7 @@ func NewScraperFactory(config model.SiteScrapingConfig) (interfaces.Scraper, err
 	case "HTML":
 		return NewJobScraper(), nil 
 	case "API":
-		return NewAPIScraper(), nil
+		return NewAPIScrapper(), nil
 	case "HEADLESS":
 		return NewHeadlessScraper(), nil
 	default:
