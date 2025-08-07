@@ -1,6 +1,7 @@
 package scrapper
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"strconv"
@@ -10,9 +11,6 @@ import (
 	"github.com/gocolly/colly"
 )
 
-type JobScrapper interface {
-	ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Job, error)
-}
 
 type jobScraper struct{
 }
@@ -22,29 +20,9 @@ func NewJobScraper() JobScrapper {
 	}
 }
 
-func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Job, error) {
-	log.Printf("DEBUG: Seletores recebidos: %+v\n", selectors)
-	var jobs []*model.Job
-	var wg sync.WaitGroup
+func (s *jobScraper) configureCollyCallbacks(c *colly.Collector, detailCollector *colly.Collector, jobs *[]*model.Job, wg *sync.WaitGroup, mu *sync.Mutex, selectors model.SiteScrapingConfig){
 
-	c := colly.NewCollector(
-		colly.Async(true),
-	)
-
-	c.Limit(&colly.LimitRule{
-        DomainGlob:  "*",
-        Parallelism: 8, 
-    })
-
-	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
-
-	detailCollector := c.Clone()
-
-	nextPageVisitedOnThisRequest := false
-
-	c.OnRequest(func(r *colly.Request) {
-        nextPageVisitedOnThisRequest = false
-    })
+	nextPageVisitedOnThisRequest := true
 
 	detailCollector.OnHTML("body", func(e *colly.HTMLElement) {
 		defer wg.Done()
@@ -86,8 +64,9 @@ func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Jo
 			ctx.Put("job", job)
 			detailCollector.Request("GET", jobURL, nil, ctx, nil)
 		}
-
+		mu.Lock()
 		jobs = append(jobs, job)
+		mu.Unlock()
 	})
 
 	c.OnHTML(selectors.NextPageSelector.String, func(e *colly.HTMLElement) {
@@ -100,18 +79,25 @@ func (s *jobScraper) ScrapeJobs(selectors model.SiteScrapingConfig) ([]*model.Jo
             }
         }
 	})
+}
 
-	err := c.Visit(selectors.BaseURL)
-	if err != nil {
-		return jobs, err
+func (s *JobScraper) Scrape(ctx context.Context, config model.SiteScrapingConfig) ([]*model.Job, error) {
+	var jobs []*model.Job
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	c := colly.NewCollector(colly.Async(true))
+	detailCollector := c.Clone()
+	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 8})
+	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+
+	s.configureCollyCallbacks(c, detailCollector, &jobs, &wg, &mu, config)
+
+	if err := c.Visit(config.BaseURL); err != nil {
+		return nil, err
 	}
 
 	c.Wait()
-
 	wg.Wait()
-	
-	for _, job := range jobs{
-		log.Printf("job %s retornando com requisition id %d", job.Title, job.Requisition_ID)
-	}
 	return jobs, nil
 }
