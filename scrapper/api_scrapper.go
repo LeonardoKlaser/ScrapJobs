@@ -27,18 +27,18 @@ func NewAPIScrapper() *APIScrapper{
 
 func (s *APIScrapper) Scrape(ctx context.Context, config model.SiteScrapingConfig) ([]*model.Job, error){
 	method := "GET"
-	if config.APIMethod.Valid && config.APIMethod.String != ""{
-		method = config.APIMethod.String
+	if *config.APIMethod != ""{
+		method = *config.APIMethod
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, config.APIEndpointTemplate.String, nil)
+	req, err := http.NewRequestWithContext(ctx, method, *config.APIEndpointTemplate, nil)
 	if err != nil {
 		return nil, fmt.Errorf("ERROR to create request %s: %w", config.SiteName, err)
 	}
 
-	if config.APIHeadersJSON.Valid && config.APIHeadersJSON.String != ""{
+	if *config.APIHeadersJSON != ""{
 		var headers map[string]string
-		if err := json.Unmarshal([]byte(config.APIHeadersJSON.String), &headers); err == nil{
+		if err := json.Unmarshal([]byte(*config.APIHeadersJSON), &headers); err == nil{
 			for key, value := range headers {
 				req.Header.Set(key, value)
 			}
@@ -61,7 +61,7 @@ func (s *APIScrapper) Scrape(ctx context.Context, config model.SiteScrapingConfi
 		return nil, fmt.Errorf("falha ao ler corpo da resposta de %s: %w", config.SiteName, err)
 	}
 
-	return s.parseAPIResponse(body, config.JSONDataMappings.String)
+	return s.parseAPIResponse(body, *config.JSONDataMappings)
 }
 
 type Mapeamentos struct {

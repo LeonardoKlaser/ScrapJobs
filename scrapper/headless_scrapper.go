@@ -37,7 +37,7 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 	var htmlContent string
 	err := chromedp.Run(taskCtx,
 		chromedp.Navigate(config.BaseURL),
-		chromedp.WaitVisible(config.JobListItemSelector.String, chromedp.ByQuery),
+		chromedp.WaitVisible(config.JobListItemSelector, chromedp.ByQuery),
 		chromedp.OuterHTML("html", &htmlContent),
 	)
 

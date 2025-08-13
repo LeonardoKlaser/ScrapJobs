@@ -22,5 +22,5 @@ CREATE TABLE site_scraping_config (
     api_method VARCHAR(10) DEFAULT 'GET',
     api_headers_json JSONB,
     api_payload_template TEXT,
-    json_data_mappings JSONB NOT NULL
+    json_data_mappings JSONB 
 );
