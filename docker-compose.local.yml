@@ -34,11 +34,11 @@ services:
     networks:
       - go_network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 45s
+      timeout: 15s
       retries: 3
-      start_period: 20s
+      start_period: 40s
     labels:
       - "autoheal=true"
   
@@ -56,7 +56,7 @@ services:
     networks:
       - go_network
     healthcheck:
-      test: ["CMD-SHELL", "pgrep worker || exit 1"]
+      test: ["CMD-SHELL", "pgrep /app/worker || exit 1"]
       interval: 1m
       timeout: 10s
       retries: 3

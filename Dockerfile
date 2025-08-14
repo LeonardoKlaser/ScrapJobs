@@ -16,9 +16,13 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/worker ./cmd/work
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/scheduler ./cmd/scheduler
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/archive-monitor ./cmd/archive-monitor
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates curl procps
 
 WORKDIR /app
+
+RUN addgroup -S nonroot && adduser -S nonroot -G nonroot
 
 COPY --from=builder /go/bin/migrate /app/migrate
 COPY --from=builder /app/api /app/api
@@ -26,6 +30,8 @@ COPY --from=builder /app/worker /app/worker
 COPY --from=builder /app/scheduler /app/scheduler
 COPY --from=builder /app/archive-monitor /app/archive-monitor
 COPY --from=builder /app/migrations /app/migrations
+
+RUN chown -R nonroot:nonroot /app
 
 EXPOSE 8080
 USER nonroot
