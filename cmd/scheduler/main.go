@@ -80,7 +80,7 @@ func enqueueScrapingTasks(ctx context.Context, siteRepo *repository.SiteCareerRe
         log.Printf("ERROR: Scheduler can't get sites from database: %v", err)
         return
     }
-
+    log.Printf("sites coletados: %v ", len(sites))
     var wg sync.WaitGroup
     for _, site := range sites {
         wg.Add(1)

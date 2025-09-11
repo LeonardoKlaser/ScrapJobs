@@ -57,7 +57,7 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 	detailCollector := c.Clone()
 	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 8})
 
-	s.collyParser.configureCollyCallbacks(c, detailCollector, jobs, &wg, &mu, config)
+	s.collyParser.configureCollyCallbacks(c, detailCollector, &jobs, &wg, &mu, config)
 
 	err = c.Request("GET", config.BaseURL, bytes.NewBufferString(htmlContent), nil, nil)
     if err != nil {

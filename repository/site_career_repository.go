@@ -79,6 +79,8 @@ func (st *SiteCareerRepository) GetAllSites() ([]model.SiteScrapingConfig, error
 			&site.ID,
 			&site.SiteName,
 			&site.BaseURL,
+			&site.IsActive,
+			&site.ScrapingType,
 			&site.JobListItemSelector,
 			&site.TitleSelector,
 			&site.LinkSelector,
@@ -87,6 +89,11 @@ func (st *SiteCareerRepository) GetAllSites() ([]model.SiteScrapingConfig, error
 			&site.NextPageSelector,
 			&site.JobDescriptionSelector,
 			&site.JobRequisitionIdSelector,
+			&site.APIEndpointTemplate,
+			&site.APIMethod,
+			&site.APIHeadersJSON,
+			&site.APIPayloadTemplate,
+			&site.JSONDataMappings,
 		)
 
 		if err != nil{
