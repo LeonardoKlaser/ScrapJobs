@@ -44,7 +44,7 @@ func (s *JobScrapper) configureCollyCallbacks(c *colly.Collector, detailCollecto
 		if err != nil {
 			fmt.Println("Erro ao converter ID:", err)
 		} else {
-			jobPtr.Requisition_ID = jobID
+			jobPtr.Requisition_ID = int64(jobID)
 		}
 	})
 
