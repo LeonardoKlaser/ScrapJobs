@@ -1,10 +1,12 @@
 package controller
 
 import (
+	"fmt"
+	"log"
+	"net/http"
 	"web-scrapper/model"
 	"web-scrapper/usecase"
-	"net/http"
-	"fmt"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -70,6 +72,16 @@ func (usecase *SiteCareerController) SandboxScrape(ctx *gin.Context){
         return
     }
 
+	for _, job := range scrapedJobs{
+		log.Printf("requisition ID: %v", job.Requisition_ID);
+	}
+
+	var ids = takeIDs(scrapedJobs);	
+	for _, id := range ids{
+		log.Printf("ids buscados: %v ", id)
+	}
+
+
 	if len(scrapedJobs) == 0 {
         ctx.JSON(http.StatusOK, gin.H{
             "success": true,
@@ -84,4 +96,12 @@ func (usecase *SiteCareerController) SandboxScrape(ctx *gin.Context){
         "message": fmt.Sprintf("%d vagas encontradas com sucesso.", len(scrapedJobs)),
         "data":    scrapedJobs,
     })
+}
+
+func takeIDs(jobs []*model.Job) []int64{
+	var ids []int64
+	for _, job := range(jobs){
+		ids = append(ids, job.Requisition_ID)
+	}
+	return ids
 }

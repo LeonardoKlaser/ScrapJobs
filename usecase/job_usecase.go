@@ -78,8 +78,8 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
     return newJobsToDatabase, nil
 }
 
-func takeIDs(jobs []*model.Job) []int{
-	var ids []int 
+func takeIDs(jobs []*model.Job) []int64{
+	var ids []int64
 	for _, job := range(jobs){
 		ids = append(ids, job.Requisition_ID)
 	}

@@ -53,10 +53,10 @@ func (usr *JobRepository) FindJobByRequisitionID(requisition_ID int) (bool, erro
 	return count > 0, nil
 }
 
-func (usr *JobRepository) FindJobsByRequisitionIDs(requisition_IDs []int) (map[int]bool, error){
+func (usr *JobRepository) FindJobsByRequisitionIDs(requisition_IDs []int64) (map[int64]bool, error){
 	query := `SELECT requisition_ID FROM jobs WHERE requisition_ID = ANY($1)`
 	
-	Exists := make(map[int]bool)
+	Exists := make(map[int64]bool)
     if len(requisition_IDs) == 0 {
         return Exists, nil
     }
@@ -69,7 +69,7 @@ func (usr *JobRepository) FindJobsByRequisitionIDs(requisition_IDs []int) (map[i
 	defer rows.Close()
 
 	for rows.Next(){
-		var requisitionID int
+		var requisitionID int64
 		if err := rows.Scan(&requisitionID); err != nil {
 			return nil, fmt.Errorf("error scanning notified job requisition ID: %w", err)
 		}
@@ -79,7 +79,7 @@ func (usr *JobRepository) FindJobsByRequisitionIDs(requisition_IDs []int) (map[i
 	return Exists, rows.Err()
 }
 
-func (usr *JobRepository) UpdateLastSeen(requisition_ID int) (int, error){
+func (usr *JobRepository) UpdateLastSeen(requisition_ID int64) (int, error){
 	var id int
 	query := `UPDATE jobs SET last_seen_at = CURRENT_TIMESTAMP WHERE requisition_ID = $1 RETURNING id `
 	queryPrepare, err := usr.connection.Prepare(query)

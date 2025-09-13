@@ -64,7 +64,7 @@ func (st *SiteCareerRepository) InsertNewSiteCareer(site model.SiteScrapingConfi
 func (st *SiteCareerRepository) GetAllSites() ([]model.SiteScrapingConfig, error){
 	var listOfSites []model.SiteScrapingConfig;
 
-	query := "SELECT * FROM site_scraping_config"
+	query := "SELECT * FROM site_scraping_config WHERE is_active = TRUE"
 	rows, err := st.connection.Query(query)
 
 	if err != nil {

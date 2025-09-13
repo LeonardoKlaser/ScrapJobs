@@ -96,7 +96,7 @@ func (s *APIScrapper) parseAPIResponse(body []byte, mappingsJSON string) ([]*mod
 
 		reqIDStr := value.Get(mappings.RequisitionIDPath).String()
 		if reqID, err := strconv.Atoi(reqIDStr); err == nil {
-			job.Requisition_ID = reqID
+			job.Requisition_ID = int64(reqID)
 		}
 
 		jobs = append(jobs, job)

@@ -1,0 +1,2 @@
+ALTER TABLE jobs
+ALTER COLUMN requisition_id TYPE INTEGER;
