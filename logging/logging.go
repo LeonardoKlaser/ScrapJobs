@@ -16,6 +16,7 @@ var Logger zerolog.Logger
 
 func init(){
 	isProduction := os.Getenv("GIN_MODE") == "release"
+	
 
 	log.Logger = log.With().Caller().Logger()
 
