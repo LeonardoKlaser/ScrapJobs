@@ -9,6 +9,7 @@ on:
       #- 'go.mod'
       - 'go.sum'
       #- 'Dockerfile'
+      - 'deploy.yml'
 
 jobs:
   deploy:
@@ -52,6 +53,7 @@ jobs:
           echo "IMAGE_NAME=${{ steps.build-image.outputs.image }}" > .env
           echo "GIN_MODE=release" >> .env
           echo "APP_SECRET_NAME=ScrapJobs-db-credentials" >> .env
+          echo "JWTTOKEN=${{ secrets.JWT_TOKEN }}" >> .env
 
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
 
