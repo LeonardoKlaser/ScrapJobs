@@ -10,7 +10,6 @@ type NotificationRepository struct{
 	connection *sql.DB
 }
 
-
 func NewNotificationRepository(db *sql.DB) *NotificationRepository{
 	return &NotificationRepository{
 		connection: db,
