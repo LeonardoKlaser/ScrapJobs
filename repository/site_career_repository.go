@@ -55,7 +55,6 @@ func (st *SiteCareerRepository) InsertNewSiteCareer(site model.SiteScrapingConfi
 		}
 		return nilReturn, err
 	}
-	
 
 	return siteCreated, nil
 	
