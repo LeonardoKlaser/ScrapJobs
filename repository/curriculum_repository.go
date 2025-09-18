@@ -67,6 +67,7 @@ func (cur *CurriculumRepository) CreateCurriculum(curriculum model.Curriculum) (
 
 	queryPrepare.Close()
 	return curriculumCreated, nil
+	
 }
 
 

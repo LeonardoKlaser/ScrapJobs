@@ -7,7 +7,7 @@ resource "aws_iam_openid_connect_provider" "github" {
     "sts.amazonaws.com"
   ]
 
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"] # Thumbprint padrão para GitHub OID
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
 }
 
 data "aws_iam_policy_document" "github_actions_assume_role_policy" {
@@ -33,39 +33,54 @@ resource "aws_iam_role" "github_actions_role" {
   assume_role_policy = data.aws_iam_policy_document.github_actions_assume_role_policy.json
 }
 
-# Política para permitir que o GitHub Actions execute comandos na instância EC2 via SSM
-resource "aws_iam_policy" "ssm_command_policy" {
-  name        = "${var.project_name}-SSMCommandPolicy"
-  description = "Allows running commands on EC2 instances via SSM"
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = [
-          "ssm:SendCommand",
-          "ssm:GetCommandInvocation"
-        ]
-        Resource = [
-          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:document/AWS-RunShellScript",
-          aws_instance.servidor.arn
-        ]
-      },
+data "aws_iam_policy_document" "github_actions_permissions" {
+  statement {
+    effect = "Allow",
+    actions = [
+      "ecr:GetAuthorizationToken",
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:GetRepositoryPolicy",
+      "ecr:DescribeRepositories",
+      "ecr:ListImages",
+      "ecr:DescribeImages",
+      "ecr:BatchGetImage",
+      "ecr:InitiateLayerUpload",
+      "ecr:UploadLayerPart",
+      "ecr:CompleteLayerUpload",
+      "ecr:PutImage"
+    ],
+    resources = ["*"]
+  }
+
+  # Permissões para SSM
+  statement {
+    effect = "Allow",
+    actions = [
+      "ssm:SendCommand",
+      "ssm:GetCommandInvocation"
+    ],
+    resources = [
+      "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:document/AWS-RunShellScript",
+      aws_instance.servidor.arn
     ]
-  })
+  }
 }
 
-# Anexa a política SSM à nova role do GitHub Actions
-resource "aws_iam_role_policy_attachment" "ssm_command_attach" {
-  role       = aws_iam_role.github_actions_role.name
-  policy_arn = aws_iam_policy.ssm_command_policy.arn
+
+resource "aws_iam_policy" "github_actions_combined_policy" {
+  name        = "${var.project_name}-GitHubActionsCombinedPolicy"
+  description = "Combined policy for ECR and SSM access for GitHub Actions"
+  policy      = data.aws_iam_policy_document.github_actions_permissions.json
 }
 
-# Anexa a política do ECR (que já existe) à nova role do GitHub Actions
-resource "aws_iam_role_policy_attachment" "ecr_attach_github_actions" {
+
+resource "aws_iam_role_policy_attachment" "github_actions_combined_attach" {
   role       = aws_iam_role.github_actions_role.name
-  policy_arn = aws_iam_policy.ecr_policy.arn
+  policy_arn = aws_iam_policy.github_actions_combined_policy.arn
 }
+
+
 
 data "aws_caller_identity" "current" {}
