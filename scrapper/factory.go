@@ -7,7 +7,6 @@ import (
 	"web-scrapper/model"
 )
 
-
 func NewScraperFactory(config model.SiteScrapingConfig) (interfaces.Scraper, error) {
 	switch config.ScrapingType {
 	case "HTML":

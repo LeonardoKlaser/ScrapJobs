@@ -48,8 +48,18 @@ resource "aws_iam_policy" "ecr_policy" {
     Statement = [{
         Effect = "Allow",
         Action = [
-          "ecr:GetDownloadUrlForLayer", "ecr:BatchGetImage",
-          "ecr:BatchCheckLayerAvailability", "ecr:GetAuthorizationToken"
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:GetRepositoryPolicy",
+          "ecr:DescribeRepositories",
+          "ecr:ListImages",
+          "ecr:DescribeImages",
+          "ecr:BatchGetImage",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
+          "ecr:PutImage"
         ],
         Resource = "*"
     }]
