@@ -57,7 +57,6 @@ func (st *SiteCareerRepository) InsertNewSiteCareer(site model.SiteScrapingConfi
 	}
 
 	return siteCreated, nil
-	
 }
 
 func (st *SiteCareerRepository) GetAllSites() ([]model.SiteScrapingConfig, error){

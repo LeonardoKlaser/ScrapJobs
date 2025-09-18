@@ -50,7 +50,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "ecr:UploadLayerPart",
       "ecr:CompleteLayerUpload",
       "ecr:PutImage"
-    ],
+    ]
     resources = ["*"]
   }
 
@@ -60,7 +60,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     actions = [
       "ssm:SendCommand",
       "ssm:GetCommandInvocation"
-    ],
+    ]
     resources = [
       "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:document/AWS-RunShellScript",
       aws_instance.servidor.arn
