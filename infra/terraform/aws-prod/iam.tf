@@ -61,6 +61,11 @@ resource "aws_iam_role_policy_attachment" "ecr_attach" {
   policy_arn = aws_iam_policy.ecr_policy.arn
 }
 
+resource "aws_iam_role_policy_attachment" "ssm_core_attach" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 resource "aws_iam_policy" "secrets_manager_policy" {
     name        = "${var.project_name}-SecretsManagerPolicy"
     description = "Allows reading the DB credentials secret"
