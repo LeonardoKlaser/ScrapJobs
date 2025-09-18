@@ -63,7 +63,7 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
     if err != nil {
         return nil, fmt.Errorf("colly falhou ao processar o HTML do chromedp: %w", err)
     }
-
+	
 	c.Wait()
 	wg.Wait()
 	
