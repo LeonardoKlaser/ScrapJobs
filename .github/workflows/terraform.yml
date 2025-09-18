@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'go.sum'
+      - 'infra/terraform/aws-prod'
   pull_request:
     paths:
       - 'infra/terraform/aws-prod'
