@@ -36,7 +36,7 @@ resource "aws_iam_role" "github_actions_role" {
 
 data "aws_iam_policy_document" "github_actions_permissions" {
   statement {
-    effect = "Allow",
+    effect = "Allow"
     actions = [
       "ecr:GetAuthorizationToken",
       "ecr:BatchCheckLayerAvailability",
@@ -56,7 +56,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
 
   # Permissões para SSM
   statement {
-    effect = "Allow",
+    effect = "Allow"
     actions = [
       "ssm:SendCommand",
       "ssm:GetCommandInvocation"
@@ -68,19 +68,15 @@ data "aws_iam_policy_document" "github_actions_permissions" {
   }
 }
 
-
 resource "aws_iam_policy" "github_actions_combined_policy" {
   name        = "${var.project_name}-GitHubActionsCombinedPolicy"
   description = "Combined policy for ECR and SSM access for GitHub Actions"
   policy      = data.aws_iam_policy_document.github_actions_permissions.json
 }
 
-
 resource "aws_iam_role_policy_attachment" "github_actions_combined_attach" {
   role       = aws_iam_role.github_actions_role.name
   policy_arn = aws_iam_policy.github_actions_combined_policy.arn
 }
-
-
 
 data "aws_caller_identity" "current" {}

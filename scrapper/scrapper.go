@@ -11,7 +11,6 @@ import (
 	"github.com/gocolly/colly"
 )
 
-
 type JobScrapper struct{
 }
 
