@@ -9,7 +9,6 @@ import (
 
 
 func NewScraperFactory(config model.SiteScrapingConfig) (interfaces.Scraper, error) {
-
 	switch config.ScrapingType {
 	case "HTML":
 		return NewJobScraper(), nil 
