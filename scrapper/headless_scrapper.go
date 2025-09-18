@@ -67,6 +67,5 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 	c.Wait()
 	wg.Wait()
 	
-
 	return jobs, nil 
 }
