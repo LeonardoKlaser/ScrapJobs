@@ -25,9 +25,10 @@ import (
 func main() {
 	server := gin.Default()
 	server.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"http://localhost:8081", "https://scrapjobs.com.br"},
+		AllowOrigins: []string{"http://localhost:5173", "https://scrapjobs.com.br"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowCredentials: true,
         ExposeHeaders:    []string{"Content-Length"},
         MaxAge: 12 * time.Hour,
 	}))
