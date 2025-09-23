@@ -86,6 +86,7 @@ func main() {
 	userSiteController := controller.NewUserSiteController(UserSiteUsecase)
 	siteCareerController := controller.NewSiteCareerController(SiteCareerUsecase)
 	healthController := controller.NewHealthController(dbConnection, asynqClient)
+	checkAuthController := controller.NewCheckAuthController()
 
 	//middleware
 	middlewareAuth := middleware.NewMiddleware(userUsecase)
@@ -109,6 +110,7 @@ func main() {
 	privateRoutes.Use(middlewareAuth.RequireAuth)
 	privateRoutes.Use(privateRateLimiter)
 	{
+		privateRoutes.GET("api/me", checkAuthController.CheckAuthUser)
 		privateRoutes.POST("/curriculum", curriculumController.CreateCurriculum)
 		privateRoutes.POST("/userSite", userSiteController.InsertUserSite)
 		privateRoutes.POST("/siteCareer", siteCareerController.InsertNewSiteCareer)

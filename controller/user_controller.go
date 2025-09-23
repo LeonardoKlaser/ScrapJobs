@@ -17,7 +17,7 @@ type UserController struct {
 	usecase *usecase.UserUsecase
 }
 
-func NewUserController(usercase *usecase.UserUsecase) UserController{
+func NewUserController(usercase *usecase.UserUsecase) UserController {
 	return UserController{
 		usecase: usercase,
 	}
@@ -27,7 +27,7 @@ func (usr *UserController) SignUp(ctx *gin.Context) {
 	var user model.User
 
 	if err := ctx.ShouldBindJSON(&user); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error" : fmt.Errorf("error to get new user json: %w", err )})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Errorf("error to get new user json: %w", err)})
 		return
 	}
 
@@ -40,21 +40,20 @@ func (usr *UserController) SignUp(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, res)
 }
 
-
 func (usr *UserController) SignIn(ctx *gin.Context) {
-	var body struct{
-		Email string
+	var body struct {
+		Email    string
 		Password string
 	}
 
-	if ctx.Bind(&body) != nil{
+	if ctx.Bind(&body) != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error" : "Failed to read body",
+			"error": "Failed to read body",
 		})
 		return
 	}
 
-	if body.Email == ""{
+	if body.Email == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User email is required in the path"})
 		return
 	}
@@ -67,9 +66,9 @@ func (usr *UserController) SignIn(ctx *gin.Context) {
 
 	err = bcrypt.CompareHashAndPassword([]byte(res.Password), []byte(body.Password))
 
-	if err != nil{
+	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error" : "Invalid E-mail or Password",
+			"error": "Invalid E-mail or Password",
 		})
 		return
 	}
@@ -80,15 +79,15 @@ func (usr *UserController) SignIn(ctx *gin.Context) {
 	})
 
 	tokenString, err := token.SignedString([]byte(os.Getenv("JWTTOKEN")))
-	if err != nil{
+	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error" : "Failed to create token",
+			"error": "Failed to create token",
 		})
 		return
 	}
 
 	ctx.SetSameSite(http.SameSiteDefaultMode)
-	ctx.SetCookie("Authorization", tokenString, 3600 * 24, "", "", true, true)
+	ctx.SetCookie("Authorization", tokenString, 3600*24, "", "", true, true)
 
 	ctx.JSON(http.StatusOK, gin.H{})
 }
