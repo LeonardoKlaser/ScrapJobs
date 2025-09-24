@@ -56,7 +56,7 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
 			jobToInsert := model.Job{
 				Title: job.Title,
 				Location: job.Location,
-				Company: job.Company,
+				Company: selectors.SiteName,
 				Job_link: job.Job_link,
 				Requisition_ID: job.Requisition_ID,
 			}
