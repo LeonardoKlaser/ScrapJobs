@@ -73,6 +73,7 @@ func main() {
 	curriculumRepository := repository.NewCurriculumRepository(dbConnection)
 	userSiteRepository := repository.NewUserSiteRepository(dbConnection)
 	siteCareerRepository := repository.NewSiteCareerRepository(dbConnection)
+	dashboardRepository := repository.NewDashboardRepository(dbConnection)
 
 	// Usecases
 	userUsecase := usecase.NewUserUsercase(userRepository)
@@ -87,6 +88,7 @@ func main() {
 	siteCareerController := controller.NewSiteCareerController(SiteCareerUsecase)
 	healthController := controller.NewHealthController(dbConnection, asynqClient)
 	checkAuthController := controller.NewCheckAuthController()
+	dashboardController := controller.NewDashboardDataController(dashboardRepository)
 
 	//middleware
 	middlewareAuth := middleware.NewMiddleware(userUsecase)
@@ -108,9 +110,13 @@ func main() {
 	privateRoutes := server.Group("/")
 	privateRoutes.Use(logging.GinMiddleware())
 	privateRoutes.Use(middlewareAuth.RequireAuth)
-	privateRoutes.Use(privateRateLimiter)
 	{
 		privateRoutes.GET("api/me", checkAuthController.CheckAuthUser)
+		privateRoutes.GET("api/dashboard", dashboardController.GetDashboardDataByUserId)
+	}
+	privateRoutes.Use(privateRateLimiter)
+	{
+		
 		privateRoutes.POST("/curriculum", curriculumController.CreateCurriculum)
 		privateRoutes.POST("/userSite", userSiteController.InsertUserSite)
 		privateRoutes.POST("/siteCareer", siteCareerController.InsertNewSiteCareer)
