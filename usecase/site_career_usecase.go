@@ -1,24 +1,38 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
+	"mime/multipart"
+	"web-scrapper/infra/s3"
 	"web-scrapper/interfaces"
 	"web-scrapper/model"
 	"web-scrapper/scrapper"
-	"context"
 )
 
 type SiteCareerUsecase struct{
 	repo interfaces.SiteCareerRepositoryInterface
+	s3Uploader s3.UploaderInterface
 }
 
-func NewSiteCareerUsecase(repo interfaces.SiteCareerRepositoryInterface) *SiteCareerUsecase {
+func NewSiteCareerUsecase(repo interfaces.SiteCareerRepositoryInterface, uploader s3.UploaderInterface) *SiteCareerUsecase {
 	return &SiteCareerUsecase{
 		repo: repo,
+		s3Uploader: uploader,
+
 	}
 }
 
-func (repo *SiteCareerUsecase) InsertNewSiteCareer(site model.SiteScrapingConfig) (model.SiteScrapingConfig, error){
+func (repo *SiteCareerUsecase) InsertNewSiteCareer(ctx context.Context ,site model.SiteScrapingConfig, file *multipart.FileHeader) (model.SiteScrapingConfig, error){
+
+	if file != nil {
+		logoURL, err := repo.s3Uploader.UploadFile(ctx, file)
+		if err != nil {
+			return model.SiteScrapingConfig{}, fmt.Errorf("falha no upload do logo: %w", err)
+		}
+		site.LogoURL = logoURL
+	}
+
 	res, err := repo.repo.InsertNewSiteCareer(site)
 	if err != nil {
 		return model.SiteScrapingConfig{}, err

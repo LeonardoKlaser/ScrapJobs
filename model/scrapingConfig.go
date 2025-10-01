@@ -6,6 +6,7 @@ type SiteScrapingConfig struct {
 	ID        int    `db:"id"`
 	SiteName  string `db:"site_name"`
 	BaseURL   string `db:"base_url"`
+	LogoURL   string `db:"logo_url"`
 	IsActive  bool   `db:"is_active"`
 	ScrapingType string `db:"scraping_type"` // 'HTML', 'API', 'HEADLESS'
 	JobListItemSelector      *string `db:"job_list_item_selector"`

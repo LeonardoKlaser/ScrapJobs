@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -62,13 +63,26 @@ func (usecase *SiteCareerController) InsertNewSiteCareer(ctx *gin.Context){
 		return
 	}
 
-	var body model.SiteScrapingConfig
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error" : fmt.Errorf("error to deserialize new job json body: %w", err).Error()})
-		return
-	}
+	err := ctx.Request.ParseMultipartForm(10 << 20) 
+    if err != nil {
+        ctx.JSON(http.StatusBadRequest, gin.H{"error": "Erro ao processar o formulário"})
+        return
+    }
 
-	res, err := usecase.usecase.InsertNewSiteCareer(body)
+    file, err := ctx.FormFile("logo")
+    if err != nil && err != http.ErrMissingFile {
+        ctx.JSON(http.StatusBadRequest, gin.H{"error": "Erro ao processar o arquivo de logo"})
+        return
+    }
+
+	siteJSON := ctx.Request.FormValue("siteData")
+	var body model.SiteScrapingConfig
+	if err := json.Unmarshal([]byte(siteJSON), &body); err != nil {
+        ctx.JSON(http.StatusBadRequest, gin.H{"error": "Dados do site em formato JSON inválido"})
+        return
+    }
+
+	res, err := usecase.usecase.InsertNewSiteCareer(ctx, body, file)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"error" : fmt.Errorf("ERROR to insert new site career:  %w", err).Error(),

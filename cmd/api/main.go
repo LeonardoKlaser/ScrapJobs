@@ -2,10 +2,12 @@
 package main
 
 import (
+	"context"
 	"os"
 	"time"
 	"web-scrapper/controller"
 	"web-scrapper/infra/db"
+	"web-scrapper/infra/s3"
 	"web-scrapper/logging"
 	"web-scrapper/middleware"
 	"web-scrapper/model"
@@ -13,6 +15,7 @@ import (
 	"web-scrapper/usecase"
 	"web-scrapper/utils"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/hibiken/asynq"
@@ -66,6 +69,18 @@ func main() {
 	
 	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: os.Getenv("REDIS_ADDR")})
     defer asynqClient.Close()
+
+	awsCfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		logging.Logger.Fatal().Err(err).Msg("failed to load AWS configuration")
+	}
+	
+	s3BucketName := os.Getenv("S3_BUCKET_NAME")
+	if s3BucketName == "" {
+		logging.Logger.Fatal().Msg("S3_BUCKET_NAME environment variable not set")
+	}
+
+	s3Uploader := s3.NewUploader(awsCfg, s3BucketName)
 	
 
 	// Repositories
@@ -79,7 +94,7 @@ func main() {
 	userUsecase := usecase.NewUserUsercase(userRepository)
 	curriculumUsecase := usecase.NewCurriculumUsecase(curriculumRepository)
 	UserSiteUsecase := usecase.NewUserSiteUsecase(userSiteRepository)
-	SiteCareerUsecase := usecase.NewSiteCareerUsecase(siteCareerRepository)
+	SiteCareerUsecase := usecase.NewSiteCareerUsecase(siteCareerRepository, s3Uploader)
 
 	// Controllers
 	userController := controller.NewUserController(userUsecase)
