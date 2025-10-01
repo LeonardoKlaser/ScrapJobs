@@ -40,3 +40,12 @@ func (repo *SiteCareerUsecase) SandboxScrape(ctx context.Context,config model.Si
 
 	return jobs, nil
 }
+
+func (repo *SiteCareerUsecase) GetAllSites() ([]model.SiteScrapingConfig, error){
+	sites, err := repo.repo.GetAllSites()
+	if err != nil {
+		return nil, err
+	}
+
+	return sites, nil;
+}

@@ -113,6 +113,7 @@ func main() {
 	{
 		privateRoutes.GET("api/me", checkAuthController.CheckAuthUser)
 		privateRoutes.GET("api/dashboard", dashboardController.GetDashboardDataByUserId)
+		privateRoutes.GET("api/getSites", siteCareerController.GetAllSites)
 	}
 	privateRoutes.Use(privateRateLimiter)
 	{

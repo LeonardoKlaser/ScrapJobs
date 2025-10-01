@@ -20,6 +20,30 @@ func NewSiteCareerController(usecase *usecase.SiteCareerUsecase) *SiteCareerCont
 	}
 }
 
+func (usecase *SiteCareerController) GetAllSites(ctx *gin.Context){
+	type siteDTO struct{
+		SiteName string
+		BaseURL string
+		SiteId int
+	}
+
+	sites, err := usecase.usecase.GetAllSites();
+	log.Println("pegou os sites")
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error" : "Erro ao buscar sites: " + err.Error()})
+	}
+	var response []siteDTO
+	for _, site := range sites{
+		var newResponse siteDTO
+		newResponse.BaseURL = site.BaseURL
+		newResponse.SiteId = site.ID
+		newResponse.SiteName = site.SiteName
+		response = append(response, newResponse)
+
+	}
+	ctx.JSON(http.StatusOK, response)
+}
+
 func (usecase *SiteCareerController) InsertNewSiteCareer(ctx *gin.Context){
 	userInterface, exists := ctx.Get("user")
 	if !exists {
