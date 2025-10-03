@@ -30,7 +30,7 @@ func (repo *SiteCareerUsecase) InsertNewSiteCareer(ctx context.Context ,site mod
 		if err != nil {
 			return model.SiteScrapingConfig{}, fmt.Errorf("falha no upload do logo: %w", err)
 		}
-		site.LogoURL = logoURL
+		site.LogoURL = &logoURL
 	}
 
 	res, err := repo.repo.InsertNewSiteCareer(site)

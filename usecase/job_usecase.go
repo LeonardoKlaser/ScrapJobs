@@ -44,6 +44,9 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
     }
 
 	jobs, err := scrapInterface.Scrape(ctx, selectors)
+	if err != nil {
+		return []*model.Job{}, err
+	}
 	
     var newJobsToDatabase []*model.Job
 	ids := takeIDs(jobs)

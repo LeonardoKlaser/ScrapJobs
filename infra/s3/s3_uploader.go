@@ -38,7 +38,7 @@ func (u *Uploader) UploadFile(ctx context.Context, file *multipart.FileHeader) (
 		Bucket:      aws.String(u.BucketName),
 		Key:         aws.String(key),
 		Body:        src,
-		ACL:         "public-read",
+		//ACL:         "public-read",
 		ContentType: aws.String(file.Header.Get("Content-Type")),
 	})
 

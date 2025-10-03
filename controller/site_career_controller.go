@@ -26,6 +26,7 @@ func (usecase *SiteCareerController) GetAllSites(ctx *gin.Context){
 		SiteName string
 		BaseURL string
 		SiteId int
+		LogoURL *string
 	}
 
 	sites, err := usecase.usecase.GetAllSites();
@@ -39,6 +40,7 @@ func (usecase *SiteCareerController) GetAllSites(ctx *gin.Context){
 		newResponse.BaseURL = site.BaseURL
 		newResponse.SiteId = site.ID
 		newResponse.SiteName = site.SiteName
+		newResponse.LogoURL = site.LogoURL
 		response = append(response, newResponse)
 
 	}
@@ -81,6 +83,25 @@ func (usecase *SiteCareerController) InsertNewSiteCareer(ctx *gin.Context){
         ctx.JSON(http.StatusBadRequest, gin.H{"error": "Dados do site em formato JSON inválido"})
         return
     }
+
+	if body.APIHeadersJSON != nil {
+		var unescapedHeaders string
+		if json.Unmarshal([]byte(*body.APIHeadersJSON), &unescapedHeaders) == nil {
+			*body.APIHeadersJSON = unescapedHeaders
+		}
+	}
+
+	if body.JSONDataMappings != nil {
+		var unescapedMappings string
+		if json.Unmarshal([]byte(*body.JSONDataMappings), &unescapedMappings) == nil {
+			*body.JSONDataMappings = unescapedMappings
+		}
+	}
+
+	log.Print("Site: "+ siteJSON)
+	log.Print("APIHeaderJson: " + *body.APIHeadersJSON)
+	log.Print("JSonDataMapping: " + *body.JSONDataMappings)
+	log.Print(file)
 
 	res, err := usecase.usecase.InsertNewSiteCareer(ctx, body, file)
 	if err != nil {

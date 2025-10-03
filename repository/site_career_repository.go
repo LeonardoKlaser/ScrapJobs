@@ -92,6 +92,7 @@ func (st *SiteCareerRepository) GetAllSites() ([]model.SiteScrapingConfig, error
 			&site.APIHeadersJSON,
 			&site.APIPayloadTemplate,
 			&site.JSONDataMappings,
+			&site.LogoURL,
 		)
 
 		if err != nil{
