@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"web-scrapper/model"
+
+	"github.com/lib/pq"
 )
 
 type UserRepository struct {
@@ -42,19 +44,32 @@ func (usr *UserRepository) CreateUser(user model.User) (model.User, error){
 }
 
 func (usr *UserRepository) GetUserByEmail(userEmail string) (model.User, error){
-	query := `SELECT id, user_name, email, user_password, curriculum_id FROM users WHERE email = $1`
+	query := `
+        SELECT u.id, u.user_name, u.email, u.user_password, u.curriculum_id,
+               p.id, p.name, p.price, p.max_sites, p.max_ai_analyses, p.features
+        FROM users u
+        LEFT JOIN plans p ON u.plan_id = p.id
+        WHERE u.email = $1`
 	queryPrepare, err := usr.db.Prepare(query)
 	if err != nil {
 		return model.User{}, fmt.Errorf("error to prepare database query: %w", err)
 	}
 
 	var userToReturn model.User
+	var plan model.Plan
+	var features pq.StringArray
 	err = queryPrepare.QueryRow(userEmail).Scan(
 		&userToReturn.Id,
 		&userToReturn.Name,
 		&userToReturn.Email,
 		&userToReturn.Password,
 		&userToReturn.CurriculumId,
+		&plan.ID,
+		&plan.Name,
+		&plan.Price,
+		&plan.MaxSites,
+		&plan.MaxAIAnalyses,
+		&features,
 	)
 	if(err != nil){
 		if errors.Is(err, sql.ErrNoRows) {
@@ -64,6 +79,9 @@ func (usr *UserRepository) GetUserByEmail(userEmail string) (model.User, error){
 		return model.User{}, fmt.Errorf("error to get user from database: %w", err)	
 	}
 
+	plan.Features = features
+	userToReturn.Plan = &plan
+
 	queryPrepare.Close()
 
 	return userToReturn, nil
@@ -72,23 +90,41 @@ func (usr *UserRepository) GetUserByEmail(userEmail string) (model.User, error){
 
 
 func (usr *UserRepository) GetUserById(Id int) (model.User, error){
-	query := `SELECT id, user_name, email, user_password, curriculum_id FROM users WHERE id = $1`
+	query := `
+        SELECT u.id, u.user_name, u.email, u.user_password, u.curriculum_id,
+               p.id, p.name, p.price, p.max_sites, p.max_ai_analyses, p.features
+        FROM users u
+        LEFT JOIN plans p ON u.plan_id = p.id
+        WHERE u.id = $1`
+
 	queryPrepare, err := usr.db.Prepare(query)
 	if err != nil {
 		return model.User{}, fmt.Errorf("error to prepare database query: %w", err)
 	}
 
 	var userToReturn model.User
+	var plan model.Plan
+	var features pq.StringArray
 	err = queryPrepare.QueryRow(Id).Scan(
 		&userToReturn.Id,
 		&userToReturn.Name,
 		&userToReturn.Email,
 		&userToReturn.Password,
 		&userToReturn.CurriculumId,
+		&plan.ID,
+		&plan.Name,
+		&plan.Price,
+		&plan.MaxSites,
+		&plan.MaxAIAnalyses,
+		&features,
 	)
+
 	if(err != nil){
 		return model.User{}, fmt.Errorf("error to get user from database: %w", err)	
 	}
+
+	plan.Features = features
+	userToReturn.Plan = &plan
 
 	queryPrepare.Close()
 

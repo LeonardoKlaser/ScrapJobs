@@ -5,4 +5,5 @@ type User struct{
 	Email string `json:"email"`
 	Password string `json:"user_password"`
 	CurriculumId *int `json:"curriculum_id,omitempty"`
+	Plan         *Plan   `json:"plan,omitempty"`
 }

@@ -89,12 +89,14 @@ func main() {
 	userSiteRepository := repository.NewUserSiteRepository(dbConnection)
 	siteCareerRepository := repository.NewSiteCareerRepository(dbConnection)
 	dashboardRepository := repository.NewDashboardRepository(dbConnection)
+	planRepository := repository.NewPlanRepository(dbConnection)
 
 	// Usecases
 	userUsecase := usecase.NewUserUsercase(userRepository)
 	curriculumUsecase := usecase.NewCurriculumUsecase(curriculumRepository)
 	UserSiteUsecase := usecase.NewUserSiteUsecase(userSiteRepository)
 	SiteCareerUsecase := usecase.NewSiteCareerUsecase(siteCareerRepository, s3Uploader)
+	planUsecase := usecase.NewPlanUsecase(planRepository)
 
 	// Controllers
 	userController := controller.NewUserController(userUsecase)
@@ -104,6 +106,7 @@ func main() {
 	healthController := controller.NewHealthController(dbConnection, asynqClient)
 	checkAuthController := controller.NewCheckAuthController()
 	dashboardController := controller.NewDashboardDataController(dashboardRepository)
+	planController := controller.NewPlanController(planUsecase)
 
 	//middleware
 	middlewareAuth := middleware.NewMiddleware(userUsecase)
@@ -117,6 +120,7 @@ func main() {
 	{
 		publicRoutes.POST("/register", userController.SignUp)
 		publicRoutes.POST("/login", userController.SignIn)
+		publicRoutes.GET("/api/plans", planController.GetAllPlans)
 
 	}
 
