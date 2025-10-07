@@ -138,6 +138,7 @@ func main() {
 		privateRoutes.POST("/siteCareer", siteCareerController.InsertNewSiteCareer)
 		privateRoutes.POST("/scrape-sandbox", siteCareerController.SandboxScrape)
 		privateRoutes.GET("/curriculum/:id", curriculumController.GetCurriculumByUserId)
+		privateRoutes.POST("/api/logout", userController.Logout)
 	}
 
 	 healthRoutes := server.Group("/health")

@@ -1,0 +1,2 @@
+ALTER TABLE users
+ADD COLUMN plan_id INTEGER REFERENCES plans(id);

@@ -91,3 +91,8 @@ func (usr *UserController) SignIn(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{})
 }
+
+func (usr *UserController) Logout(ctx *gin.Context) {
+    ctx.SetCookie("Authorization", "", -1, "", "", true, true)
+    ctx.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
+}
