@@ -90,6 +90,7 @@ func main() {
 	siteCareerRepository := repository.NewSiteCareerRepository(dbConnection)
 	dashboardRepository := repository.NewDashboardRepository(dbConnection)
 	planRepository := repository.NewPlanRepository(dbConnection)
+	requestedSiteRepository := repository.NewRequestedSiteRepository(dbConnection)
 
 	// Usecases
 	userUsecase := usecase.NewUserUsercase(userRepository)
@@ -97,16 +98,18 @@ func main() {
 	UserSiteUsecase := usecase.NewUserSiteUsecase(userSiteRepository)
 	SiteCareerUsecase := usecase.NewSiteCareerUsecase(siteCareerRepository, s3Uploader)
 	planUsecase := usecase.NewPlanUsecase(planRepository)
+	requestedSiteUsecase := usecase.NewRequestedSiteUsecase(requestedSiteRepository)
 
 	// Controllers
 	userController := controller.NewUserController(userUsecase)
 	curriculumController := controller.NewCurriculumController(curriculumUsecase)
 	userSiteController := controller.NewUserSiteController(UserSiteUsecase)
-	siteCareerController := controller.NewSiteCareerController(SiteCareerUsecase)
+	siteCareerController := controller.NewSiteCareerController(SiteCareerUsecase, userSiteRepository)
 	healthController := controller.NewHealthController(dbConnection, asynqClient)
 	checkAuthController := controller.NewCheckAuthController()
 	dashboardController := controller.NewDashboardDataController(dashboardRepository)
 	planController := controller.NewPlanController(planUsecase)
+	requestedSiteController := controller.NewRequestedSiteController(requestedSiteUsecase)
 
 	//middleware
 	middlewareAuth := middleware.NewMiddleware(userUsecase)
@@ -143,6 +146,7 @@ func main() {
 		privateRoutes.POST("/scrape-sandbox", siteCareerController.SandboxScrape)
 		privateRoutes.GET("/curriculum/:id", curriculumController.GetCurriculumByUserId)
 		privateRoutes.POST("/api/logout", userController.Logout)
+		privateRoutes.POST("api/request-site", requestedSiteController.Create)
 	}
 
 	 healthRoutes := server.Group("/health")

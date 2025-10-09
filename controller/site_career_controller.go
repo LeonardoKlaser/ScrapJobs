@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"web-scrapper/model"
+	"web-scrapper/repository"
 	"web-scrapper/usecase"
 
 	"github.com/gin-gonic/gin"
@@ -13,11 +14,13 @@ import (
 
 type SiteCareerController struct{
 	usecase *usecase.SiteCareerUsecase
+	userSiteRepository *repository.UserSiteRepository
 }
 
-func NewSiteCareerController(usecase *usecase.SiteCareerUsecase) *SiteCareerController{
+func NewSiteCareerController(usecase *usecase.SiteCareerUsecase, userSiteRepository *repository.UserSiteRepository) *SiteCareerController{
 	return &SiteCareerController{
 		usecase: usecase,
+		userSiteRepository: userSiteRepository,
 	}
 }
 
@@ -27,13 +30,31 @@ func (usecase *SiteCareerController) GetAllSites(ctx *gin.Context){
 		BaseURL string
 		SiteId int
 		LogoURL *string
+		IsSubscribed bool
+	}
+
+	userInterface, exists := ctx.Get("user")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
+		return
+	}
+
+	user, ok := userInterface.(model.User)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Tipo de usuário inválido no contexto"})
+		return
 	}
 
 	sites, err := usecase.usecase.GetAllSites();
-	log.Println("pegou os sites")
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error" : "Erro ao buscar sites: " + err.Error()})
 	}
+
+	userSites, err := usecase.userSiteRepository.GetSubscribedSiteIDs(user.Id)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error" : "Erro ao buscar sites por usuario: " + err.Error()})
+	}
+
 	var response []siteDTO
 	for _, site := range sites{
 		var newResponse siteDTO
@@ -41,9 +62,15 @@ func (usecase *SiteCareerController) GetAllSites(ctx *gin.Context){
 		newResponse.SiteId = site.ID
 		newResponse.SiteName = site.SiteName
 		newResponse.LogoURL = site.LogoURL
-		response = append(response, newResponse)
 
+		if _, ok := userSites[site.ID]; ok {
+			newResponse.IsSubscribed = true
+		}
+
+		response = append(response, newResponse)
 	}
+
+
 	ctx.JSON(http.StatusOK, response)
 }
 

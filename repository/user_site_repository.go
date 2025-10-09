@@ -124,3 +124,22 @@ func (dep *UserSiteRepository) InsertNewUserSite(userId int, siteId int, filters
 
 
 }
+
+func (dep *UserSiteRepository) GetSubscribedSiteIDs(userId int) (map[int]bool, error) {
+	query := `SELECT site_id FROM user_sites WHERE user_id = $1`
+	rows, err := dep.connection.Query(query, userId)
+	if err != nil {
+		return nil, fmt.Errorf("error to query subscribed sites: %w", err)
+	}
+	defer rows.Close()
+
+	subscribedSites := make(map[int]bool)
+	for rows.Next() {
+		var siteId int
+		if err := rows.Scan(&siteId); err != nil {
+			return nil, err
+		}
+		subscribedSites[siteId] = true
+	}
+	return subscribedSites, nil
+}
