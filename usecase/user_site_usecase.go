@@ -23,3 +23,13 @@ func (rep *UserSiteUsecase) InsertUserSite(userId int, siteId int, filters []str
 
 	return nil
 }
+
+func (usu *UserSiteUsecase) DeleteUserSite(userId int, siteId string) error {
+	err := usu.rep.DeleteUserSite(userId, siteId)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

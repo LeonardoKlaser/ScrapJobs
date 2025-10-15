@@ -48,3 +48,31 @@ func (usecase *UserSiteController) InsertUserSite(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusCreated, gin.H{})
 }
+
+func (usc *UserSiteController) DeleteUserSite(ctx *gin.Context) {
+	userInterface, exists := ctx.Get("user")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
+		return
+	}
+
+	user, ok := userInterface.(model.User)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Tipo de usuário inválido no contexto"})
+		return
+	}
+
+	siteId := ctx.Param("siteId")
+	if siteId == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "siteId is required"})
+		return
+	}
+
+	err := usc.usecase.DeleteUserSite(user.Id, siteId)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "User unregistered from site successfully"})
+}

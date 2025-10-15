@@ -143,3 +143,23 @@ func (dep *UserSiteRepository) GetSubscribedSiteIDs(userId int) (map[int]bool, e
 	}
 	return subscribedSites, nil
 }
+
+func (usr *UserSiteRepository) DeleteUserSite(userId int, siteId string) error {
+	query := `DELETE FROM user_sites WHERE user_id = $1 AND site_id = $2`
+
+	result, err := usr.connection.Exec(query, userId, siteId)
+	if err != nil {
+		return fmt.Errorf("error to delete user_site: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("no user_site found to delete")
+	}
+
+	return nil
+}

@@ -144,6 +144,7 @@ func main() {
 		privateRoutes.PUT("/curriculum/:id", curriculumController.UpdateCurriculum)
 		privateRoutes.PATCH("/curriculum/:id/active", curriculumController.SetActiveCurriculum)
 		privateRoutes.POST("/userSite", userSiteController.InsertUserSite)
+		privateRoutes.DELETE("/userSite/:siteId", userSiteController.DeleteUserSite)
 		privateRoutes.POST("/siteCareer", siteCareerController.InsertNewSiteCareer)
 		privateRoutes.POST("/scrape-sandbox", siteCareerController.SandboxScrape)
 		privateRoutes.GET("/curriculum", curriculumController.GetCurriculumByUserId)
