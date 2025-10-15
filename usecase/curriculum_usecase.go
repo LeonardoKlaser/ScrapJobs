@@ -34,3 +34,20 @@ func (cur *CurriculumUsecase) GetCurriculumByUserId(userId int) ([]model.Curricu
 
 	return res, nil
 }
+
+func (cur *CurriculumUsecase) UpdateCurriculum(curriculum model.Curriculum) (model.Curriculum, error){
+	res, err := cur.CurriculumRepository.UpdateCurriculum(curriculum)
+	if err != nil {
+		return model.Curriculum{}, err
+	}
+
+	return res, nil
+}
+
+func (cur *CurriculumUsecase) SetActiveCurriculum(userID int, curriculumID int) error {
+	err := cur.CurriculumRepository.SetActiveCurriculum(userID, curriculumID)
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -124,4 +124,47 @@ func (cur *CurriculumRepository) FindCurriculumByUserID(userID int) ([]model.Cur
 
 }
 
+func (cur *CurriculumRepository) UpdateCurriculum(curriculum model.Curriculum) (model.Curriculum, error) {
+	query := `UPDATE curriculum SET title = $1, experience = $2, education = $3, skills = $4, languages = $5, summary = $6 WHERE id = $7 AND user_id = $8 RETURNING id;`
+
+	experiences, err := json.Marshal(curriculum.Experiences)
+	if err != nil {
+		return model.Curriculum{}, fmt.Errorf("error to serialize experiences: %v", err)
+	}
+
+	educations, err := json.Marshal(curriculum.Educations)
+	if err != nil {
+		return model.Curriculum{}, fmt.Errorf("error to serialize educations: %v", err)
+	}
+
+	_, err = cur.connection.Exec(query, curriculum.Title, experiences, educations, curriculum.Skills, curriculum.Languages, curriculum.Summary, curriculum.Id, curriculum.UserID)
+	if err != nil {
+		return model.Curriculum{}, fmt.Errorf("error to update curriculum: %w", err)
+	}
+
+	return curriculum, nil
+}
+
+// SET A CURRICULUM AS ACTIVE
+func (cur *CurriculumRepository) SetActiveCurriculum(userID int, curriculumID int) error {
+	tx, err := cur.connection.Begin()
+	if err != nil {
+		return fmt.Errorf("error starting transaction: %w", err)
+	}
+
+	_, err = tx.Exec("UPDATE curriculum SET is_active = FALSE WHERE user_id = $1", userID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("error deactivating other curriculums: %w", err)
+	}
+
+	_, err = tx.Exec("UPDATE curriculum SET is_active = TRUE WHERE id = $1 AND user_id = $2", curriculumID, userID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("error activating curriculum: %w", err)
+	}
+
+	return tx.Commit()
+}
+
 

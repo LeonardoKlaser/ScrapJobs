@@ -29,7 +29,7 @@ func main() {
 	server := gin.Default()
 	server.Use(cors.New(cors.Config{
 		AllowOrigins: []string{"http://localhost:5173", "https://scrapjobs.com.br"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
         ExposeHeaders:    []string{"Content-Length"},
@@ -141,6 +141,8 @@ func main() {
 	{
 		
 		privateRoutes.POST("/curriculum", curriculumController.CreateCurriculum)
+		privateRoutes.PUT("/curriculum/:id", curriculumController.UpdateCurriculum)
+		privateRoutes.PATCH("/curriculum/:id/active", curriculumController.SetActiveCurriculum)
 		privateRoutes.POST("/userSite", userSiteController.InsertUserSite)
 		privateRoutes.POST("/siteCareer", siteCareerController.InsertNewSiteCareer)
 		privateRoutes.POST("/scrape-sandbox", siteCareerController.SandboxScrape)
