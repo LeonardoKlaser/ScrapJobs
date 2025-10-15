@@ -144,7 +144,7 @@ func main() {
 		privateRoutes.POST("/userSite", userSiteController.InsertUserSite)
 		privateRoutes.POST("/siteCareer", siteCareerController.InsertNewSiteCareer)
 		privateRoutes.POST("/scrape-sandbox", siteCareerController.SandboxScrape)
-		privateRoutes.GET("/curriculum/:id", curriculumController.GetCurriculumByUserId)
+		privateRoutes.GET("/curriculum", curriculumController.GetCurriculumByUserId)
 		privateRoutes.POST("/api/logout", userController.Logout)
 		privateRoutes.POST("api/request-site", requestedSiteController.Create)
 	}

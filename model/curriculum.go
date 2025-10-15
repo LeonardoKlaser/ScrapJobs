@@ -13,6 +13,9 @@ type Education struct {
 }
 
 type Curriculum struct {
+	Id int `json:"id"`
+	Title string `json:"title"`
+	IsActive bool `json:"is_active"`
 	UserID int `json:"user_id"`
 	Experiences []Experience `json:"experiences"`
 	Skills string `json:"skills"`

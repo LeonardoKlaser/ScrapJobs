@@ -35,7 +35,7 @@ func (dep *UserSiteRepository) GetUsersBySiteId(siteId int) ([]model.UserSiteCur
         INNER JOIN
             user_sites U ON I.id = U.user_id
 		LEFT JOIN
-			curriculum c ON I.id = c.user_id
+			curriculum c ON I.id = c.user_id AND c.is_active = TRUE
         WHERE
             U.site_id = $1`
 	rows, err := dep.connection.Query(query, siteId)

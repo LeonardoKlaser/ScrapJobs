@@ -26,10 +26,10 @@ func (cur *CurriculumUsecase) CreateCurriculum(curriculum model.Curriculum) (mod
 	return res, nil
 }
 
-func (cur *CurriculumUsecase) GetCurriculumByUserId(userId int) (model.Curriculum, error){
+func (cur *CurriculumUsecase) GetCurriculumByUserId(userId int) ([]model.Curriculum, error){
 	res, err := cur.CurriculumRepository.FindCurriculumByUserID(userId)
 	if err != nil {
-		return model.Curriculum{}, err
+		return []model.Curriculum{}, err
 	}
 
 	return res, nil
