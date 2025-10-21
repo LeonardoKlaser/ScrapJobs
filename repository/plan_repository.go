@@ -62,3 +62,25 @@ func (pr *PlanRepository) GetPlanByUserID(userID int) (*model.Plan, error) {
 
 	return &plan, nil
 }
+
+func (pr *PlanRepository) GetPlanByID(planId int) (*model.Plan, error) {
+	query := `
+        SELECT id, name, price, max_sites, max_ai_analyses, features
+        FROM plans 
+        WHERE id = $1`
+
+	row := pr.connection.QueryRow(query, planId)
+
+	var plan model.Plan
+	var features pq.StringArray
+	err := row.Scan(&plan.ID, &plan.Name, &plan.Price, &plan.MaxSites, &plan.MaxAIAnalyses, &features)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil 
+		}
+		return nil, fmt.Errorf("erro ao buscar plano do usuário: %w", err)
+	}
+	plan.Features = features
+
+	return &plan, nil
+}

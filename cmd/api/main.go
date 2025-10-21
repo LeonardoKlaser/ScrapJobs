@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 	"web-scrapper/controller"
+	"web-scrapper/gateway"
 	"web-scrapper/infra/db"
 	"web-scrapper/infra/s3"
 	"web-scrapper/logging"
@@ -82,6 +83,7 @@ func main() {
 
 	s3Uploader := s3.NewUploader(awsCfg, s3BucketName)
 	
+	abacatepayGateway := gateway.NewAbacatePayGateway()
 
 	// Repositories
 	userRepository := repository.NewUserRepository(dbConnection)
@@ -99,6 +101,7 @@ func main() {
 	SiteCareerUsecase := usecase.NewSiteCareerUsecase(siteCareerRepository, s3Uploader)
 	planUsecase := usecase.NewPlanUsecase(planRepository)
 	requestedSiteUsecase := usecase.NewRequestedSiteUsecase(requestedSiteRepository)
+	paymentUsecase := usecase.NewPaymentUsecase(abacatepayGateway)
 
 	// Controllers
 	userController := controller.NewUserController(userUsecase)
@@ -110,6 +113,7 @@ func main() {
 	dashboardController := controller.NewDashboardDataController(dashboardRepository)
 	planController := controller.NewPlanController(planUsecase)
 	requestedSiteController := controller.NewRequestedSiteController(requestedSiteUsecase)
+	paymentController := controller.NewPaymentcontroller(paymentUsecase, planUsecase)
 
 	//middleware
 	middlewareAuth := middleware.NewMiddleware(userUsecase)
@@ -124,6 +128,7 @@ func main() {
 		publicRoutes.POST("/register", userController.SignUp)
 		publicRoutes.POST("/login", userController.SignIn)
 		publicRoutes.GET("/api/plans", planController.GetAllPlans)
+		publicRoutes.POST("/api/webhooks/abacatepay", paymentController.HandleWebhook)
 
 	}
 
@@ -150,9 +155,10 @@ func main() {
 		privateRoutes.GET("/curriculum", curriculumController.GetCurriculumByUserId)
 		privateRoutes.POST("/api/logout", userController.Logout)
 		privateRoutes.POST("api/request-site", requestedSiteController.Create)
+		privateRoutes.POST("/api/payments/create/:planId", paymentController.CreatePayment)
 	}
 
-	 healthRoutes := server.Group("/health")
+	healthRoutes := server.Group("/health")
     {
         healthRoutes.GET("/live", healthController.Liveness)
         healthRoutes.GET("/ready", healthController.Readiness)

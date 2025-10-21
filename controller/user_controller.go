@@ -31,13 +31,13 @@ func (usr *UserController) SignUp(ctx *gin.Context) {
 		return
 	}
 
-	res, err := usr.usecase.CreateUser(user)
+	err := usr.usecase.CreateUser(user)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, res)
+	ctx.JSON(http.StatusCreated, nil)
 }
 
 func (usr *UserController) SignIn(ctx *gin.Context) {

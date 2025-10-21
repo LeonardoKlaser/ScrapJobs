@@ -53,13 +53,9 @@ func TestNotification(t *testing.T){
 		t.Fatal("userRepository.DB should not be nil")
 	}
 
-	newUser, err := userRepository.CreateUser(user)
+	err := userRepository.CreateUser(user)
 	if err != nil {
 		t.Fatalf("error to insert default user: %s", err)
-	}
-
-	if newUser.Id == 0 {
-		t.Fatal("error to insert default user")
 	}
 
 	job := model.Job{
@@ -81,27 +77,5 @@ func TestNotification(t *testing.T){
 
 	if newJobID == 0 {
 		t.Fatal("the job ID didnt return")
-	}
-	NotificationRepository := NewNotificationRepository(testDB)
-
-	log.Printf("job: %d, user: %d", newJobID, newUser.Id)
-
-	err = NotificationRepository.InsertNewNotification(newJobID, newUser.Id)
-	if err != nil {
-		t.Fatalf("Error to insert new notification: %s", err)
-	}
-	
-	var jobs []int
-
-	jobs = append(jobs, newJobID)
-
-	jobIdnotified, err := NotificationRepository.GetNotifiedJobIDsForUser(newUser.Id, jobs)
-
-	if err != nil {
-		t.Fatalf("Error to get job already notified: %s", err)
-	}
-
-	if jobIdnotified[newJobID] != true {
-		t.Fatalf("Error to return job already notified: %s", err)
 	}
 }

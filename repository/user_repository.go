@@ -19,27 +19,21 @@ func NewUserRepository (DB *sql.DB) *UserRepository{
 	}
 }
 
-func (usr *UserRepository) CreateUser(user model.User) (model.User, error){
-	query := `INSERT INTO users (user_name, email, user_password) VALUES ($1, $2, $3) RETURNING id, user_name, email, user_password`
+func (usr *UserRepository) CreateUser(user model.User) (error){
+	query := `INSERT INTO users (user_name, email, user_password, cellphone, tax) VALUES ($1, $2, $3, $4, $5)`
 	queryPrepare, err := usr.db.Prepare(query)
 	if err != nil {
-		return model.User{}, fmt.Errorf("error to prepare database query: %w", err)
+		return fmt.Errorf("error to prepare database query: %w", err)
 	}
 
-	var userToReturn model.User
-	err = queryPrepare.QueryRow(user.Name, user.Email, user.Password).Scan(
-		&userToReturn.Id,
-		&userToReturn.Name,
-		&userToReturn.Email,
-		&userToReturn.Password,
-	)
+	err = queryPrepare.QueryRow(user.Name, user.Email, user.Password).Scan()
 	if(err != nil){
-		return model.User{}, fmt.Errorf("error to insert new user in database: %w", err)	
+		return fmt.Errorf("error to insert new user in database: %w", err)	
 	}
 
 	queryPrepare.Close()
 
-	return userToReturn, nil
+	return nil
 
 }
 

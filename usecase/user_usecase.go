@@ -19,28 +19,28 @@ func NewUserUsercase (repo interfaces.UserRepositoryInterface) *UserUsecase{
 	}
 }
 
-func (usr *UserUsecase) CreateUser(user model.User) (model.User, error){
+func (usr *UserUsecase) CreateUser(user model.User) (error){
 	exist, err := usr.repository.GetUserByEmail(user.Email)
 	if err != nil{
-		return model.User{}, err
+		return err
 	}
 
 	if exist.Email != "" {
-		return model.User{}, errors.New("user already exists")
+		return errors.New("user already exists")
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return model.User{}, fmt.Errorf("erro ao criptografar a senha: %w", err)
+		return fmt.Errorf("erro ao criptografar a senha: %w", err)
 	}
 
 	user.Password = string(hashedPassword)
 
-	res, err := usr.repository.CreateUser(user)
+	err = usr.repository.CreateUser(user)
 	if err != nil{
-		return model.User{}, err
+		return err
 	}
-	return res, nil
+	return nil
 }
 
 func (usr *UserUsecase) GetUserByEmail(userEmail string) (model.User, error){
