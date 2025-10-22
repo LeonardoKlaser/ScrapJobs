@@ -22,3 +22,7 @@ func (uc *PlanUsecase) GetAllPlans() ([]model.Plan, error) {
 func (uc *PlanUsecase) GetPlanByUserID(userID int) (*model.Plan, error) {
 	return uc.repository.GetPlanByUserID(userID)
 }
+
+func (uc *PlanUsecase) GetPlanByID(planId int) (*model.Plan, error) {
+	return uc.repository.GetPlanByID(planId)
+}
