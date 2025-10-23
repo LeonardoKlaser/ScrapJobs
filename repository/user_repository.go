@@ -20,13 +20,13 @@ func NewUserRepository (DB *sql.DB) *UserRepository{
 }
 
 func (usr *UserRepository) CreateUser(user model.User) (error){
-	query := `INSERT INTO users (user_name, email, user_password, cellphone, tax) VALUES ($1, $2, $3, $4, $5)`
+	query := `INSERT INTO users (user_name, email, user_password, cellphone, tax, plan) VALUES ($1, $2, $3, $4, $5, $6)`
 	queryPrepare, err := usr.db.Prepare(query)
 	if err != nil {
 		return fmt.Errorf("error to prepare database query: %w", err)
 	}
 
-	err = queryPrepare.QueryRow(user.Name, user.Email, user.Password).Scan()
+	err = queryPrepare.QueryRow(user.Name, user.Email, user.Password, user.Cellphone, user.Tax, user.Plan.ID).Scan()
 	if(err != nil){
 		return fmt.Errorf("error to insert new user in database: %w", err)	
 	}
