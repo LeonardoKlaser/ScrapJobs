@@ -9,6 +9,7 @@ import (
 	"web-scrapper/gateway"
 	"web-scrapper/infra/db"
 	"web-scrapper/infra/s3"
+	"web-scrapper/infra/ses"
 	"web-scrapper/logging"
 	"web-scrapper/middleware"
 	"web-scrapper/model"
@@ -85,6 +86,9 @@ func main() {
 	
 	abacatepayGateway := gateway.NewAbacatePayGateway()
 
+	clientSES := ses.LoadAWSClient(awsCfg)
+	mailSender := ses.NewSESMailSender(clientSES, "leobkklaser@gmail.com")
+
 	// Repositories
 	userRepository := repository.NewUserRepository(dbConnection)
 	curriculumRepository := repository.NewCurriculumRepository(dbConnection)
@@ -101,7 +105,8 @@ func main() {
 	SiteCareerUsecase := usecase.NewSiteCareerUsecase(siteCareerRepository, s3Uploader)
 	planUsecase := usecase.NewPlanUsecase(planRepository)
 	requestedSiteUsecase := usecase.NewRequestedSiteUsecase(requestedSiteRepository)
-	paymentUsecase := usecase.NewPaymentUsecase(abacatepayGateway)
+	paymentUsecase := usecase.NewPaymentUsecase(abacatepayGateway, asynqClient, userUsecase)
+	emailService := usecase.NewSESSenderAdapter(mailSender)
 
 	// Controllers
 	userController := controller.NewUserController(userUsecase)
@@ -113,7 +118,7 @@ func main() {
 	dashboardController := controller.NewDashboardDataController(dashboardRepository)
 	planController := controller.NewPlanController(planUsecase)
 	requestedSiteController := controller.NewRequestedSiteController(requestedSiteUsecase)
-	paymentController := controller.NewPaymentcontroller(paymentUsecase, planUsecase)
+	paymentController := controller.NewPaymentcontroller(paymentUsecase, planUsecase, emailService)
 
 	//middleware
 	middlewareAuth := middleware.NewMiddleware(userUsecase)
