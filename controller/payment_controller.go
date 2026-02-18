@@ -1,121 +1,167 @@
 package controller
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
-	"web-scrapper/gateway" // Importe o DTO do webhook
+	"strings"
+	"web-scrapper/gateway"
 	"web-scrapper/interfaces"
-	"web-scrapper/logging" // Seu logger
-	"web-scrapper/model"
+	"web-scrapper/logging"
+	"web-scrapper/tasks"
 	"web-scrapper/usecase"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hibiken/asynq"
 )
 
 type PaymentController struct {
 	paymentUsecase *usecase.PaymentUsecase
-	planUsecase *usecase.PlanUsecase
-	emailService interfaces.EmailService
+	emailService   interfaces.EmailService
+	asynqClient    *asynq.Client
 }
 
-func NewPaymentcontroller(paymentUsecase *usecase.PaymentUsecase, planUsecase *usecase.PlanUsecase, es interfaces.EmailService) *PaymentController{
+func NewPaymentController(
+	pu *usecase.PaymentUsecase,
+	es interfaces.EmailService,
+	ac *asynq.Client,
+) *PaymentController {
 	return &PaymentController{
-		paymentUsecase: paymentUsecase,
-		planUsecase: planUsecase,
-		emailService: es,
+		paymentUsecase: pu,
+		emailService:   es,
+		asynqClient:    ac,
 	}
-}
-
-type CreatePaymentRequest struct {
-	Methods   []string `json:"methods" binding:"required"`  
-	Frequency string   `json:"frequency" binding:"required"` 
 }
 
 func (p *PaymentController) CreatePayment(ctx *gin.Context) {
-	planId, err := strconv.Atoi(ctx.Param("planId"))
-	if err != nil{
-		ctx.JSON(http.StatusBadRequest, gin.H{"error" : "Falha recuperar identificador do plano"})
-	}
-    
-	plan, err := p.planUsecase.GetPlanByID(planId)
-	if err != nil{
-		ctx.JSON(http.StatusBadRequest, gin.H{"error" : "Falha ao buscar plano"})
+	log := logging.Logger
+	planIDStr := ctx.Param("planId")
+	planID, err := strconv.Atoi(planIDStr)
+	if err != nil {
+		log.Warn().Err(err).Str("plan_id_str", planIDStr).Msg("ID do plano inválido na URL")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "ID do plano inválido"})
+		return
 	}
 
 	var reqBody gateway.InitiatePaymentRequest
 	if err := ctx.ShouldBindJSON(&reqBody); err != nil {
-		logging.Logger.Warn().Err(err).Msg("Payload de iniciação de pagamento inválido")
+		log.Warn().Err(err).Msg("Payload de iniciação de pagamento inválido")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Payload inválido: " + err.Error()})
 		return
 	}
 
-    paymentURL, err := p.paymentUsecase.CreatePayment(ctx.Request.Context(), *plan, reqBody)
-    if err != nil {
-		logging.Logger.Error().Err(err).Msg("Erro ao criar cobrança")
-        ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao criar cobrança"})
-        return
-    }
+	// Limpa CPF e celular (remove caracteres não numéricos)
+	reqBody.Tax = cleanString(reqBody.Tax)
+	reqBody.Cellphone = cleanString(reqBody.Cellphone)
 
-    ctx.JSON(http.StatusOK, gin.H{"url": paymentURL})
+	log.Info().Str("email", reqBody.Email).Int("plan_id", planID).Msg("Iniciando processo de pagamento")
+	paymentURL, err := p.paymentUsecase.CreatePayment(ctx.Request.Context(), planID, reqBody)
+	if err != nil {
+		log.Error().Err(err).Str("email", reqBody.Email).Int("plan_id", planID).Msg("Erro ao iniciar pagamento no usecase")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao iniciar processo de pagamento"})
+		return
+	}
+
+	log.Info().Str("email", reqBody.Email).Int("plan_id", planID).Msg("URL de pagamento gerada com sucesso")
+	ctx.JSON(http.StatusOK, gin.H{"url": paymentURL})
 }
 
-
-
+// HandleWebhook processa os eventos de webhook da AbacatePay.
+// Suporta o evento "billing.paid" para completar o registro do usuário.
 func (p *PaymentController) HandleWebhook(ctx *gin.Context) {
-	var payload gateway.WebhookPayload
+	log := logging.Logger
 
-	if err := ctx.ShouldBindJSON(&payload); err != nil {
-		logging.Logger.Warn().Err(err).Msg("Webhook AbacatePay: Payload inválido")
+	// Lê o corpo bruto para verificação HMAC e parse
+	rawBody, err := io.ReadAll(ctx.Request.Body)
+	if err != nil {
+		log.Error().Err(err).Msg("Webhook AbacatePay: Erro ao ler corpo da requisição")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"status": "error reading body"})
+		return
+	}
+	// Restaura o body para uso posterior se necessário
+	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(rawBody))
+
+	var payload gateway.WebhookPayload
+	if err := json.Unmarshal(rawBody, &payload); err != nil {
+		log.Warn().Err(err).Bytes("raw_body", rawBody).Msg("Webhook AbacatePay: Payload JSON inválido")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Payload inválido"})
 		return
 	}
 
-	// --- !!! IMPLEMENTAR VERIFICAÇÃO DE ASSINATURA AQUI !!! ---
-	// signature := ctx.GetHeader("X-Abacatepay-Signature") // Ou o header correto
-	// webhookSecret := os.Getenv("ABACATEPAY_WEBHOOK_SECRET")
-	// if !gateway.VerifyWebhookSignature(signature, ctx.Request.Body, webhookSecret) {
-	//     logging.Logger.Error().Msg("Webhook AbacatePay: Assinatura inválida")
-	//     ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Assinatura inválida"})
-	//     return
-	// }
+	log.Info().Str("event", payload.Event).Str("webhook_id", payload.ID).Bool("dev_mode", payload.DevMode).Msg("Webhook AbacatePay recebido")
 
-	logging.Logger.Info().Str("event", payload.Event).Str("external_ref", payload.Data.Object.ExternalReference).Msg("Webhook AbacatePay recebido")
-
-	// Processar apenas eventos de pagamento confirmado
-	if payload.Event == "billing.paid" || payload.Data.Object.Status == "PAID" { // Verifique o evento/status correto
-		
-		pendingRegistrationID := payload.Data.Object.ExternalReference
-		if pendingRegistrationID == "" {
-			logging.Logger.Error().Msg("Webhook AbacatePay: ExternalReference ausente no payload 'billing.paid'")
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Referência externa ausente"})
-			return
-		}
-
-		// Chamar usecase para finalizar o registro
-		newUser, err := p.paymentUsecase.CompleteRegistration(ctx.Request.Context(), pendingRegistrationID)
-		if err != nil {
-			logging.Logger.Error().Err(err).Str("pending_id", pendingRegistrationID).Msg("Webhook AbacatePay: Falha ao completar registro")
-			// Retornar 200 OK mesmo assim para evitar retentativas da AbacatePay por este erro?
-			// Ou retornar 500 para AbacatePay tentar de novo? Depende da sua estratégia.
-			// Por segurança, retornar 200 e logar bem o erro é mais seguro para não criar usuários duplicados.
-			ctx.JSON(http.StatusOK, gin.H{"status": "received_but_failed_processing"})
-			return
-		}
-
-		logging.Logger.Info().Int("user_id", newUser.Id).Str("email", newUser.Email).Msg("Webhook AbacatePay: Usuário criado com sucesso")
-
-		// Enviar e-mail de boas-vindas
-		// TODO: Criar o método SendWelcomeEmail
-		// dashboardLink := "http://localhost:5173/dashboard" // Ou a URL correta
-		// err = p.emailService.SendWelcomeEmail(newUser.Email, newUser.Name, dashboardLink)
-		// if err != nil {
-		//     // Logar erro de email, mas não falhar o webhook por isso
-		//     logging.Logger.Error().Err(err).Int("user_id", newUser.Id).Msg("Falha ao enviar e-mail de boas-vindas")
-		// }
-
-	} else {
-		logging.Logger.Info().Str("event", payload.Event).Msg("Webhook AbacatePay: Evento ignorado")
+	// Processa apenas o evento billing.paid
+	if payload.Event != "billing.paid" {
+		log.Info().Str("event", payload.Event).Msg("Webhook AbacatePay: Evento ignorado (não é billing.paid)")
+		ctx.JSON(http.StatusOK, gin.H{"status": "received"})
+		return
 	}
 
+	billing := payload.Data.Billing
+	if billing == nil {
+		log.Error().Str("webhook_id", payload.ID).Msg("Webhook AbacatePay: Campo 'data.billing' ausente no evento billing.paid")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Payload incompleto: billing ausente"})
+		return
+	}
+
+	if billing.Status != "PAID" {
+		log.Info().Str("status", billing.Status).Msg("Webhook AbacatePay: Billing não está PAID, ignorando")
+		ctx.JSON(http.StatusOK, gin.H{"status": "received"})
+		return
+	}
+
+	// O ExternalId do billing é o nosso pendingRegistrationID
+	pendingRegistrationID := billing.ExternalId
+	if pendingRegistrationID == "" {
+		log.Error().Str("webhook_id", payload.ID).Str("billing_id", billing.ID).Msg("Webhook AbacatePay: ExternalId ausente no billing")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "ExternalId ausente no billing"})
+		return
+	}
+
+	log.Info().
+		Str("webhook_id", payload.ID).
+		Str("billing_id", billing.ID).
+		Str("pending_reg_id", pendingRegistrationID).
+		Msg("Enfileirando task para completar registro do usuário")
+
+	taskPayload, err := json.Marshal(tasks.CompleteRegistrationPayload{
+		PendingRegistrationID: pendingRegistrationID,
+		CustomerEmail:         billing.Customer.Metadata["email"],
+	})
+	if err != nil {
+		log.Error().Err(err).Str("pending_reg_id", pendingRegistrationID).Msg("Falha ao serializar payload da task CompleteRegistration")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro interno ao preparar processamento"})
+		return
+	}
+
+	task := asynq.NewTask(tasks.TypeCompleteRegistration, taskPayload, asynq.MaxRetry(5))
+	info, err := p.asynqClient.Enqueue(task, asynq.Queue("critical"))
+	if err != nil {
+		log.Error().Err(err).Str("pending_reg_id", pendingRegistrationID).Msg("Falha ao enfileirar task CompleteRegistration")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro interno ao agendar processamento"})
+		return
+	}
+
+	log.Info().
+		Str("task_id", info.ID).
+		Str("pending_reg_id", pendingRegistrationID).
+		Msg("Task CompleteRegistration enfileirada com sucesso")
+
 	ctx.JSON(http.StatusOK, gin.H{"status": "received"})
+}
+
+// cleanString remove todos os caracteres não numéricos (para CPF, celular, etc.)
+func cleanString(s string) string {
+	if s == "" {
+		return ""
+	}
+	var b strings.Builder
+	for _, r := range s {
+		if r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }

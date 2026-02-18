@@ -129,7 +129,16 @@ func (s *NotificationsUsecase) ProcessingJobAnalyze(ctx context.Context, job mod
 }
 
 
-func (s *NotificationsUsecase) ProcessingSingleNotification(ctx context.Context, job model.Job, user model.UserSiteCurriculum, analysis model.ResumeAnalysis) error{
+// GetNotificationsByUser retorna o histórico de notificações de um usuário com dados da vaga
+func (s *NotificationsUsecase) GetNotificationsByUser(userId int, limit int) ([]model.NotificationWithJob, error) {
+	notifications, err := s.notificationRepository.GetNotificationsByUser(userId, limit)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching notifications for user %d: %w", userId, err)
+	}
+	return notifications, nil
+}
+
+func (s *NotificationsUsecase) ProcessingSingleNotification(ctx context.Context, job model.Job, user model.UserSiteCurriculum, analysis model.ResumeAnalysis) error {
 
 	err := s.emailService.SendAnalysisEmail(context.Background(), user.Email, job, analysis)
 	if err != nil {

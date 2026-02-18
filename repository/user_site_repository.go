@@ -163,3 +163,29 @@ func (usr *UserSiteRepository) DeleteUserSite(userId int, siteId string) error {
 
 	return nil
 }
+
+// UpdateUserSiteFilters atualiza os filtros (palavras-chave) de um user_site
+func (usr *UserSiteRepository) UpdateUserSiteFilters(userId int, siteId int, filters []string) error {
+	query := `UPDATE user_sites SET filters = $1 WHERE user_id = $2 AND site_id = $3`
+
+	jsonFilters, err := json.Marshal(filters)
+	if err != nil {
+		return fmt.Errorf("erro ao serializar os filtros para JSON: %w", err)
+	}
+
+	result, err := usr.connection.Exec(query, jsonFilters, userId, siteId)
+	if err != nil {
+		return fmt.Errorf("error to update user_site filters: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("no user_site found for user %d and site %d", userId, siteId)
+	}
+
+	return nil
+}

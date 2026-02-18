@@ -76,3 +76,47 @@ func (usc *UserSiteController) DeleteUserSite(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "User unregistered from site successfully"})
 }
+
+// UpdateUserSiteFilters atualiza os filtros (palavras-chave) de monitoramento de um site.
+// PATCH /userSite/:siteId
+// Body: { "target_words": ["golang", "backend"] }
+func (usc *UserSiteController) UpdateUserSiteFilters(ctx *gin.Context) {
+	userInterface, exists := ctx.Get("user")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
+		return
+	}
+
+	user, ok := userInterface.(model.User)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Tipo de usuário inválido no contexto"})
+		return
+	}
+
+	siteIdStr := ctx.Param("siteId")
+	if siteIdStr == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "siteId is required"})
+		return
+	}
+
+	var siteId int
+	if _, err := fmt.Sscanf(siteIdStr, "%d", &siteId); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "siteId deve ser um número inteiro"})
+		return
+	}
+
+	var body struct {
+		TargetWords []string `json:"target_words"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Payload inválido: " + err.Error()})
+		return
+	}
+
+	if err := usc.usecase.UpdateUserSiteFilters(user.Id, siteId, body.TargetWords); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "Filtros atualizados com sucesso"})
+}

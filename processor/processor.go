@@ -5,7 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"web-scrapper/infra/ses"
+	"os"
+	"web-scrapper/interfaces"
 	"web-scrapper/logging"
 	"web-scrapper/tasks"
 	"web-scrapper/usecase"
@@ -13,21 +14,35 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-type TaskProcessor struct{
-	_scraper usecase.JobUseCase
-	_notifier usecase.NotificationsUsecase
-	_client *asynq.Client
-	_email *ses.SESMailSender
+type TaskProcessor struct {
+	_scraper       usecase.JobUseCase
+	_notifier      usecase.NotificationsUsecase
+	paymentUsecase *usecase.PaymentUsecase
+	emailService   interfaces.EmailService
+	_client        *asynq.Client
 }
 
-func NewTaskProcessor(scraper usecase.JobUseCase, notifier usecase.NotificationsUsecase, client *asynq.Client, email *ses.SESMailSender) *TaskProcessor{
-	return &TaskProcessor{_scraper: scraper, _notifier: notifier, _client: client, _email: email}
+func NewTaskProcessor(
+	scraper usecase.JobUseCase,
+	notifier usecase.NotificationsUsecase,
+	paymentUC *usecase.PaymentUsecase,
+	emailSvc interfaces.EmailService,
+	client *asynq.Client,
+) *TaskProcessor {
+	return &TaskProcessor{
+		_scraper:       scraper,
+		_notifier:      notifier,
+		paymentUsecase: paymentUC,
+		emailService:   emailSvc,
+		_client:        client,
+	}
 }
 
-func (p *TaskProcessor) HandleScrapeSiteTask(ctx context.Context, t *asynq.Task) error{
+func (p *TaskProcessor) HandleScrapeSiteTask(ctx context.Context, t *asynq.Task) error {
 	var payload tasks.ScrapeSitePayload
 
 	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
+		logging.Logger.Error().Err(err).Msg("Falha ao decodificar payload HandleScrapeSiteTask")
 		return fmt.Errorf("error to get payload: %w", err)
 	}
 
@@ -45,49 +60,49 @@ func (p *TaskProcessor) HandleScrapeSiteTask(ctx context.Context, t *asynq.Task)
 
 	resultsPayload, _ := json.Marshal(tasks.ProcessResultsPayload{
 		SiteID: payload.SiteID,
-		Jobs: newJobs,
+		Jobs:   newJobs,
 	})
 
 	nextTask := asynq.NewTask(tasks.TypeProcessResults, resultsPayload, asynq.MaxRetry(3))
 	info, err := p._client.EnqueueContext(ctx, nextTask)
 	if err != nil {
-		log.Printf("error to enqueue site: %d result task : %v", payload.SiteID,err)
+		log.Printf("error to enqueue site: %d result task : %v", payload.SiteID, err)
 		return nil
 	}
 
+	logging.Logger.Info().Int("site_id", payload.SiteID).Str("next_task_id", info.ID).Msg("Task de processamento de resultados enfileirada")
 	log.Printf("INFO: siteID: %d scrap finished. Process task enqueued: %s", payload.SiteID, info.ID)
 	return nil
 }
 
 func (p *TaskProcessor) HandleFindMatchesTask(ctx context.Context, t *asynq.Task) error {
-    var payload tasks.ProcessResultsPayload
-    if err := json.Unmarshal(t.Payload(), &payload); err != nil {
-        return fmt.Errorf("error to get payload results: %w", err)
-    }
+	var payload tasks.ProcessResultsPayload
+	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
+		return fmt.Errorf("error to get payload results: %w", err)
+	}
 
-    log.Printf("INFO: processing result to site: %d, jobs: %d", payload.SiteID, len(payload.Jobs))
-    
-    
-    payloadsToEnqueue, err := p._notifier.FindMatches(payload.SiteID, payload.Jobs)
-    if err != nil {
-        return fmt.Errorf("error to notify to site %d: %w", payload.SiteID, err)
-    }
+	log.Printf("INFO: processing result to site: %d, jobs: %d", payload.SiteID, len(payload.Jobs))
 
-	for _, analysisPayload := range payloadsToEnqueue{
+	payloadsToEnqueue, err := p._notifier.FindMatches(payload.SiteID, payload.Jobs)
+	if err != nil {
+		return fmt.Errorf("error to notify to site %d: %w", payload.SiteID, err)
+	}
+
+	for _, analysisPayload := range payloadsToEnqueue {
 		p_bytes, err := json.Marshal(analysisPayload)
-        if err != nil {
-            logging.Logger.Error().Err(err).Msg("Failed to marshal analysis payload, skipping task")
-            continue
-        }
+		if err != nil {
+			logging.Logger.Error().Err(err).Msg("Failed to marshal analysis payload, skipping task")
+			continue
+		}
 
 		analysisTask := asynq.NewTask(tasks.TypeAnalyzeUserJob, p_bytes, asynq.MaxRetry(3))
-        _, err = p._client.Enqueue(analysisTask, asynq.Queue("default"))
-        if err != nil {
-            logging.Logger.Error().Err(err).Msg("Failed to enqueue analysis task")
-        }
+		_, err = p._client.Enqueue(analysisTask, asynq.Queue("default"))
+		if err != nil {
+			logging.Logger.Error().Err(err).Msg("Failed to enqueue analysis task")
+		}
 	}
-    
-    log.Printf("INFO: result process to site %d finished.", payload.SiteID)
+
+	log.Printf("INFO: result process to site %d finished.", payload.SiteID)
 	return nil
 }
 
@@ -99,22 +114,21 @@ func (p *TaskProcessor) HandleAnalyzeJobUserTask(ctx context.Context, t *asynq.T
 
 	jobAnalyzed, err := p._notifier.ProcessingJobAnalyze(ctx, *payload.Job, payload.User)
 	if err != nil {
-		return fmt.Errorf("error to analyze job: %s to user: %d: %w", payload.Job.Title, payload.User.UserId ,err)
+		return fmt.Errorf("error to analyze job: %s to user: %d: %w", payload.Job.Title, payload.User.UserId, err)
 	}
 
 	payloadJobAnalyzed, err := json.Marshal(jobAnalyzed)
 	if err != nil {
-        logging.Logger.Error().Err(err).Msg("Failed to marshal notify user payload")
-		return nil 
-    }
+		logging.Logger.Error().Err(err).Msg("Failed to marshal notify user payload")
+		return nil
+	}
 
 	analyzeTask := asynq.NewTask(tasks.TypeNotifyUser, payloadJobAnalyzed, asynq.MaxRetry(3))
-
-    _, err = p._client.Enqueue(analyzeTask, asynq.Queue("default")) 
-    if err != nil {
-        logging.Logger.Error().Err(err).Int("user_id", jobAnalyzed.User.UserId).Int("job_id", jobAnalyzed.Job.ID).Msg("Failed to enqueue notification task")
+	_, err = p._client.Enqueue(analyzeTask, asynq.Queue("default"))
+	if err != nil {
+		logging.Logger.Error().Err(err).Int("user_id", jobAnalyzed.User.UserId).Int("job_id", jobAnalyzed.Job.ID).Msg("Failed to enqueue notification task")
 		return err
-    }
+	}
 	return nil
 }
 
@@ -126,39 +140,41 @@ func (p *TaskProcessor) HandleNotifyTask(ctx context.Context, t *asynq.Task) err
 
 	err := p._notifier.ProcessingSingleNotification(ctx, *payload.Job, payload.User, payload.Analysis)
 	if err != nil {
-		return fmt.Errorf("error to send notification job: %s to user: %d : %w", payload.Job.Title, payload.User.UserId, err)
+		logging.Logger.Error().Err(err).Int("user_id", payload.User.UserId).Int("job_id", payload.Job.ID).Msg("Erro ao processar notificação única (envio de email ou registro DB)")
+		return fmt.Errorf("error processing notification for job %d, user %d: %w", payload.Job.ID, payload.User.UserId, err)
 	}
+
+	logging.Logger.Info().Int("user_id", payload.User.UserId).Int("job_id", payload.Job.ID).Msg("Notificação processada com sucesso")
 	return nil
 }
 
-func (p *TaskProcessor) HandleDeadQueueLetter(ctx context.Context, t *asynq.Task){
-	retryCount, _ := asynq.GetRetryCount(ctx)
-	
-	log.Printf("ALERT: Received a task in Dead-Letter Queue. TaskID: %s, Type: %s", t.ResultWriter().TaskID(), t.Type())
+// HandleCompleteRegistrationTask processa o registro do usuário após confirmação de pagamento.
+func (p *TaskProcessor) HandleCompleteRegistrationTask(ctx context.Context, t *asynq.Task) error {
+	var payload tasks.CompleteRegistrationPayload
 
-	subject := fmt.Sprintf("[ALERTA SCRAPJOBS] Tarefa falhou: %s", t.Type())
-	body := fmt.Sprintf(`
-		Uma tarefa falhou permanentemente:
-		Detalhes da tarefa:
-		ID:%s
-		tipo da tarefa: %s
-		Fila: dead
-		Numero de retentativas: %d
-
-		Payload da tarefa:
-		<pre>%s</pre>
-
-
-		Investiga isso aí
-	`, t.ResultWriter().TaskID(), t.Type(), retryCount, string(t.Payload()))
-
-	adminEmail := "admin@scrapjobs.com.br"
-
-	err := p._email.SendEmail(ctx, adminEmail, subject, body, body )
-	if err != nil {
-		log.Printf("FATAL: Could not send DLQ alert email for TaskID %s. Error: %v", t.ResultWriter().TaskID(), err)
-	} else {
-		log.Printf("Admin alert email sent successfully for TaskID: %s", t.ResultWriter().TaskID())
+	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
+		logging.Logger.Error().Err(err).Msg("Falha ao decodificar payload HandleCompleteRegistrationTask")
+		return fmt.Errorf("json.Unmarshal failed: %v: %w", err, asynq.SkipRetry)
 	}
-}
 
+	logging.Logger.Info().Str("pending_reg_id", payload.PendingRegistrationID).Msg("Processando task para completar registro")
+
+	newUser, err := p.paymentUsecase.CompleteRegistration(ctx, payload.PendingRegistrationID)
+	if err != nil {
+		logging.Logger.Error().Err(err).Str("pending_reg_id", payload.PendingRegistrationID).Msg("Falha ao completar registro no usecase")
+		return fmt.Errorf("failed to complete registration: %w", err)
+	}
+
+	logging.Logger.Info().Int("user_id", newUser.Id).Str("email", newUser.Email).Msg("Usuário criado com sucesso via task")
+
+	dashboardLink := os.Getenv("FRONTEND_URL") + "/dashboard"
+	err = p.emailService.SendWelcomeEmail(ctx, newUser.Email, newUser.Name, dashboardLink)
+	if err != nil {
+		logging.Logger.Error().Err(err).Int("user_id", newUser.Id).Msg("Falha ao enviar e-mail de boas-vindas após registro")
+	} else {
+		logging.Logger.Info().Int("user_id", newUser.Id).Msg("E-mail de boas-vindas enviado")
+	}
+
+	logging.Logger.Info().Str("pending_reg_id", payload.PendingRegistrationID).Msg("Task de completar registro concluída com sucesso")
+	return nil
+}

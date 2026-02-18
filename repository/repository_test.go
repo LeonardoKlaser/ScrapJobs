@@ -53,7 +53,7 @@ func TestNotification(t *testing.T){
 		t.Fatal("userRepository.DB should not be nil")
 	}
 
-	err := userRepository.CreateUser(user)
+	_, err := userRepository.CreateUser(user)
 	if err != nil {
 		t.Fatalf("error to insert default user: %s", err)
 	}

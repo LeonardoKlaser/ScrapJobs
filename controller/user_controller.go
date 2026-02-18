@@ -31,7 +31,7 @@ func (usr *UserController) SignUp(ctx *gin.Context) {
 		return
 	}
 
-	err := usr.usecase.CreateUser(user)
+	_, err := usr.usecase.CreateUser(user)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

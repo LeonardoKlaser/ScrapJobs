@@ -1,4 +1,3 @@
-// scrapper go
 package main
 
 import (
@@ -17,77 +16,92 @@ import (
 	"web-scrapper/usecase"
 	"web-scrapper/utils"
 
-	"github.com/aws/aws-sdk-go-v2/config"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/time/rate"
 )
-
-
 
 func main() {
 	server := gin.Default()
 	server.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"http://localhost:5173", "https://scrapjobs.com.br"},
+		AllowOrigins:     []string{"http://localhost:5173", "https://scrapjobs.com.br"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
-        ExposeHeaders:    []string{"Content-Length"},
-        MaxAge: 12 * time.Hour,
+		ExposeHeaders:    []string{"Content-Length"},
+		MaxAge:           12 * time.Hour,
 	}))
 
-	if os.Getenv("GIN_MODE") != "release"{
-		godotenv.Load()	
+	if os.Getenv("GIN_MODE") != "release" {
+		godotenv.Load()
 	}
 
 	var err error
 	var secrets *model.AppSecrets
 
 	secretName := os.Getenv("APP_SECRET_NAME")
-	if secretName  != ""{
+	if secretName != "" {
 		secrets, err = utils.GetAppSecrets(secretName)
 		if err != nil {
-			logging.Logger.Fatal().Err(err).Msg("Could not connect to database")
-        }
+			logging.Logger.Fatal().Err(err).Msg("Could not get secrets from AWS Secrets Manager")
+		}
 	} else {
-        secrets = &model.AppSecrets{
-            DBHost:     os.Getenv("HOST_DB"),
-            DBPort:     os.Getenv("PORT_DB"),
-            DBUser: os.Getenv("USER_DB"),
-            DBPassword: os.Getenv("PASSWORD_DB"),
-            DBName:   os.Getenv("DBNAME"),
-			RedisAddr: os.Getenv("REDIS_ADDR"),
-        }
-    }
+		secrets = &model.AppSecrets{
+			DBHost:     os.Getenv("HOST_DB"),
+			DBPort:     os.Getenv("PORT_DB"),
+			DBUser:     os.Getenv("USER_DB"),
+			DBPassword: os.Getenv("PASSWORD_DB"),
+			DBName:     os.Getenv("DBNAME"),
+			RedisAddr:  os.Getenv("REDIS_ADDR"),
+		}
+	}
 
-	dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort,secrets.DBUser,secrets.DBPassword,secrets.DBName)
-	if(err != nil){
+	dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort, secrets.DBUser, secrets.DBPassword, secrets.DBName)
+	if err != nil {
 		logging.Logger.Fatal().Err(err).Msg("Could not connect to database")
 	}
-	
-	logging.Logger.Info().Msg("successfully connected to the databse")
-	
-	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: os.Getenv("REDIS_ADDR")})
-    defer asynqClient.Close()
+	logging.Logger.Info().Msg("successfully connected to the database")
 
-	awsCfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		logging.Logger.Fatal().Err(err).Msg("failed to load AWS configuration")
-	}
-	
+	redisOpt := connectRedis(secrets)
+	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: secrets.RedisAddr})
+	defer asynqClient.Close()
+
+	// --- S3 Uploader (opcional — usado apenas para upload de logos de sites) ---
+	var s3Uploader s3.UploaderInterface
 	s3BucketName := os.Getenv("S3_BUCKET_NAME")
-	if s3BucketName == "" {
-		logging.Logger.Fatal().Msg("S3_BUCKET_NAME environment variable not set")
+	if s3BucketName != "" {
+		awsCfg, awsErr := awsconfig.LoadDefaultConfig(context.TODO())
+		if awsErr != nil {
+			logging.Logger.Warn().Err(awsErr).Msg("Falha ao carregar configuração AWS — upload de logos via S3 desabilitado")
+		} else {
+			s3Uploader = s3.NewUploader(awsCfg, s3BucketName)
+			logging.Logger.Info().Str("bucket", s3BucketName).Msg("S3 uploader configurado")
+		}
+	} else {
+		logging.Logger.Warn().Msg("S3_BUCKET_NAME não definida — upload de logos via S3 desabilitado")
+		s3Uploader = &s3.NoOpUploader{}
 	}
 
-	s3Uploader := s3.NewUploader(awsCfg, s3BucketName)
-	
-	abacatepayGateway := gateway.NewAbacatePayGateway()
+	// --- SES Email Sender ---
+	senderEmail := os.Getenv("SES_SENDER_EMAIL")
+	if senderEmail == "" {
+		senderEmail = "noreply@scrapjobs.com.br"
+	}
 
-	clientSES := ses.LoadAWSClient(awsCfg)
-	mailSender := ses.NewSESMailSender(clientSES, "leobkklaser@gmail.com")
+	awsCfgSES, sesErr := ses.LoadAWSConfig(context.Background())
+	if sesErr != nil {
+		logging.Logger.Warn().Err(sesErr).Msg("Falha ao carregar configuração AWS para SES — envio de email pode não funcionar")
+	}
+	clientSES := ses.LoadAWSClient(awsCfgSES)
+	mailSender := ses.NewSESMailSender(clientSES, senderEmail)
+	emailService := usecase.NewSESSenderAdapter(mailSender)
+
+	// --- Gateway de Pagamento ---
+	abacatepayGateway := gateway.NewAbacatePayGateway()
 
 	// Repositories
 	userRepository := repository.NewUserRepository(dbConnection)
@@ -97,33 +111,35 @@ func main() {
 	dashboardRepository := repository.NewDashboardRepository(dbConnection)
 	planRepository := repository.NewPlanRepository(dbConnection)
 	requestedSiteRepository := repository.NewRequestedSiteRepository(dbConnection)
+	notificationRepository := repository.NewNotificationRepository(dbConnection)
 
 	// Usecases
 	userUsecase := usecase.NewUserUsercase(userRepository)
 	curriculumUsecase := usecase.NewCurriculumUsecase(curriculumRepository)
-	UserSiteUsecase := usecase.NewUserSiteUsecase(userSiteRepository)
-	SiteCareerUsecase := usecase.NewSiteCareerUsecase(siteCareerRepository, s3Uploader)
+	userSiteUsecase := usecase.NewUserSiteUsecase(userSiteRepository)
+	siteCareerUsecase := usecase.NewSiteCareerUsecase(siteCareerRepository, s3Uploader)
 	planUsecase := usecase.NewPlanUsecase(planRepository)
 	requestedSiteUsecase := usecase.NewRequestedSiteUsecase(requestedSiteRepository)
-	paymentUsecase := usecase.NewPaymentUsecase(abacatepayGateway, asynqClient, userUsecase)
-	emailService := usecase.NewSESSenderAdapter(mailSender)
+	paymentUsecase := usecase.NewPaymentUsecase(abacatepayGateway, redisOpt, userUsecase, planRepository)
+	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, nil, emailService, notificationRepository, asynqClient)
 
 	// Controllers
 	userController := controller.NewUserController(userUsecase)
 	curriculumController := controller.NewCurriculumController(curriculumUsecase)
-	userSiteController := controller.NewUserSiteController(UserSiteUsecase)
-	siteCareerController := controller.NewSiteCareerController(SiteCareerUsecase, userSiteRepository)
+	userSiteController := controller.NewUserSiteController(userSiteUsecase)
+	siteCareerController := controller.NewSiteCareerController(siteCareerUsecase, userSiteRepository)
 	healthController := controller.NewHealthController(dbConnection, asynqClient)
 	checkAuthController := controller.NewCheckAuthController()
 	dashboardController := controller.NewDashboardDataController(dashboardRepository)
 	planController := controller.NewPlanController(planUsecase)
 	requestedSiteController := controller.NewRequestedSiteController(requestedSiteUsecase)
-	paymentController := controller.NewPaymentcontroller(paymentUsecase, planUsecase, emailService)
+	paymentController := controller.NewPaymentController(paymentUsecase, emailService, asynqClient)
+	notificationController := controller.NewNotificationController(notificationUsecase)
 
-	//middleware
+	// Middleware
 	middlewareAuth := middleware.NewMiddleware(userUsecase)
 
-	//rate limiter 
+	// Rate limiters
 	publicRateLimiter := middleware.RateLimiter(rate.Limit(5.0/60.0), 2)
 
 	publicRoutes := server.Group("/")
@@ -133,11 +149,11 @@ func main() {
 		publicRoutes.POST("/register", userController.SignUp)
 		publicRoutes.POST("/login", userController.SignIn)
 		publicRoutes.GET("/api/plans", planController.GetAllPlans)
-		publicRoutes.POST("/api/webhooks/abacatepay", paymentController.HandleWebhook)
-
+		publicRoutes.POST("/api/payments/initiate/:planId", paymentController.CreatePayment)
+		publicRoutes.POST("/api/webhooks/abacatepay", utils.WebhookAuthMiddleware(), paymentController.HandleWebhook)
 	}
 
-	privateRateLimiter := middleware.RateLimiter(rate.Limit(15.0/60.0),10)
+	privateRateLimiter := middleware.RateLimiter(rate.Limit(15.0/60.0), 10)
 
 	privateRoutes := server.Group("/")
 	privateRoutes.Use(logging.GinMiddleware())
@@ -146,15 +162,16 @@ func main() {
 		privateRoutes.GET("api/me", checkAuthController.CheckAuthUser)
 		privateRoutes.GET("api/dashboard", dashboardController.GetDashboardDataByUserId)
 		privateRoutes.GET("api/getSites", siteCareerController.GetAllSites)
+		privateRoutes.GET("api/notifications", notificationController.GetNotificationsByUser)
 	}
 	privateRoutes.Use(privateRateLimiter)
 	{
-		
 		privateRoutes.POST("/curriculum", curriculumController.CreateCurriculum)
 		privateRoutes.PUT("/curriculum/:id", curriculumController.UpdateCurriculum)
 		privateRoutes.PATCH("/curriculum/:id/active", curriculumController.SetActiveCurriculum)
 		privateRoutes.POST("/userSite", userSiteController.InsertUserSite)
 		privateRoutes.DELETE("/userSite/:siteId", userSiteController.DeleteUserSite)
+		privateRoutes.PATCH("/userSite/:siteId", userSiteController.UpdateUserSiteFilters)
 		privateRoutes.POST("/siteCareer", siteCareerController.InsertNewSiteCareer)
 		privateRoutes.POST("/scrape-sandbox", siteCareerController.SandboxScrape)
 		privateRoutes.GET("/curriculum", curriculumController.GetCurriculumByUserId)
@@ -164,11 +181,22 @@ func main() {
 	}
 
 	healthRoutes := server.Group("/health")
-    {
-        healthRoutes.GET("/live", healthController.Liveness)
-        healthRoutes.GET("/ready", healthController.Readiness)
-    }
+	{
+		healthRoutes.GET("/live", healthController.Liveness)
+		healthRoutes.GET("/ready", healthController.Readiness)
+	}
 
-	
 	server.Run(":8080")
+}
+
+func connectRedis(secrets *model.AppSecrets) asynq.RedisConnOpt {
+	redisOpt := asynq.RedisClientOpt{Addr: secrets.RedisAddr}
+	client := redisOpt.MakeRedisClient().(redis.UniversalClient)
+	if _, err := client.Ping(context.Background()).Result(); err != nil {
+		client.Close()
+		logging.Logger.Fatal().Err(err).Str("redis_addr", secrets.RedisAddr).Msg("Falha ao conectar ao Redis")
+	}
+	client.Close()
+	logging.Logger.Info().Str("redis_addr", secrets.RedisAddr).Msg("Conectado ao Redis com sucesso")
+	return redisOpt
 }

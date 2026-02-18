@@ -11,6 +11,12 @@ import (
 	"github.com/google/uuid"
 )
 
+// UploaderInterface define o contrato para upload de arquivos
+type UploaderInterface interface {
+	UploadFile(ctx context.Context, file *multipart.FileHeader) (string, error)
+}
+
+// Uploader faz upload de arquivos para o AWS S3
 type Uploader struct {
 	Client     *s3.Client
 	BucketName string
@@ -38,19 +44,21 @@ func (u *Uploader) UploadFile(ctx context.Context, file *multipart.FileHeader) (
 		Bucket:      aws.String(u.BucketName),
 		Key:         aws.String(key),
 		Body:        src,
-		//ACL:         "public-read",
 		ContentType: aws.String(file.Header.Get("Content-Type")),
 	})
-
 	if err != nil {
 		return "", fmt.Errorf("falha ao fazer upload para o S3: %w", err)
 	}
 
 	url := fmt.Sprintf("https://%s.s3.amazonaws.com/%s", u.BucketName, key)
-
 	return url, nil
 }
 
-type UploaderInterface interface {
-    UploadFile(ctx context.Context, file *multipart.FileHeader) (string, error)
+// NoOpUploader é um uploader que não faz nada — usado quando S3 não está configurado.
+// Retorna uma string vazia sem erro, permitindo que o sistema funcione sem S3.
+type NoOpUploader struct{}
+
+func (n *NoOpUploader) UploadFile(ctx context.Context, file *multipart.FileHeader) (string, error) {
+	// Sem S3 configurado, simplesmente não faz upload e retorna URL vazia
+	return "", nil
 }

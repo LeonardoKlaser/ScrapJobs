@@ -7,6 +7,7 @@ const (
 	TypeProcessResults = "process:results"
 	TypeNotifyUser     = "notify:user"
 	TypeAnalyzeUserJob = "analyze:resume"
+	TypeCompleteRegistration = "payment:complete_registration"
 )
 
 type ScrapeSitePayload struct {
@@ -28,4 +29,9 @@ type NotifyUserPayload struct {
 type AnalyzeUserJobPayload struct {
 	User model.UserSiteCurriculum
 	Job *model.Job
+}
+
+type CompleteRegistrationPayload struct {
+	PendingRegistrationID string `json:"pending_registration_id"`
+	CustomerEmail string `json:"customer_email"`
 }

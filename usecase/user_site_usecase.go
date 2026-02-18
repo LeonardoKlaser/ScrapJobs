@@ -33,3 +33,8 @@ func (usu *UserSiteUsecase) DeleteUserSite(userId int, siteId string) error {
 
 	return nil
 }
+
+// UpdateUserSiteFilters atualiza os filtros (palavras-chave) de monitoramento de um site
+func (usu *UserSiteUsecase) UpdateUserSiteFilters(userId int, siteId int, filters []string) error {
+	return usu.rep.UpdateUserSiteFilters(userId, siteId, filters)
+}

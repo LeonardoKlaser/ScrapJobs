@@ -10,6 +10,49 @@ import (
 	"html/template"
 )
 
+func generateWelcomeEmailBodyHTML(userName, dashboardLink string) (string, error) {
+	const templateStr = `
+    <!DOCTYPE html><html><head><meta charset="UTF-8"><style>/* Estilos aqui */
+        .button { background-color: #28a745; color: white; padding: 12px 25px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; font-weight: bold; }
+    </style></head>
+    <body><h2>Bem-vindo(a) ao ScrapJobs, {{.UserName}}!</h2>
+    <p>Sua conta foi criada com sucesso!</p>
+    <p>Agora você pode começar a automatizar sua busca por vagas e receber análises personalizadas diretamente no seu e-mail.</p>
+    <p>Acesse seu painel para configurar os sites que deseja monitorar e fazer upload do seu currículo:</p>
+    <p style="text-align: center; margin-top: 25px; margin-bottom: 25px;">
+        <a href="{{.DashboardLink}}" class="button">Acessar meu Dashboard</a>
+    </p>
+    <p>Se tiver alguma dúvida, responda a este e-mail ou contate nosso suporte.</p>
+    <p>Atenciosamente,<br/>Equipe ScrapJobs</p></body></html>`
+
+	data := struct {
+		UserName      string
+		DashboardLink string
+	}{UserName: userName, DashboardLink: dashboardLink}
+
+	tmpl, err := template.New("welcomeEmail").Parse(templateStr)
+	if err != nil {
+		return "", err
+	}
+	var body bytes.Buffer
+	if err := tmpl.Execute(&body, data); err != nil {
+		return "", err
+	}
+	return body.String(), nil
+}
+
+func generateWelcomeEmailBodyText(userName, dashboardLink string) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Bem-vindo(a) ao ScrapJobs, %s!\n\n", userName))
+	sb.WriteString("Sua conta foi criada com sucesso!\n\n")
+	sb.WriteString("Agora você pode começar a automatizar sua busca por vagas e receber análises personalizadas diretamente no seu e-mail.\n\n")
+	sb.WriteString("Acesse seu painel para configurar os sites que deseja monitorar e fazer upload do seu currículo:\n")
+	sb.WriteString(dashboardLink + "\n\n")
+	sb.WriteString("Se tiver alguma dúvida, responda a este e-mail ou contate nosso suporte.\n\n")
+	sb.WriteString("Atenciosamente,\nEquipe ScrapJobs\n")
+	return sb.String()
+}
+
 func generateEmailBodyHTML(analysis model.ResumeAnalysis, job model.Job) (string, error) {
     const emailTemplate = `
     <!DOCTYPE html>
@@ -184,4 +227,17 @@ func (adapter *SESSenderAdapter) SendAnalysisEmail(ctx context.Context, userEmai
 
     
     return adapter.mailSender.SendEmail(ctx, userEmail, subject, bodyText, bodyHtml)
+}
+
+func (adapter *SESSenderAdapter) SendWelcomeEmail(ctx context.Context, userEmail, userName, dashboardLink string) error {
+	subject := "Bem-vindo(a) ao ScrapJobs!"
+
+	bodyHtml, err := generateWelcomeEmailBodyHTML(userName, dashboardLink)
+	if err != nil {
+		return fmt.Errorf("erro ao gerar corpo HTML do email de boas-vindas: %w", err)
+	}
+
+	bodyText := generateWelcomeEmailBodyText(userName, dashboardLink)
+
+	return adapter.mailSender.SendEmail(ctx, userEmail, subject, bodyText, bodyHtml)
 }

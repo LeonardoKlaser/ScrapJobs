@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"web-scrapper/gateway"
 	"web-scrapper/infra/db"
 	"web-scrapper/infra/gemini"
 	"web-scrapper/infra/ses"
@@ -20,36 +21,34 @@ import (
 	"golang.org/x/time/rate"
 )
 
-
-
 func main() {
-	if os.Getenv("GIN_MODE") != "release"{
-		godotenv.Load()	
+	if os.Getenv("GIN_MODE") != "release" {
+		godotenv.Load()
 	}
 
 	var err error
 	var secrets *model.AppSecrets
 
 	secretName := os.Getenv("APP_SECRET_NAME")
-	if secretName  != ""{
+	if secretName != "" {
 		secrets, err = utils.GetAppSecrets(secretName)
 		if err != nil {
-            panic("Failed to get secrets from AWS Secrets Manager: " + err.Error())
-        }
+			logging.Logger.Fatal().Err(err).Msg("Failed to get secrets from AWS Secrets Manager")
+		}
 	} else {
-        secrets = &model.AppSecrets{
-            DBHost:     os.Getenv("HOST_DB"),
-            DBPort:     os.Getenv("PORT_DB"),
-            DBUser: os.Getenv("USER_DB"),
-            DBPassword: os.Getenv("PASSWORD_DB"),
-            DBName:   os.Getenv("DBNAME"),
-            RedisAddr: os.Getenv("REDIS_ADDR"),
-			GeminiKey: os.Getenv("GEMINI_KEY"),
-			AIModel: os.Getenv("AI_MODEL"),
-        }
-    }
-	
-	dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort,secrets.DBUser,secrets.DBPassword,secrets.DBName)
+		secrets = &model.AppSecrets{
+			DBHost:     os.Getenv("HOST_DB"),
+			DBPort:     os.Getenv("PORT_DB"),
+			DBUser:     os.Getenv("USER_DB"),
+			DBPassword: os.Getenv("PASSWORD_DB"),
+			DBName:     os.Getenv("DBNAME"),
+			RedisAddr:  os.Getenv("REDIS_ADDR"),
+			GeminiKey:  os.Getenv("GEMINI_KEY"),
+			AIModel:    os.Getenv("AI_MODEL"),
+		}
+	}
+
+	dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort, secrets.DBUser, secrets.DBPassword, secrets.DBName)
 	if err != nil {
 		logging.Logger.Fatal().Err(err).Msg("Could not connect to database")
 	}
@@ -62,15 +61,22 @@ func main() {
 	if err != nil {
 		logging.Logger.Fatal().Err(err).Msg("could not create gemini client")
 	}
-	
+
+	// Carrega configuração AWS para SES (email)
 	awsCfg, err := ses.LoadAWSConfig(context.Background())
 	if err != nil {
-		logging.Logger.Fatal().Err(err).Msg("could not load aws config")
+		logging.Logger.Warn().Err(err).Msg("could not load aws config — email via SES não estará disponível")
 	}
-	clientSES := ses.LoadAWSClient(awsCfg)
-	mailSender := ses.NewSESMailSender(clientSES, "leobkklaser@gmail.com")
 
-	
+	senderEmail := os.Getenv("SES_SENDER_EMAIL")
+	if senderEmail == "" {
+		senderEmail = "noreply@scrapjobs.com.br"
+	}
+
+	clientSES := ses.LoadAWSClient(awsCfg)
+	mailSender := ses.NewSESMailSender(clientSES, senderEmail)
+	emailService := usecase.NewSESSenderAdapter(mailSender)
+
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: secrets.RedisAddr},
 		asynq.Config{
@@ -84,35 +90,46 @@ func main() {
 	)
 
 	clientAsynq := asynq.NewClient(asynq.RedisClientOpt{Addr: secrets.RedisAddr})
-    defer clientAsynq.Close()
-	
+	defer clientAsynq.Close()
+
 	// Repositories
 	jobRepository := repository.NewJobRepository(dbConnection)
 	userSiteRepository := repository.NewUserSiteRepository(dbConnection)
-	NotificationRepository := repository.NewNotificationRepository(dbConnection)
-	
+	notificationRepository := repository.NewNotificationRepository(dbConnection)
+	userRepository := repository.NewUserRepository(dbConnection)
+	planRepository := repository.NewPlanRepository(dbConnection)
+
 	// Services & Usecases
 	aiAnalyser := usecase.NewAiAnalyser(geminiClient)
-	emailService := usecase.NewSESSenderAdapter(mailSender)
 	jobUsecase := usecase.NewJobUseCase(jobRepository)
 
-	//conferir exatamente os limites da API que for ser usada em produção
 	aiApiLimiter := rate.NewLimiter(rate.Limit(15.0/60.0), 1)
-
 	rateLimitedAiService := usecase.NewRateLimitedAiAnalyser(aiAnalyser, aiApiLimiter)
 
-	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, rateLimitedAiService, emailService, NotificationRepository, clientAsynq)
-	
-	// TaskProcessor 
-	taskProcessor := processor.NewTaskProcessor(*jobUsecase, *notificationUsecase, clientAsynq, mailSender)
-	
+	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, rateLimitedAiService, emailService, notificationRepository, clientAsynq)
 
-	// --- Mapeamento das Tarefas para os Handlers ---
+	// PaymentUsecase (necessário para HandleCompleteRegistrationTask)
+	abacatepayGateway := gateway.NewAbacatePayGateway()
+	userUsecase := usecase.NewUserUsercase(userRepository)
+	redisOpt := asynq.RedisClientOpt{Addr: secrets.RedisAddr}
+	paymentUsecase := usecase.NewPaymentUsecase(abacatepayGateway, redisOpt, userUsecase, planRepository)
+
+	// TaskProcessor
+	taskProcessor := processor.NewTaskProcessor(
+		*jobUsecase,
+		*notificationUsecase,
+		paymentUsecase,
+		emailService,
+		clientAsynq,
+	)
+
+	// Mapeamento das Tarefas para os Handlers
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(tasks.TypeScrapSite, taskProcessor.HandleScrapeSiteTask)
 	mux.HandleFunc(tasks.TypeProcessResults, taskProcessor.HandleFindMatchesTask)
 	mux.HandleFunc(tasks.TypeAnalyzeUserJob, taskProcessor.HandleAnalyzeJobUserTask)
 	mux.HandleFunc(tasks.TypeNotifyUser, taskProcessor.HandleNotifyTask)
+	mux.HandleFunc(tasks.TypeCompleteRegistration, taskProcessor.HandleCompleteRegistrationTask)
 
 	log.Println("Worker Server started...")
 	if err := srv.Run(logging.AsynqMiddleware(mux)); err != nil {
