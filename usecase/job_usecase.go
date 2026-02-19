@@ -2,9 +2,9 @@ package usecase
 
 import (
 	"context"
-	"log"
-	"web-scrapper/model"
 	"web-scrapper/interfaces"
+	"web-scrapper/logging"
+	"web-scrapper/model"
 	"web-scrapper/scrapper"
 )
 
@@ -47,7 +47,7 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
 	if err != nil {
 		return []*model.Job{}, err
 	}
-	
+
     var newJobsToDatabase []*model.Job
 	ids := takeIDs(jobs)
 	exist, err := uc.Repository.FindJobsByRequisitionIDs(ids)
@@ -65,14 +65,14 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
 			}
             ID, err := uc.Repository.CreateJob(jobToInsert)
 			if err != nil {
-				log.Printf("Error to create job %v : %v", job, err)
+				logging.Logger.Error().Err(err).Str("job_title", job.Title).Msg("Failed to create job")
 			}
 			job.ID = ID
 			newJobsToDatabase = append(newJobsToDatabase, job)
         }else{
 			jobID, err := uc.Repository.UpdateLastSeen(job.RequisitionID)
 			if err != nil {
-				log.Printf("Error to update last seen job %v : %v", job, err)
+				logging.Logger.Error().Err(err).Int64("requisition_id", job.RequisitionID).Msg("Failed to update last seen")
 			}
 			job.ID = jobID
 			newJobsToDatabase = append(newJobsToDatabase, job)

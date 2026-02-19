@@ -98,7 +98,7 @@ func (usecase *SiteCareerController) InsertNewSiteCareer(ctx *gin.Context){
 		return
 	}
 
-	err := ctx.Request.ParseMultipartForm(10 << 20) 
+	err := ctx.Request.ParseMultipartForm(2 << 20)
     if err != nil {
         ctx.JSON(http.StatusBadRequest, gin.H{"error": "Erro ao processar o formulário"})
         return

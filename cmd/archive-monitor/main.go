@@ -9,7 +9,6 @@ import (
 
 	"web-scrapper/infra/ses"
 	"web-scrapper/logging"
-	//"web-scrapper/repository"
 	"web-scrapper/usecase"
 	"web-scrapper/utils"
 
@@ -42,13 +41,9 @@ func main() {
 	if err != nil {
 		logging.Logger.Fatal().Err(err).Msg("FATAL: could not load aws config")
 	}
-	//sesClient := ses.LoadAWSClient(awsCfg)
-	//mailSender := ses.NewSESMailSender(sesClient, cfg.SenderEmail)
 
 	cloudwatchClient := cloudwatch.NewFromConfig(awsCfg)
 
-	// Instantiate architectural components
-	//monitorRepo := repository.NewMonitorRepository(redisClient, cfg.NotifiedTaskSetKey, cfg.NotifiedTaskTTL)
 	monitorUsecase := usecase.NewMonitorUsecase(inspector, cloudwatchClient)
 
 	// Setup main loop
@@ -56,7 +51,6 @@ func main() {
 	defer ticker.Stop()
 	var wg sync.WaitGroup
 	logging.Logger.Info().Dur("polling_interval", cfg.PollingInterval).Msg("Archive monitor started")
-
 
 	wg.Add(1)
 	go func() {

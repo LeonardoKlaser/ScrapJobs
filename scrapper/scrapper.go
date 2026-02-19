@@ -3,11 +3,12 @@ package scrapper
 import (
 	"context"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"sync"
+	"web-scrapper/logging"
 	"web-scrapper/model"
+
 	"github.com/gocolly/colly/v2"
 )
 
@@ -31,7 +32,7 @@ func (s *JobScrapper) configureCollyCallbacks(c *colly.Collector, detailCollecto
 			jobPtr.Description = strings.TrimSpace(descriptionHTML)
 
 			if descriptionHTML == "" {
-				log.Printf("Erro ao extrair HTML da descrição na vaga %s:", jobPtr.Title)
+				logging.Logger.Warn().Str("job_title", jobPtr.Title).Msg("Failed to extract description HTML")
 				jobPtr.Description = ""
 			}
 		}
@@ -39,11 +40,10 @@ func (s *JobScrapper) configureCollyCallbacks(c *colly.Collector, detailCollecto
 		if selectors.JobRequisitionIdSelector != nil {
 			jobIDstr := e.ChildText(*selectors.JobRequisitionIdSelector)
 			jobID, err := strconv.Atoi(jobIDstr)
-			log.Printf("job id for %s : %d", jobPtr.Title, jobID)
-
 			if err != nil {
-				fmt.Println("Erro ao converter ID:", err)
+				logging.Logger.Warn().Err(err).Str("job_title", jobPtr.Title).Msg("Failed to convert requisition ID")
 			} else {
+				logging.Logger.Debug().Str("job_title", jobPtr.Title).Int("requisition_id", jobID).Msg("Parsed requisition ID")
 				jobPtr.RequisitionID = int64(jobID)
 			}
 		}
@@ -52,7 +52,11 @@ func (s *JobScrapper) configureCollyCallbacks(c *colly.Collector, detailCollecto
 	c.OnHTML(*selectors.JobListItemSelector, func(e *colly.HTMLElement) {
 		Title := e.ChildText(*selectors.TitleSelector)
 		JobLink := e.ChildAttr(*selectors.LinkSelector, *selectors.LinkAttribute)
-		Location := e.ChildText(*selectors.LocationSelector)
+
+		var Location string
+		if selectors.LocationSelector != nil {
+			Location = e.ChildText(*selectors.LocationSelector)
+		}
 
 		job := &model.Job{
 			Title:    Title,
@@ -72,16 +76,18 @@ func (s *JobScrapper) configureCollyCallbacks(c *colly.Collector, detailCollecto
 		mu.Unlock()
 	})
 
-	c.OnHTML(*selectors.NextPageSelector, func(e *colly.HTMLElement) {
-		if e.Request.Ctx.Get("visitNextPage") == "true" {
-            nextPage := e.Request.AbsoluteURL(e.Attr("href"))
-            if nextPage != "" {
-                fmt.Printf("Visiting next page: %s\n", nextPage)
-                e.Request.Ctx.Put("visitNextPage", "false")
-                e.Request.Visit(nextPage)
-            }
-        }
-	})
+	if selectors.NextPageSelector != nil {
+		c.OnHTML(*selectors.NextPageSelector, func(e *colly.HTMLElement) {
+			if e.Request.Ctx.Get("visitNextPage") == "true" {
+				nextPage := e.Request.AbsoluteURL(e.Attr("href"))
+				if nextPage != "" {
+					logging.Logger.Debug().Str("url", nextPage).Msg("Visiting next page")
+					e.Request.Ctx.Put("visitNextPage", "false")
+					e.Request.Visit(nextPage)
+				}
+			}
+		})
+	}
 }
 
 func (s *JobScrapper) Scrape(ctx context.Context, config model.SiteScrapingConfig) ([]*model.Job, error) {
