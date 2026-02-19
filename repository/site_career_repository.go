@@ -62,11 +62,15 @@ func (st *SiteCareerRepository) InsertNewSiteCareer(site model.SiteScrapingConfi
 func (st *SiteCareerRepository) GetAllSites() ([]model.SiteScrapingConfig, error){
 	var listOfSites []model.SiteScrapingConfig;
 
-	query := "SELECT * FROM site_scraping_config WHERE is_active = TRUE"
+	query := `SELECT id, site_name, base_url, is_active, scraping_type,
+		job_list_item_selector, title_selector, link_selector, link_attribute,
+		location_selector, next_page_selector, job_description_selector, job_requisition_id_selector,
+		api_endpoint_template, api_method, api_headers_json, api_payload_template, json_data_mappings, logo_url
+		FROM site_scraping_config WHERE is_active = TRUE`
 	rows, err := st.connection.Query(query)
 
 	if err != nil {
-		return listOfSites, fmt.Errorf("error to querie: %w", err)
+		return listOfSites, fmt.Errorf("error querying sites: %w", err)
 	}
 
 	defer rows.Close()
@@ -95,15 +99,15 @@ func (st *SiteCareerRepository) GetAllSites() ([]model.SiteScrapingConfig, error
 			&site.LogoURL,
 		)
 
-		if err != nil{
-			if err == sql.ErrNoRows{
-				return []model.SiteScrapingConfig{}, fmt.Errorf("error to get site: %w", err)
-			}
+		if err != nil {
 			return []model.SiteScrapingConfig{}, err
 		}
 
-
 		listOfSites = append(listOfSites, site)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error during rows iteration: %w", err)
 	}
 
 	return listOfSites, nil

@@ -1,1 +1,1 @@
-DROP TABLE users;
+ALTER TABLE users DROP COLUMN IF EXISTS curriculum_id;

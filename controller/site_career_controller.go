@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"web-scrapper/model"
 	"web-scrapper/repository"
 	"web-scrapper/usecase"
@@ -45,14 +46,16 @@ func (usecase *SiteCareerController) GetAllSites(ctx *gin.Context){
 		return
 	}
 
-	sites, err := usecase.usecase.GetAllSites();
+	sites, err := usecase.usecase.GetAllSites()
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error" : "Erro ao buscar sites: " + err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Erro ao buscar sites: " + err.Error()})
+		return
 	}
 
 	userSites, err := usecase.userSiteRepository.GetSubscribedSiteIDs(user.Id)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error" : "Erro ao buscar sites por usuario: " + err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Erro ao buscar sites por usuario: " + err.Error()})
+		return
 	}
 
 	var response []siteDTO
@@ -87,8 +90,12 @@ func (usecase *SiteCareerController) InsertNewSiteCareer(ctx *gin.Context){
 		return
 	}
 
-	if user.Email != "adminScrapjobs@gmail.com"{
-		ctx.JSON(http.StatusBadRequest, gin.H{"error" : "only admins can add new sites"})
+	adminEmail := os.Getenv("ADMIN_EMAIL")
+	if adminEmail == "" {
+		adminEmail = "adminScrapjobs@gmail.com"
+	}
+	if user.Email != adminEmail {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "only admins can add new sites"})
 		return
 	}
 
@@ -125,9 +132,13 @@ func (usecase *SiteCareerController) InsertNewSiteCareer(ctx *gin.Context){
 		}
 	}
 
-	log.Print("Site: "+ siteJSON)
-	log.Print("APIHeaderJson: " + *body.APIHeadersJSON)
-	log.Print("JSonDataMapping: " + *body.JSONDataMappings)
+	log.Print("Site: " + siteJSON)
+	if body.APIHeadersJSON != nil {
+		log.Print("APIHeaderJson: " + *body.APIHeadersJSON)
+	}
+	if body.JSONDataMappings != nil {
+		log.Print("JSonDataMapping: " + *body.JSONDataMappings)
+	}
 	log.Print(file)
 
 	res, err := usecase.usecase.InsertNewSiteCareer(ctx, body, file)

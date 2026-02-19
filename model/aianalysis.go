@@ -9,7 +9,7 @@ type RequirementAnalysis struct {
 type AIAnalysisResult struct{
 	MatchScore int `json:"match_score"`
 	Summary string `json:"summary"`
-	Strenghts []string `json:"strengths"`
+	Strengths []string `json:"strengths"`
 	Gaps []string `json:"gaps"`
 	Recommendations []RequirementAnalysis `json:"recommendations"`
 }

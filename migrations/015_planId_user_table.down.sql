@@ -1,2 +1,1 @@
-ALTER TABLE users
-DROP COLUMN plan_id;
+-- No-op: plan_id column is dropped in 014_create_table_plans.down.sql

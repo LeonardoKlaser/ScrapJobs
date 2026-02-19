@@ -1,2 +1,1 @@
-DROP TABLE curriculum;
-DROP TABLE users;
+DROP TABLE IF EXISTS curriculum;

@@ -1,2 +1,2 @@
-ALTER TABLE users
-ADD COLUMN plan_id INTEGER REFERENCES plans(id);
+-- No-op: plan_id column already added in migration 014_create_table_plans.
+-- This migration is kept for numbering consistency.

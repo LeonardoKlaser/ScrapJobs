@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"web-scrapper/model"
@@ -35,7 +34,8 @@ func (c *CurriculumController) CreateCurriculum(ctx *gin.Context) {
 
 	var curriculum model.Curriculum
 	if err := ctx.ShouldBindJSON(&curriculum); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error" : fmt.Errorf("error to deserialize new job json body: %w", err)})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
 	curriculum.UserID = user.Id
@@ -48,7 +48,6 @@ func (c *CurriculumController) CreateCurriculum(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusCreated, res)
 }
-
 
 func (c *CurriculumController) GetCurriculumByUserId(ctx *gin.Context) {
 	userInterface, exists := ctx.Get("user")
@@ -69,7 +68,7 @@ func (c *CurriculumController) GetCurriculumByUserId(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, res)
+	ctx.JSON(http.StatusOK, res)
 }
 
 func (c *CurriculumController) UpdateCurriculum(ctx *gin.Context) {
@@ -87,7 +86,7 @@ func (c *CurriculumController) UpdateCurriculum(ctx *gin.Context) {
 
 	var curriculum model.Curriculum
 	if err := ctx.ShouldBindJSON(&curriculum); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("error to deserialize new job json body: %w", err)})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 

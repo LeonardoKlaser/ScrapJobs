@@ -58,16 +58,18 @@ func (p *TaskProcessor) HandleScrapeSiteTask(ctx context.Context, t *asynq.Task)
 		return nil
 	}
 
-	resultsPayload, _ := json.Marshal(tasks.ProcessResultsPayload{
+	resultsPayload, err := json.Marshal(tasks.ProcessResultsPayload{
 		SiteID: payload.SiteID,
 		Jobs:   newJobs,
 	})
+	if err != nil {
+		return fmt.Errorf("error marshaling results payload for site %d: %w", payload.SiteID, err)
+	}
 
 	nextTask := asynq.NewTask(tasks.TypeProcessResults, resultsPayload, asynq.MaxRetry(3))
 	info, err := p._client.EnqueueContext(ctx, nextTask)
 	if err != nil {
-		log.Printf("error to enqueue site: %d result task : %v", payload.SiteID, err)
-		return nil
+		return fmt.Errorf("error enqueuing result task for site %d: %w", payload.SiteID, err)
 	}
 
 	logging.Logger.Info().Int("site_id", payload.SiteID).Str("next_task_id", info.ID).Msg("Task de processamento de resultados enfileirada")

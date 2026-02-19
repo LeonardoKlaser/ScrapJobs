@@ -114,7 +114,7 @@ func (s *NotificationsUsecase) matchJobWithFilters(job model.Job, filters []stri
 }
 
 func (s *NotificationsUsecase) ProcessingJobAnalyze(ctx context.Context, job model.Job, user model.UserSiteCurriculum) (tasks.NotifyUserPayload, error){
-	analysis, err := s.analysisService.Analyze(context.Background(), *user.Curriculum, job)
+	analysis, err := s.analysisService.Analyze(ctx, *user.Curriculum, job)
 	if err != nil {
 		return tasks.NotifyUserPayload{}, fmt.Errorf("ERROR: AI analysis failed for job %s: %v", job.Title, err)				
 	}
@@ -140,7 +140,7 @@ func (s *NotificationsUsecase) GetNotificationsByUser(userId int, limit int) ([]
 
 func (s *NotificationsUsecase) ProcessingSingleNotification(ctx context.Context, job model.Job, user model.UserSiteCurriculum, analysis model.ResumeAnalysis) error {
 
-	err := s.emailService.SendAnalysisEmail(context.Background(), user.Email, job, analysis)
+	err := s.emailService.SendAnalysisEmail(ctx, user.Email, job, analysis)
 	if err != nil {
 		return fmt.Errorf("ERROR: Email sending failed for job %s: %v", job.Title, err)			
 	}

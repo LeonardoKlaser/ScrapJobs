@@ -26,19 +26,25 @@ import (
 )
 
 func main() {
+	if os.Getenv("GIN_MODE") != "release" {
+		godotenv.Load()
+	}
+
 	server := gin.Default()
+
+	allowedOrigins := []string{"http://localhost:5173", "https://scrapjobs.com.br"}
+	if frontendURL := os.Getenv("FRONTEND_URL"); frontendURL != "" {
+		allowedOrigins = append(allowedOrigins, frontendURL)
+	}
+
 	server.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173", "https://scrapjobs.com.br"},
+		AllowOrigins:     allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
 		ExposeHeaders:    []string{"Content-Length"},
 		MaxAge:           12 * time.Hour,
 	}))
-
-	if os.Getenv("GIN_MODE") != "release" {
-		godotenv.Load()
-	}
 
 	var err error
 	var secrets *model.AppSecrets
@@ -149,7 +155,7 @@ func main() {
 		publicRoutes.POST("/register", userController.SignUp)
 		publicRoutes.POST("/login", userController.SignIn)
 		publicRoutes.GET("/api/plans", planController.GetAllPlans)
-		publicRoutes.POST("/api/payments/initiate/:planId", paymentController.CreatePayment)
+		publicRoutes.POST("/api/payments/create/:planId", paymentController.CreatePayment)
 		publicRoutes.POST("/api/webhooks/abacatepay", utils.WebhookAuthMiddleware(), paymentController.HandleWebhook)
 	}
 
@@ -177,7 +183,6 @@ func main() {
 		privateRoutes.GET("/curriculum", curriculumController.GetCurriculumByUserId)
 		privateRoutes.POST("/api/logout", userController.Logout)
 		privateRoutes.POST("api/request-site", requestedSiteController.Create)
-		privateRoutes.POST("/api/payments/create/:planId", paymentController.CreatePayment)
 	}
 
 	healthRoutes := server.Group("/health")
@@ -186,7 +191,9 @@ func main() {
 		healthRoutes.GET("/ready", healthController.Readiness)
 	}
 
-	server.Run(":8080")
+	if err := server.Run(":8080"); err != nil {
+		logging.Logger.Fatal().Err(err).Msg("Failed to start server")
+	}
 }
 
 func connectRedis(secrets *model.AppSecrets) asynq.RedisConnOpt {

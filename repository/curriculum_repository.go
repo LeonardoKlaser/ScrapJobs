@@ -21,10 +21,11 @@ func NewCurriculumRepository(db *sql.DB) *CurriculumRepository {
 func (cur *CurriculumRepository) CreateCurriculum(curriculum model.Curriculum) (model.Curriculum, error) {
 	query := `INSERT INTO curriculum (user_id, experience, education, skills, languages, summary, title) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING user_id , experience, education, skills, languages, summary;`
 	queryPrepare, err := cur.connection.Prepare(query)
-
 	if err != nil {
 		return model.Curriculum{}, err
 	}
+	defer queryPrepare.Close()
+
 	var curriculumCreated model.Curriculum
 
 	var experienceJSON, educationJSON []byte
@@ -65,9 +66,7 @@ func (cur *CurriculumRepository) CreateCurriculum(curriculum model.Curriculum) (
 		}
 	}
 
-	queryPrepare.Close()
 	return curriculumCreated, nil
-	
 }
 
 
@@ -82,10 +81,9 @@ func (cur *CurriculumRepository) FindCurriculumByUserID(userID int) ([]model.Cur
 	}
 	defer rows.Close()
 
-	var experienceJSON, educationJSON []byte
-	
-	for rows.Next(){
+	for rows.Next() {
 		var curriculum model.Curriculum
+		var experienceJSON, educationJSON []byte
 		err = rows.Scan(
 			&curriculum.Id,
 			&curriculum.Title,
@@ -97,28 +95,28 @@ func (cur *CurriculumRepository) FindCurriculumByUserID(userID int) ([]model.Cur
 			&curriculum.Summary,
 		)
 
-		if err != nil{
-			if err == sql.ErrNoRows{
-				return []model.Curriculum{}, fmt.Errorf("curriculum for this user_id: %d not found: %w", userID, err)
-			}
+		if err != nil {
 			return []model.Curriculum{}, err
 		}
-	
+
 		if len(educationJSON) > 0 {
 			if err := json.Unmarshal(educationJSON, &curriculum.Educations); err != nil {
-				return []model.Curriculum{}, fmt.Errorf("error to get education informations: %w", err )
+				return []model.Curriculum{}, fmt.Errorf("error to get education informations: %w", err)
 			}
 		}
-	
+
 		if len(experienceJSON) > 0 {
 			if err := json.Unmarshal(experienceJSON, &curriculum.Experiences); err != nil {
-				return []model.Curriculum{}, fmt.Errorf("error to get experiences informations: %w", err )
+				return []model.Curriculum{}, fmt.Errorf("error to get experiences informations: %w", err)
 			}
 		}
 
 		curriculumList = append(curriculumList, curriculum)
 	}
-	
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error during rows iteration: %w", err)
+	}
 
 	return curriculumList, nil
 

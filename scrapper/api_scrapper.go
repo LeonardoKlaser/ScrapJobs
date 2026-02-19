@@ -26,8 +26,15 @@ func NewAPIScrapper() *APIScrapper{
 }
 
 func (s *APIScrapper) Scrape(ctx context.Context, config model.SiteScrapingConfig) ([]*model.Job, error){
+	if config.APIEndpointTemplate == nil {
+		return nil, fmt.Errorf("API endpoint template is required for site %s", config.SiteName)
+	}
+	if config.JSONDataMappings == nil {
+		return nil, fmt.Errorf("JSON data mappings is required for site %s", config.SiteName)
+	}
+
 	method := "GET"
-	if *config.APIMethod != ""{
+	if config.APIMethod != nil && *config.APIMethod != "" {
 		method = *config.APIMethod
 	}
 
@@ -36,9 +43,9 @@ func (s *APIScrapper) Scrape(ctx context.Context, config model.SiteScrapingConfi
 		return nil, fmt.Errorf("ERROR to create request %s: %w", config.SiteName, err)
 	}
 
-	if *config.APIHeadersJSON != ""{
+	if config.APIHeadersJSON != nil && *config.APIHeadersJSON != "" {
 		var headers map[string]string
-		if err := json.Unmarshal([]byte(*config.APIHeadersJSON), &headers); err == nil{
+		if err := json.Unmarshal([]byte(*config.APIHeadersJSON), &headers); err == nil {
 			for key, value := range headers {
 				req.Header.Set(key, value)
 			}

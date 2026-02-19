@@ -146,12 +146,12 @@ func generateEmailBodyHTML(analysis model.ResumeAnalysis, job model.Job) (string
 }
 
 
-func generateEmailBodyText(analysis model.ResumeAnalysis) string {
+func generateEmailBodyText(analysis model.ResumeAnalysis, job model.Job) string {
 	var sb strings.Builder
 
 
 	sb.WriteString("Prezados(as),\n\n")
-	sb.WriteString("Segue abaixo a análise detalhada do currículo para a posição de Senior Developer - SAP Datasphere Repository:\n\n")
+	sb.WriteString(fmt.Sprintf("Segue abaixo a análise detalhada do currículo para a posição de %s:\n\n", job.Title))
 
 	sb.WriteString("**Análise de Compatibilidade:**\n")
 	sb.WriteString(fmt.Sprintf("*   **Pontuação Geral:** %d\n", analysis.MatchAnalysis.OverallScoreNumeric))
@@ -200,7 +200,7 @@ func generateEmailBodyText(analysis model.ResumeAnalysis) string {
 
 
 	sb.WriteString("Atenciosamente,\n\n")
-	sb.WriteString("[Seu Nome/Nome da Equipe]\n") // Placeholder para assinatura
+	sb.WriteString("Equipe ScrapJobs\n")
 
 	return sb.String()
 }
@@ -223,7 +223,7 @@ func (adapter *SESSenderAdapter) SendAnalysisEmail(ctx context.Context, userEmai
         return fmt.Errorf("ERROR to generate html body: %w", err)
     }
 
-    bodyText := generateEmailBodyText(analysis)
+    bodyText := generateEmailBodyText(analysis, job)
 
     
     return adapter.mailSender.SendEmail(ctx, userEmail, subject, bodyText, bodyHtml)

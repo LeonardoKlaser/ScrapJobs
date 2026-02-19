@@ -31,9 +31,10 @@ func (repo *DashboardDataController) GetDashboardDataByUserId (ctx *gin.Context)
 		return
 	}
 
-	data, error :=  repo.repo.GetDashboardData(user.Id)
+	data, error := repo.repo.GetDashboardData(user.Id)
 	if error != nil {
-		ctx.JSON(http.StatusInternalServerError, error)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": error.Error()})
+		return
 	}
 
 	ctx.JSON(http.StatusOK, data)

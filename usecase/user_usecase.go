@@ -43,6 +43,23 @@ func (usr *UserUsecase) CreateUser(user model.User) (model.User, error) {
 	return created, nil
 }
 
+func (usr *UserUsecase) CreateUserWithHashedPassword(user model.User) (model.User, error) {
+	exist, err := usr.repository.GetUserByEmail(user.Email)
+	if err != nil {
+		return model.User{}, err
+	}
+
+	if exist.Email != "" {
+		return model.User{}, errors.New("user already exists")
+	}
+
+	created, err := usr.repository.CreateUser(user)
+	if err != nil {
+		return model.User{}, err
+	}
+	return created, nil
+}
+
 func (usr *UserUsecase) GetUserByEmail(userEmail string) (model.User, error) {
 	res, err := usr.repository.GetUserByEmail(userEmail)
 	if err != nil {

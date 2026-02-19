@@ -1,0 +1,3 @@
+ALTER TABLE users
+    DROP COLUMN IF EXISTS tax,
+    DROP COLUMN IF EXISTS cellphone;

@@ -4,63 +4,68 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 )
 
 type visitor struct {
-    limiter  *rate.Limiter
-    lastSeen time.Time
+	limiter  *rate.Limiter
+	lastSeen time.Time
 }
 
-var (
-    visitors = make(map[string]*visitor)
-    mu       sync.Mutex
-)
-
-func init() {
-    go cleanupVisitors()
+type rateLimiterStore struct {
+	visitors map[string]*visitor
+	mu       sync.Mutex
 }
 
+func newRateLimiterStore() *rateLimiterStore {
+	store := &rateLimiterStore{
+		visitors: make(map[string]*visitor),
+	}
+	go store.cleanup()
+	return store
+}
 
-func RateLimiter(r rate.Limit, b int) gin.HandlerFunc{
-	return func(ctx *gin.Context){
+func (s *rateLimiterStore) cleanup() {
+	for {
+		time.Sleep(time.Minute)
+
+		s.mu.Lock()
+		for ip, v := range s.visitors {
+			if time.Since(v.lastSeen) > 3*time.Minute {
+				delete(s.visitors, ip)
+			}
+		}
+		s.mu.Unlock()
+	}
+}
+
+func RateLimiter(r rate.Limit, b int) gin.HandlerFunc {
+	store := newRateLimiterStore()
+
+	return func(ctx *gin.Context) {
 		ip := ctx.ClientIP()
 
-		mu.Lock()
+		store.mu.Lock()
 
-		v, exists := visitors[ip]
+		v, exists := store.visitors[ip]
 		if !exists {
 			limiter := rate.NewLimiter(r, b)
-			visitors[ip] = &visitor{limiter: limiter, lastSeen: time.Now()}
-			mu.Unlock()
+			store.visitors[ip] = &visitor{limiter: limiter, lastSeen: time.Now()}
+			store.mu.Unlock()
 			ctx.Next()
 			return
 		}
 
 		v.lastSeen = time.Now()
-		mu.Unlock()
+		store.mu.Unlock()
 
-		if !v.limiter.Allow(){
+		if !v.limiter.Allow() {
 			ctx.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "Too many requests"})
-            return
+			return
 		}
 
 		ctx.Next()
 	}
-}
-
-
-func cleanupVisitors() {
-    for {
-        time.Sleep(time.Minute) 
-
-        mu.Lock()
-        for ip, v := range visitors {
-            if time.Since(v.lastSeen) > 3*time.Minute {
-                delete(visitors, ip)
-            }
-        }
-        mu.Unlock()
-    }
 }

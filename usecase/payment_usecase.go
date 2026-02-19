@@ -14,6 +14,7 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type PaymentUsecase struct {
@@ -48,10 +49,17 @@ func (uc *PaymentUsecase) CreatePayment(ctx context.Context, planID int, userDat
 	userData.Tax = cleanNumericString(userData.Tax)
 	userData.Cellphone = cleanNumericString(userData.Cellphone)
 
+	// Hash password before storing in Redis to avoid plaintext exposure
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(userData.Password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Error().Err(err).Msg("Erro ao gerar hash da senha")
+		return "", fmt.Errorf("erro ao processar senha: %w", err)
+	}
+
 	pendingData := gateway.PendingRegistrationData{
 		Name:      userData.Name,
 		Email:     userData.Email,
-		Password:  userData.Password, // senha em texto plano — hash feito no CompleteRegistration
+		Password:  string(hashedPassword),
 		Tax:       userData.Tax,
 		Cellphone: userData.Cellphone,
 		PlanID:    plan.ID,
@@ -114,13 +122,13 @@ func (uc *PaymentUsecase) CompleteRegistration(ctx context.Context, pendingRegis
 	userToCreate := model.User{
 		Name:      pendingData.Name,
 		Email:     pendingData.Email,
-		Password:  pendingData.Password, // CreateUser fará o hash
+		Password:  pendingData.Password, // Already hashed before Redis storage
 		Tax:       &pendingData.Tax,
 		Cellphone: &pendingData.Cellphone,
 		PlanID:    &pendingData.PlanID,
 	}
 
-	newUser, err := uc.userUsecase.CreateUser(userToCreate)
+	newUser, err := uc.userUsecase.CreateUserWithHashedPassword(userToCreate)
 	if err != nil {
 		if strings.Contains(err.Error(), "user already exists") || strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 			log.Warn().Str("email", pendingData.Email).Msg("Usuário já existe, registro não duplicado.")

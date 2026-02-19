@@ -45,12 +45,12 @@ func (dep *UserSiteRepository) GetUsersBySiteId(siteId int) ([]model.UserSiteCur
 
 	defer rows.Close()
 	var users []model.UserSiteCurriculum
-	var targetWordsJSON sql.NullString
 
-	for rows.Next(){
+	for rows.Next() {
 		var user model.UserSiteCurriculum
 		var skills, languages, summary sql.NullString
 		var experienceJSON, educationJSON sql.NullString
+		var targetWordsJSON sql.NullString
 		err := rows.Scan(
 			&user.UserId,
 			&user.Name,
@@ -64,9 +64,6 @@ func (dep *UserSiteRepository) GetUsersBySiteId(siteId int) ([]model.UserSiteCur
 		)
 
 		if err != nil {
-			if err == sql.ErrNoRows{
-				return []model.UserSiteCurriculum{}, fmt.Errorf("error to get user data: %w", err)
-			}
 			return []model.UserSiteCurriculum{}, err
 		}
 

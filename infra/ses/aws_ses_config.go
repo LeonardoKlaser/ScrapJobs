@@ -9,21 +9,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 )
 
-func LoadAWSConfig(ct context.Context) (aws.Config, error){
-	if endpointURL := os.Getenv("AWS_ENDPOINT_URL"); endpointURL != "" {
-		customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				URL:           endpointURL,
-				SigningRegion: "us-east-1",
-			}, nil
-		})
-
-		return config.LoadDefaultConfig(ct, config.WithEndpointResolverWithOptions(customResolver))
-	}
-
+func LoadAWSConfig(ct context.Context) (aws.Config, error) {
 	return config.LoadDefaultConfig(ct)
 }
 
-func LoadAWSClient(cfg aws.Config) (*ses.Client){
+func LoadAWSClient(cfg aws.Config) *ses.Client {
+	if endpointURL := os.Getenv("AWS_ENDPOINT_URL"); endpointURL != "" {
+		return ses.NewFromConfig(cfg, func(o *ses.Options) {
+			o.BaseEndpoint = aws.String(endpointURL)
+		})
+	}
 	return ses.NewFromConfig(cfg)
 }

@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
+	"text/template"
 	"strings"
 	"web-scrapper/infra/gemini"
 	"web-scrapper/model"
@@ -126,6 +126,15 @@ func prompt_builder(curriculum model.Curriculum, job model.Job) (string, error) 
 	return populatedPrompt.String(), nil
 }
 
+func extractJSON(text string) string {
+	start := strings.Index(text, "{")
+	end := strings.LastIndex(text, "}")
+	if start == -1 || end == -1 || end <= start {
+		return text
+	}
+	return text[start : end+1]
+}
+
 func (a *AiAnalyser) Analyze(ctx context.Context ,curriculum model.Curriculum, job model.Job) (model.ResumeAnalysis, error) {
 	nullreturn := model.ResumeAnalysis{}
 	if a.client == nil {
@@ -148,8 +157,7 @@ func (a *AiAnalyser) Analyze(ctx context.Context ,curriculum model.Curriculum, j
 	}
 
 	var analysis model.ResumeAnalysis
-	cleanedJSON := strings.TrimPrefix(responseText, "```json\n")
-	cleanedJSON = strings.TrimSuffix(cleanedJSON, "\n```")
+	cleanedJSON := extractJSON(responseText)
 
 	err = json.Unmarshal([]byte(cleanedJSON), &analysis)
 	if err != nil {

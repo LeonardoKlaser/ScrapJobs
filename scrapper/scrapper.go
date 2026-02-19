@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 	"web-scrapper/model"
-	"github.com/gocolly/colly"
+	"github.com/gocolly/colly/v2"
 )
 
 type JobScrapper struct{
@@ -35,15 +35,17 @@ func (s *JobScrapper) configureCollyCallbacks(c *colly.Collector, detailCollecto
 				jobPtr.Description = ""
 			}
 		}
-	
-		jobIDstr := e.ChildText(*selectors.JobRequisitionIdSelector)
-		jobID, err := strconv.Atoi(jobIDstr)
-		log.Printf("job id for %s : %d", jobPtr.Title, jobID)
 
-		if err != nil {
-			fmt.Println("Erro ao converter ID:", err)
-		} else {
-			jobPtr.Requisition_ID = int64(jobID)
+		if selectors.JobRequisitionIdSelector != nil {
+			jobIDstr := e.ChildText(*selectors.JobRequisitionIdSelector)
+			jobID, err := strconv.Atoi(jobIDstr)
+			log.Printf("job id for %s : %d", jobPtr.Title, jobID)
+
+			if err != nil {
+				fmt.Println("Erro ao converter ID:", err)
+			} else {
+				jobPtr.Requisition_ID = int64(jobID)
+			}
 		}
 	})
 

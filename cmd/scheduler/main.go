@@ -5,14 +5,17 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 	"web-scrapper/infra/db"
+	"web-scrapper/logging"
 	"web-scrapper/model"
 	"web-scrapper/repository"
 	"web-scrapper/tasks"
 	"web-scrapper/utils"
-    "web-scrapper/logging"
+
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
 )
@@ -52,26 +55,35 @@ func main() {
     siteRepo := repository.NewSiteCareerRepository(dbConnection)
     jobRepo := repository.NewJobRepository(dbConnection)
 
-    // Ticker to run hourly
+    // Ticker to run every 120 minutes
     ticker := time.NewTicker(120 * time.Minute)
     defer ticker.Stop()
 
     tickerDeleteJobs := time.NewTicker(24 * time.Hour)
     defer tickerDeleteJobs.Stop()
 
+    // Graceful shutdown
+    sigCh := make(chan os.Signal, 1)
+    signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+    // Run initial scraping on startup
+    go enqueueScrapingTasks(context.Background(), siteRepo, client)
+
     for {
-        select{
+        select {
         case <-ticker.C:
             go enqueueScrapingTasks(context.Background(), siteRepo, client)
         case <-tickerDeleteJobs.C:
-            go func(){
-                if err := jobRepo.DeleteOldJobs(); err != nil{
-                    logging.Logger.Fatal().Err(err).Msg("ERROR: failed to delete old jobs")
+            go func() {
+                if err := jobRepo.DeleteOldJobs(); err != nil {
+                    logging.Logger.Error().Err(err).Msg("ERROR: failed to delete old jobs")
                 }
             }()
+        case sig := <-sigCh:
+            logging.Logger.Info().Str("signal", sig.String()).Msg("Scheduler shutting down")
+            return
         }
     }
-
 }
 
 func enqueueScrapingTasks(ctx context.Context, siteRepo *repository.SiteCareerRepository, client *asynq.Client) {

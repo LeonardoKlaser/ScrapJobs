@@ -98,7 +98,7 @@ services:
 
   go_scrapper_db:
     container_name: go_scrapper_db_local
-    image: postgres:14-alpine
+    image: postgres:16-alpine
     ports:
       - "5432:5432" 
     environment:

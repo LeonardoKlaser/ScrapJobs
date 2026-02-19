@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -24,11 +23,25 @@ func NewUserController(usercase *usecase.UserUsecase) UserController {
 }
 
 func (usr *UserController) SignUp(ctx *gin.Context) {
-	var user model.User
+	var body struct {
+		Name      string  `json:"user_name"`
+		Email     string  `json:"email"`
+		Password  string  `json:"password"`
+		Tax       *string `json:"tax,omitempty"`
+		Cellphone *string `json:"cellphone,omitempty"`
+	}
 
-	if err := ctx.ShouldBindJSON(&user); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Errorf("error to get new user json: %w", err)})
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	user := model.User{
+		Name:      body.Name,
+		Email:     body.Email,
+		Password:  body.Password,
+		Tax:       body.Tax,
+		Cellphone: body.Cellphone,
 	}
 
 	_, err := usr.usecase.CreateUser(user)

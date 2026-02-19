@@ -8,7 +8,7 @@ import (
 	"log"
 	"web-scrapper/model"
 	"github.com/chromedp/chromedp"
-    "github.com/gocolly/colly"
+    "github.com/gocolly/colly/v2"
 )
 
 
@@ -34,10 +34,14 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 	taskCtx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(log.Printf))
 	defer cancel()
 
+	if config.JobListItemSelector == nil {
+		return nil, fmt.Errorf("job_list_item_selector is required for headless scraping of %s", config.SiteName)
+	}
+
 	var htmlContent string
 	err := chromedp.Run(taskCtx,
 		chromedp.Navigate(config.BaseURL),
-		chromedp.WaitVisible(config.JobListItemSelector, chromedp.ByQuery),
+		chromedp.WaitVisible(*config.JobListItemSelector, chromedp.ByQuery),
 		chromedp.OuterHTML("html", &htmlContent),
 	)
 

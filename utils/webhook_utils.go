@@ -25,7 +25,7 @@ func VerifyWebhookSecret(c *gin.Context) bool {
 	}
 
 	if webhookSecret != expectedSecret {
-		logging.Logger.Warn().Str("received_secret", webhookSecret).Msg("Secret do webhook inválido recebido na query string")
+		logging.Logger.Warn().Msg("Invalid webhook secret received")
 		return false
 	}
 	return true
@@ -57,22 +57,8 @@ func VerifyWebhookHMACSignature(c *gin.Context, rawBody []byte) bool {
 	expectedSigBase64 := base64.StdEncoding.EncodeToString(expectedSigBytes)
 
 	// Comparação segura contra timing attacks
-	expectedBuf := []byte(expectedSigBase64)
-	receivedBuf := []byte(signatureFromHeader)
-
-	if len(expectedBuf) != len(receivedBuf) {
-		logging.Logger.Warn().
-			Str("received_signature", signatureFromHeader).
-			Str("expected_signature", expectedSigBase64).
-			Msg("Assinatura HMAC do webhook inválida (tamanhos diferentes)")
-		return false
-	}
-
-	if !hmac.Equal(expectedBuf, receivedBuf) {
-		logging.Logger.Warn().
-			Str("received_signature", signatureFromHeader).
-			Str("expected_signature", expectedSigBase64).
-			Msg("Assinatura HMAC do webhook inválida")
+	if !hmac.Equal([]byte(expectedSigBase64), []byte(signatureFromHeader)) {
+		logging.Logger.Warn().Msg("Invalid webhook HMAC signature")
 		return false
 	}
 

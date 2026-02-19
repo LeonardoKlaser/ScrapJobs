@@ -8,8 +8,6 @@
 #   go run ./cmd/worker/main.go
 #   go run ./cmd/scheduler/main.go
 
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine

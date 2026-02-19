@@ -16,7 +16,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/worker ./cmd/work
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/scheduler ./cmd/scheduler
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/archive-monitor ./cmd/archive-monitor
 
-FROM alpine:latest
+FROM alpine:3.21
 
 RUN apk --no-cache add ca-certificates curl procps
 
