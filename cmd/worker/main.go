@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"web-scrapper/gateway"
 	"web-scrapper/infra/db"
@@ -52,6 +51,7 @@ func main() {
 	if err != nil {
 		logging.Logger.Fatal().Err(err).Msg("Could not connect to database")
 	}
+	defer dbConnection.Close()
 
 	geminiConfig := gemini.Config{
 		ApiKey:   secrets.GeminiKey,
@@ -131,7 +131,7 @@ func main() {
 	mux.HandleFunc(tasks.TypeNotifyUser, taskProcessor.HandleNotifyTask)
 	mux.HandleFunc(tasks.TypeCompleteRegistration, taskProcessor.HandleCompleteRegistrationTask)
 
-	log.Println("Worker Server started...")
+	logging.Logger.Info().Msg("Worker Server started...")
 	if err := srv.Run(logging.AsynqMiddleware(mux)); err != nil {
 		logging.Logger.Fatal().Err(err).Msg("Could not run asynq server")
 	}

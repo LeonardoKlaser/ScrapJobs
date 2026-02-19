@@ -55,13 +55,13 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
 		return nil, err
 	}
     for _, job := range jobs {
-        if _ , ok := exist[job.Requisition_ID]; !ok {
+        if _ , ok := exist[job.RequisitionID]; !ok {
 			jobToInsert := model.Job{
 				Title: job.Title,
 				Location: job.Location,
 				Company: selectors.SiteName,
-				Job_link: job.Job_link,
-				Requisition_ID: job.Requisition_ID,
+				JobLink: job.JobLink,
+				RequisitionID: job.RequisitionID,
 			}
             ID, err := uc.Repository.CreateJob(jobToInsert)
 			if err != nil {
@@ -70,7 +70,7 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
 			job.ID = ID
 			newJobsToDatabase = append(newJobsToDatabase, job)
         }else{
-			jobID, err := uc.Repository.UpdateLastSeen(job.Requisition_ID)
+			jobID, err := uc.Repository.UpdateLastSeen(job.RequisitionID)
 			if err != nil {
 				log.Printf("Error to update last seen job %v : %v", job, err)
 			}
@@ -84,7 +84,7 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
 func takeIDs(jobs []*model.Job) []int64{
 	var ids []int64
 	for _, job := range(jobs){
-		ids = append(ids, job.Requisition_ID)
+		ids = append(ids, job.RequisitionID)
 	}
 	return ids
 }

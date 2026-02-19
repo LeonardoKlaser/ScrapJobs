@@ -3,7 +3,6 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"web-scrapper/model"
@@ -27,11 +26,11 @@ func NewSiteCareerController(usecase *usecase.SiteCareerUsecase, userSiteReposit
 
 func (usecase *SiteCareerController) GetAllSites(ctx *gin.Context){
 	type siteDTO struct{
-		SiteName string
-		BaseURL string
-		SiteId int
-		LogoURL *string
-		IsSubscribed bool
+		SiteName     string  `json:"site_name"`
+		BaseURL      string  `json:"base_url"`
+		SiteId       int     `json:"site_id"`
+		LogoURL      *string `json:"logo_url"`
+		IsSubscribed bool    `json:"is_subscribed"`
 	}
 
 	userInterface, exists := ctx.Get("user")
@@ -132,15 +131,6 @@ func (usecase *SiteCareerController) InsertNewSiteCareer(ctx *gin.Context){
 		}
 	}
 
-	log.Print("Site: " + siteJSON)
-	if body.APIHeadersJSON != nil {
-		log.Print("APIHeaderJson: " + *body.APIHeadersJSON)
-	}
-	if body.JSONDataMappings != nil {
-		log.Print("JSonDataMapping: " + *body.JSONDataMappings)
-	}
-	log.Print(file)
-
 	res, err := usecase.usecase.InsertNewSiteCareer(ctx, body, file)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
@@ -169,16 +159,6 @@ func (usecase *SiteCareerController) SandboxScrape(ctx *gin.Context){
         return
     }
 
-	for _, job := range scrapedJobs{
-		log.Printf("requisition ID: %v", job.Requisition_ID);
-	}
-
-	var ids = takeIDs(scrapedJobs);	
-	for _, id := range ids{
-		log.Printf("ids buscados: %v ", id)
-	}
-
-
 	if len(scrapedJobs) == 0 {
         ctx.JSON(http.StatusOK, gin.H{
             "success": true,
@@ -193,12 +173,4 @@ func (usecase *SiteCareerController) SandboxScrape(ctx *gin.Context){
         "message": fmt.Sprintf("%d vagas encontradas com sucesso.", len(scrapedJobs)),
         "data":    scrapedJobs,
     })
-}
-
-func takeIDs(jobs []*model.Job) []int64{
-	var ids []int64
-	for _, job := range(jobs){
-		ids = append(ids, job.Requisition_ID)
-	}
-	return ids
 }

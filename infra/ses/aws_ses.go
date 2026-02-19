@@ -2,6 +2,7 @@ package ses
 
 import (
     "context"
+    "web-scrapper/logging"
     "github.com/aws/aws-sdk-go-v2/service/ses"
     "github.com/aws/aws-sdk-go-v2/service/ses/types"
     "github.com/aws/aws-sdk-go-v2/aws"
@@ -46,6 +47,6 @@ func (s *SESMailSender) SendEmail(ctx context.Context ,to string, subject string
     }
 
     _, err := s.client.SendEmail(ctx, input)
-	println("enviou o e-mail: " + subject + " para: " + to + "\n ")
+	logging.Logger.Info().Str("subject", subject).Str("to", to).Msg("E-mail enviado")
     return err
 }

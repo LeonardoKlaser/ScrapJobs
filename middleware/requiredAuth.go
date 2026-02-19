@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"time"
 	"web-scrapper/usecase"
 
 	"github.com/gin-gonic/gin"
@@ -44,11 +43,6 @@ func (m *Middleware) RequireAuth(ctx *gin.Context) {
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {
-		ctx.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
-
-	if float64(time.Now().Unix()) > claims["exp"].(float64) {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}

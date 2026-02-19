@@ -2,7 +2,7 @@ services:
   api:
     container_name: go_scrapper_api
     image: ${IMAGE_NAME}
-    command: /app/api 
+    command: /app/api
     environment:
       - AWS_REGION=us-east-1
       - USER_DB=${USER_DB}
@@ -12,6 +12,17 @@ services:
       - AI_MODEL=${AI_MODEL}
       - HOST_DB=${HOST_DB}
       - PORT_DB=${PORT_DB}
+      - JWTTOKEN=${JWTTOKEN}
+      - REDIS_ADDR=${REDIS_ADDR}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - ABACATEPAY_API_KEY=${ABACATEPAY_API_KEY}
+      - ABACATEPAY_BASE_URL=${ABACATEPAY_BASE_URL}
+      - ABACATEPAY_WEBHOOK_SECRET=${ABACATEPAY_WEBHOOK_SECRET}
+      - ABACATEPAY_PUBLIC_KEY=${ABACATEPAY_PUBLIC_KEY}
+      - SES_SENDER_EMAIL=${SES_SENDER_EMAIL}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - DB_SSLMODE=${DB_SSLMODE}
     ports:
       - "8080:8080"
     depends_on:
@@ -21,11 +32,17 @@ services:
         condition: service_healthy
     networks:
       - go_network
-  
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   worker:
     container_name: go_scrapper_worker
-    image: ${IMAGE_NAME} 
-    command: /app/worker  
+    image: ${IMAGE_NAME}
+    command: /app/worker
     environment:
       - AWS_REGION=us-east-1
       - USER_DB=${USER_DB}
@@ -36,6 +53,14 @@ services:
       - HOST_DB=${HOST_DB}
       - PORT_DB=${PORT_DB}
       - REDIS_ADDR=${REDIS_ADDR}
+      - SES_SENDER_EMAIL=${SES_SENDER_EMAIL}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - DB_SSLMODE=${DB_SSLMODE}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - ABACATEPAY_API_KEY=${ABACATEPAY_API_KEY}
+      - ABACATEPAY_BASE_URL=${ABACATEPAY_BASE_URL}
+      - ABACATEPAY_WEBHOOK_SECRET=${ABACATEPAY_WEBHOOK_SECRET}
+      - ABACATEPAY_PUBLIC_KEY=${ABACATEPAY_PUBLIC_KEY}
     depends_on:
       go_scrapper_db:
         condition: service_healthy
@@ -43,21 +68,21 @@ services:
         condition: service_healthy
     networks:
       - go_network
+    restart: unless-stopped
 
   scheduler:
     container_name: go_scrapper_scheduler
-    image: ${IMAGE_NAME} 
-    command: /app/scheduler 
+    image: ${IMAGE_NAME}
+    command: /app/scheduler
     environment:
       - AWS_REGION=us-east-1
       - USER_DB=${USER_DB}
       - PASSWORD_DB=${PASSWORD_DB}
       - DBNAME=${DBNAME}
-      - GEMINI_KEY=${GEMINI_KEY}
-      - AI_MODEL=${AI_MODEL}
       - HOST_DB=${HOST_DB}
       - PORT_DB=${PORT_DB}
       - REDIS_ADDR=${REDIS_ADDR}
+      - DB_SSLMODE=${DB_SSLMODE}
     depends_on:
       go_scrapper_db:
         condition: service_healthy
@@ -65,12 +90,13 @@ services:
         condition: service_healthy
     networks:
       - go_network
+    restart: unless-stopped
 
   go_scrapper_db:
     container_name: go_scrapper_db
     image: postgres:16-alpine
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       - POSTGRES_USER=${USER_DB}
       - POSTGRES_PASSWORD=${PASSWORD_DB}
@@ -79,12 +105,13 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - go_network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${USER_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    
+
   redis:
     container_name: redis
     image: redis:7-alpine
@@ -96,11 +123,12 @@ services:
       - redisdata:/data
     networks:
       - go_network
+    restart: unless-stopped
     healthcheck:
-        test: ["CMD", "redis-cli", "ping"]
-        interval: 10s
-        timeout: 5s
-        retries: 5
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   migrate:
     image: ${IMAGE_NAME}
@@ -109,6 +137,7 @@ services:
         condition: service_healthy
     networks:
       - go_network
+    restart: unless-stopped
     command: >
       /app/migrate -path /app/migrations -database "postgres://${USER_DB}:${PASSWORD_DB}@go_scrapper_db:5432/${DBNAME}?sslmode=disable" up
 
@@ -119,4 +148,3 @@ networks:
 volumes:
   pgdata: {}
   redisdata: {}
-

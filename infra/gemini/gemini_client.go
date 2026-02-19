@@ -1,8 +1,10 @@
 package gemini 
 import (
-	"google.golang.org/genai"
 	"context"
 	"errors"
+	"time"
+
+	"google.golang.org/genai"
 )
 
 type Config struct {
@@ -40,6 +42,9 @@ func (c *GeminiClient)GeminiSearch( ctx context.Context, search string) (*genai.
 	if c.genAIClient == nil {
 		return nil, errors.New("gemini client not initialized")
 	}
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 
 	parts := []*genai.Part{
 		{Text: search},

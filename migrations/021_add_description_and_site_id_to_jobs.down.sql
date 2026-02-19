@@ -1,0 +1,3 @@
+DROP INDEX IF EXISTS idx_jobs_site_id;
+ALTER TABLE jobs DROP COLUMN IF EXISTS site_id;
+ALTER TABLE jobs DROP COLUMN IF EXISTS description;

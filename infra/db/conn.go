@@ -18,7 +18,7 @@ func ConnectDB(host string, port string, user string, password string, dbname st
 
 	sslmode := os.Getenv("DB_SSLMODE")
 	if sslmode == "" {
-		sslmode = "disable"
+		sslmode = "require"
 	}
 
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
@@ -31,11 +31,11 @@ func ConnectDB(host string, port string, user string, password string, dbname st
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(3 * time.Minute)
 
 	err = db.Ping()
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Connected to the database!")
 	return db, nil
 }

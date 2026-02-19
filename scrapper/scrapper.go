@@ -44,7 +44,7 @@ func (s *JobScrapper) configureCollyCallbacks(c *colly.Collector, detailCollecto
 			if err != nil {
 				fmt.Println("Erro ao converter ID:", err)
 			} else {
-				jobPtr.Requisition_ID = int64(jobID)
+				jobPtr.RequisitionID = int64(jobID)
 			}
 		}
 	})
@@ -57,7 +57,7 @@ func (s *JobScrapper) configureCollyCallbacks(c *colly.Collector, detailCollecto
 		job := &model.Job{
 			Title:    Title,
 			Location: Location,
-			Job_link: JobLink,
+			JobLink: JobLink,
 		}
 
 		if JobLink != "" {
@@ -85,6 +85,10 @@ func (s *JobScrapper) configureCollyCallbacks(c *colly.Collector, detailCollecto
 }
 
 func (s *JobScrapper) Scrape(ctx context.Context, config model.SiteScrapingConfig) ([]*model.Job, error) {
+	if config.JobListItemSelector == nil || config.TitleSelector == nil || config.LinkSelector == nil || config.LinkAttribute == nil {
+		return nil, fmt.Errorf("required selectors (JobListItemSelector, TitleSelector, LinkSelector, LinkAttribute) must not be nil for site %s", config.SiteName)
+	}
+
 	var jobs []*model.Job
 	var wg sync.WaitGroup
 	var mu sync.Mutex

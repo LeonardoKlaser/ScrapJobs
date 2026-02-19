@@ -63,6 +63,9 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 
 	s.collyParser.configureCollyCallbacks(c, detailCollector, &jobs, &wg, &mu, config)
 
+	// BUG: Colly's Request() sends htmlContent as HTTP body of a GET request to the server,
+	// ignoring the chromedp-rendered HTML. This scraper needs refactoring to parse the
+	// rendered HTML directly (e.g., using goquery). See analysis report.
 	err = c.Request("GET", config.BaseURL, bytes.NewBufferString(htmlContent), nil, nil)
     if err != nil {
         return nil, fmt.Errorf("colly falhou ao processar o HTML do chromedp: %w", err)

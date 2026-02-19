@@ -87,3 +87,8 @@ variable "redis_port" {
   type        = string
   sensitive   = true
 }
+
+variable "notification_email" {
+  description = "Email for notifications and SES"
+  type        = string
+}

@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 	"web-scrapper/controller"
 	"web-scrapper/gateway"
@@ -32,11 +35,25 @@ func main() {
 		godotenv.Load()
 	}
 
+	jwtSecret := os.Getenv("JWTTOKEN")
+	if len(jwtSecret) < 32 {
+		logging.Logger.Fatal().Msg("JWTTOKEN environment variable must be at least 32 characters")
+	}
+
 	server := gin.Default()
 
 	allowedOrigins := []string{"http://localhost:5173", "https://scrapjobs.com.br"}
 	if frontendURL := os.Getenv("FRONTEND_URL"); frontendURL != "" {
-		allowedOrigins = append(allowedOrigins, frontendURL)
+		isDuplicate := false
+		for _, o := range allowedOrigins {
+			if o == frontendURL {
+				isDuplicate = true
+				break
+			}
+		}
+		if !isDuplicate {
+			allowedOrigins = append(allowedOrigins, frontendURL)
+		}
 	}
 
 	server.Use(cors.New(cors.Config{
@@ -75,6 +92,7 @@ func main() {
 		logging.Logger.Fatal().Err(err).Msg("Could not connect to database")
 	}
 	logging.Logger.Info().Msg("successfully connected to the database")
+	defer dbConnection.Close()
 
 	redisOpt := connectRedis(secrets)
 	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: secrets.RedisAddr})
@@ -222,9 +240,28 @@ func main() {
 		healthRoutes.GET("/ready", healthController.Readiness)
 	}
 
-	if err := server.Run(":8080"); err != nil {
-		logging.Logger.Fatal().Err(err).Msg("Failed to start server")
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: server.Handler(),
 	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logging.Logger.Fatal().Err(err).Msg("Failed to start server")
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	logging.Logger.Info().Msg("Shutting down server...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		logging.Logger.Fatal().Err(err).Msg("Server forced to shutdown")
+	}
+	logging.Logger.Info().Msg("Server exited gracefully")
 }
 
 func connectRedis(secrets *model.AppSecrets) asynq.RedisConnOpt {

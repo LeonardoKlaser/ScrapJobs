@@ -173,16 +173,17 @@ func (s *NotificationsUsecase) GetNotificationsByUser(userId int, limit int) ([]
 }
 
 func (s *NotificationsUsecase) ProcessingSingleNotification(ctx context.Context, job model.Job, user model.UserSiteCurriculum, analysis model.ResumeAnalysis) error {
-
-	err := s.emailService.SendAnalysisEmail(ctx, user.Email, job, analysis)
+	// Insert notification first to prevent duplicate emails on retry
+	err := s.notificationRepository.InsertNewNotification(job.ID, user.UserId)
 	if err != nil {
-		return fmt.Errorf("ERROR: Email sending failed for job %s: %v", job.Title, err)			
+		return fmt.Errorf("FATAL: Failed to insert notification record for job %d: %w", job.ID, err)
+	}
+
+	err = s.emailService.SendAnalysisEmail(ctx, user.Email, job, analysis)
+	if err != nil {
+		return fmt.Errorf("ERROR: Email sending failed for job %s: %w", job.Title, err)
 	}
 	logging.Logger.Info().Str("user_name", user.Name).Str("job_title", job.Title).Msg("Analysis email sent")
-	err = s.notificationRepository.InsertNewNotification(job.ID, user.UserId)
-	if err != nil {
-		return fmt.Errorf("FATAL: Failed to insert notification record for job %d: %v", job.ID, err)
-	}
 
 	return nil
 }

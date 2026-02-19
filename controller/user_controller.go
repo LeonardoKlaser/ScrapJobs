@@ -12,6 +12,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// dummyHash is used to prevent timing-based user enumeration
+var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("dummy-password-for-timing"), bcrypt.DefaultCost)
+
 type UserController struct {
 	usecase *usecase.UserUsecase
 }
@@ -77,9 +80,14 @@ func (usr *UserController) SignIn(ctx *gin.Context) {
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(res.Password), []byte(body.Password))
+	// Timing-safe: always run bcrypt even if user not found
+	hashToCompare := []byte(res.Password)
+	if res.Id == 0 {
+		hashToCompare = dummyHash
+	}
 
-	if err != nil {
+	err = bcrypt.CompareHashAndPassword(hashToCompare, []byte(body.Password))
+	if err != nil || res.Id == 0 {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid E-mail or Password",
 		})
@@ -99,7 +107,7 @@ func (usr *UserController) SignIn(ctx *gin.Context) {
 		return
 	}
 
-	ctx.SetSameSite(http.SameSiteDefaultMode)
+	ctx.SetSameSite(http.SameSiteLaxMode)
 	ctx.SetCookie("Authorization", tokenString, 3600*24, "", "", true, true)
 
 	ctx.JSON(http.StatusOK, gin.H{})

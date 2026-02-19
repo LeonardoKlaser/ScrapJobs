@@ -3,7 +3,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"web-scrapper/logging"
 	"web-scrapper/model"
 
 	"github.com/lib/pq"
@@ -20,14 +20,14 @@ func NewJobRepository(db *sql.DB) *JobRepository {
 }
 
 func (usr *JobRepository) CreateJob(job model.Job) (int, error) {
-	query := `INSERT INTO jobs (title, location, company, job_link, requisition_ID) VALUES ($1, $2, $3, $4, $5) RETURNING id`
+	query := `INSERT INTO jobs (title, location, company, job_link, requisition_ID, description) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
 	queryPrepare, err := usr.connection.Prepare(query)
 	if err != nil {
 		return 0, err
 	}
 	defer queryPrepare.Close()
 
-	err = queryPrepare.QueryRow(job.Title, job.Location, job.Company, job.Job_link, job.Requisition_ID).Scan(&job.ID)
+	err = queryPrepare.QueryRow(job.Title, job.Location, job.Company, job.JobLink, job.RequisitionID, job.Description).Scan(&job.ID)
 	if err != nil {
 		return 0, err
 	}
@@ -83,18 +83,18 @@ func (usr *JobRepository) UpdateLastSeen(requisition_ID int64) (int, error) {
 	query := `UPDATE jobs SET last_seen_at = CURRENT_TIMESTAMP WHERE requisition_ID = $1 RETURNING id`
 	queryPrepare, err := usr.connection.Prepare(query)
 	if err != nil {
-		log.Printf("error to prepare query to update last seen for job id: %d - %v", requisition_ID, err)
+		logging.Logger.Error().Err(err).Int64("requisition_id", requisition_ID).Msg("error preparing query to update last seen")
 		return id, err
 	}
 	defer queryPrepare.Close()
 
 	err = queryPrepare.QueryRow(requisition_ID).Scan(&id)
 	if err != nil {
-		log.Printf("error to update last seen for job id: %d - %v", requisition_ID, err)
+		logging.Logger.Error().Err(err).Int64("requisition_id", requisition_ID).Msg("error updating last seen")
 		return id, err
 	}
 
-	log.Printf("last seen updated for job id: %d", requisition_ID)
+	logging.Logger.Info().Int64("requisition_id", requisition_ID).Msg("last seen updated")
 	return id, nil
 }
 
@@ -107,8 +107,8 @@ func (usr *JobRepository) GetJobByID(jobID int) (*model.Job, error) {
 		&job.Title,
 		&job.Location,
 		&job.Company,
-		&job.Job_link,
-		&job.Requisition_ID,
+		&job.JobLink,
+		&job.RequisitionID,
 		&job.Description,
 	)
 	if err != nil {
@@ -133,6 +133,6 @@ func (usr *JobRepository) DeleteOldJobs() error {
 		return fmt.Errorf("error getting rows affected: %w", err)
 	}
 
-	log.Printf("deleted %d old jobs", rowsAffected)
+	logging.Logger.Info().Int64("rows_affected", rowsAffected).Msg("deleted old jobs")
 	return nil
 }

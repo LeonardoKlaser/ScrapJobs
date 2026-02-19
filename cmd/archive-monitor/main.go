@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -20,7 +19,7 @@ import (
 )
 
 func main() {
-	log.Println("Starting Archive Monitor service...")
+	logging.Logger.Info().Msg("Starting Archive Monitor service...")
 	cfg, err := utils.LoadMonitorConfig()
 	if err != nil {
 		logging.Logger.Fatal().Err(err).Msg("FATAL: Failed to load configuration")
@@ -56,10 +55,14 @@ func main() {
 	ticker := time.NewTicker(cfg.PollingInterval)
 	defer ticker.Stop()
 	var wg sync.WaitGroup
-	log.Printf("Archive monitor started. Polling interval: %s", cfg.PollingInterval)
+	logging.Logger.Info().Dur("polling_interval", cfg.PollingInterval).Msg("Archive monitor started")
 
 
-	runCheck(ctx, &wg, cfg.QueuesToMonitor, monitorUsecase)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		runCheck(ctx, cfg.QueuesToMonitor, monitorUsecase)
+	}()
 
 	for {
 		select {
@@ -67,26 +70,22 @@ func main() {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				runCheck(ctx, &wg, cfg.QueuesToMonitor, monitorUsecase)
+				runCheck(ctx, cfg.QueuesToMonitor, monitorUsecase)
 			}()
 		case <-ctx.Done():
-			log.Println("Shutdown signal received. Waiting for ongoing tasks to complete...")
+			logging.Logger.Info().Msg("Shutdown signal received. Waiting for ongoing tasks to complete...")
 			wg.Wait()
-			log.Println("All tasks completed. Shutting down gracefully.")
+			logging.Logger.Info().Msg("All tasks completed. Shutting down gracefully.")
 			return
 		}
 	}
 }
 
-func runCheck(ctx context.Context, wg *sync.WaitGroup, queues []string, uc *usecase.MonitorUsecase) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		log.Println("Polling for archived tasks...")
-		for _, qname := range queues {
-			if err := uc.CheckAndNotifyArchivedTasks(ctx, qname); err != nil {
-				log.Printf("ERROR: Failed to process archived tasks for queue '%s': %v", qname, err)
-			}
+func runCheck(ctx context.Context, queues []string, uc *usecase.MonitorUsecase) {
+	logging.Logger.Info().Msg("Polling for archived tasks...")
+	for _, qname := range queues {
+		if err := uc.CheckAndNotifyArchivedTasks(ctx, qname); err != nil {
+			logging.Logger.Error().Err(err).Str("queue", qname).Msg("Failed to process archived tasks")
 		}
-	}()
+	}
 }

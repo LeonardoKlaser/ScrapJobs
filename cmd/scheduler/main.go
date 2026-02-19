@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"os"
 	"os/signal"
 	"sync"
@@ -52,6 +51,7 @@ func main() {
     if err != nil {
         logging.Logger.Fatal().Err(err).Msg("Scheduler could not connect to db")
     }
+    defer dbConnection.Close()
     siteRepo := repository.NewSiteCareerRepository(dbConnection)
     jobRepo := repository.NewJobRepository(dbConnection)
 
@@ -89,10 +89,10 @@ func main() {
 func enqueueScrapingTasks(ctx context.Context, siteRepo *repository.SiteCareerRepository, client *asynq.Client) {
     sites, err := siteRepo.GetAllSites()
     if err != nil {
-        log.Printf("ERROR: Scheduler can't get sites from database: %v", err)
+        logging.Logger.Error().Err(err).Msg("Scheduler can't get sites from database")
         return
     }
-    log.Printf("sites coletados: %v ", len(sites))
+    logging.Logger.Info().Int("count", len(sites)).Msg("Sites coletados")
     var wg sync.WaitGroup
     for _, site := range sites {
         wg.Add(1)
@@ -103,16 +103,16 @@ func enqueueScrapingTasks(ctx context.Context, siteRepo *repository.SiteCareerRe
                 SiteScrapingConfig: s,
             })
             if err != nil {
-                log.Printf("ERROR: Could not marshal task for site %s: %v", s.SiteName, err)
+                logging.Logger.Error().Err(err).Str("site_name", s.SiteName).Msg("Could not marshal task for site")
                 return
             }
 
             task := asynq.NewTask(tasks.TypeScrapSite, payload, asynq.MaxRetry(3))
             info, err := client.EnqueueContext(ctx, task)
             if err != nil {
-                log.Printf("ERROR: Could not enqueue task for site %s: %v", s.SiteName, err)
+                logging.Logger.Error().Err(err).Str("site_name", s.SiteName).Msg("Could not enqueue task for site")
             } else {
-                log.Printf("INFO: Task enqueued for site %s. ID: %s", s.SiteName, info.ID)
+                logging.Logger.Info().Str("site_name", s.SiteName).Str("task_id", info.ID).Msg("Task enqueued for site")
             }
         }(site)
     }

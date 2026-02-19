@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"path/filepath"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -31,13 +32,25 @@ func NewUploader(cfg aws.Config, bucketName string) *Uploader {
 }
 
 func (u *Uploader) UploadFile(ctx context.Context, file *multipart.FileHeader) (string, error) {
+	// Validate file size (max 2MB)
+	const maxFileSize = 2 << 20 // 2MB
+	if file.Size > maxFileSize {
+		return "", fmt.Errorf("arquivo excede o tamanho máximo de 2MB")
+	}
+
+	// Validate file extension
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	allowedExts := map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".svg": true, ".webp": true}
+	if !allowedExts[ext] {
+		return "", fmt.Errorf("tipo de arquivo não permitido: %s (permitidos: png, jpg, jpeg, svg, webp)", ext)
+	}
+
 	src, err := file.Open()
 	if err != nil {
 		return "", fmt.Errorf("falha ao abrir o arquivo: %w", err)
 	}
 	defer src.Close()
 
-	ext := filepath.Ext(file.Filename)
 	key := fmt.Sprintf("logos/%s%s", uuid.New().String(), ext)
 
 	_, err = u.Client.PutObject(ctx, &s3.PutObjectInput{

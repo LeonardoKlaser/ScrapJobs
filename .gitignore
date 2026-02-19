@@ -1,2 +1,30 @@
 .env
 .infra/terraform/.terraform/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Terraform
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+.terraform.lock.hcl
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

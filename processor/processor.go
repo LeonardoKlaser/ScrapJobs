@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"web-scrapper/interfaces"
 	"web-scrapper/logging"
@@ -46,15 +45,15 @@ func (p *TaskProcessor) HandleScrapeSiteTask(ctx context.Context, t *asynq.Task)
 		return fmt.Errorf("error to get payload: %w", err)
 	}
 
-	log.Printf("INFO Processing task to scrap siteID: %d", payload.SiteID)
+	logging.Logger.Info().Int("site_id", payload.SiteID).Msg("Processing task to scrap site")
 
 	newJobs, err := p._scraper.ScrapeAndStoreJobs(ctx, payload.SiteScrapingConfig)
 	if err != nil {
-		log.Printf("WARN: ScrapeAndStoreJobs for site %d failed but task will not be retried. Error: %v", payload.SiteID, err)
+		logging.Logger.Warn().Err(err).Int("site_id", payload.SiteID).Msg("ScrapeAndStoreJobs failed but task will not be retried")
 	}
 
 	if len(newJobs) == 0 {
-		log.Printf("INFO: no new jobs for site id: %d", payload.SiteID)
+		logging.Logger.Info().Int("site_id", payload.SiteID).Msg("No new jobs for site")
 		return nil
 	}
 
@@ -73,7 +72,7 @@ func (p *TaskProcessor) HandleScrapeSiteTask(ctx context.Context, t *asynq.Task)
 	}
 
 	logging.Logger.Info().Int("site_id", payload.SiteID).Str("next_task_id", info.ID).Msg("Task de processamento de resultados enfileirada")
-	log.Printf("INFO: siteID: %d scrap finished. Process task enqueued: %s", payload.SiteID, info.ID)
+	logging.Logger.Info().Int("site_id", payload.SiteID).Str("next_task_id", info.ID).Msg("Scrap finished, process task enqueued")
 	return nil
 }
 
@@ -83,7 +82,7 @@ func (p *TaskProcessor) HandleFindMatchesTask(ctx context.Context, t *asynq.Task
 		return fmt.Errorf("error to get payload results: %w", err)
 	}
 
-	log.Printf("INFO: processing result to site: %d, jobs: %d", payload.SiteID, len(payload.Jobs))
+	logging.Logger.Info().Int("site_id", payload.SiteID).Int("job_count", len(payload.Jobs)).Msg("Processing results for site")
 
 	payloadsToEnqueue, err := p._notifier.FindMatches(payload.SiteID, payload.Jobs)
 	if err != nil {
@@ -104,7 +103,7 @@ func (p *TaskProcessor) HandleFindMatchesTask(ctx context.Context, t *asynq.Task
 		}
 	}
 
-	log.Printf("INFO: result process to site %d finished.", payload.SiteID)
+	logging.Logger.Info().Int("site_id", payload.SiteID).Msg("Result processing for site finished")
 	return nil
 }
 

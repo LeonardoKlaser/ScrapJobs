@@ -96,14 +96,14 @@ func (s *APIScrapper) parseAPIResponse(body []byte, mappingsJSON string) ([]*mod
 	result.ForEach(func(key, value gjson.Result) bool {
 		job := &model.Job{
 			Title:       value.Get(mappings.TitlePath).String(),
-			Job_link:    value.Get(mappings.LinkPath).String(),
+			JobLink:    value.Get(mappings.LinkPath).String(),
 			Location:    value.Get(mappings.LocationPath).String(),
 			Description: value.Get(mappings.DescriptionPath).String(),
 		}
 
 		reqIDStr := value.Get(mappings.RequisitionIDPath).String()
 		if reqID, err := strconv.Atoi(reqIDStr); err == nil {
-			job.Requisition_ID = int64(reqID)
+			job.RequisitionID = int64(reqID)
 		}
 
 		jobs = append(jobs, job)

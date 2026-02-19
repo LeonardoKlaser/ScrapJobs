@@ -37,6 +37,10 @@ func (pr *PlanRepository) GetAllPlans() ([]model.Plan, error) {
 		plans = append(plans, plan)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return plans, nil
 }
 

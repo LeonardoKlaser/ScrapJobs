@@ -62,8 +62,8 @@ func TestNotification(t *testing.T){
 		Title: "Go Developer",
 		Location: "São Leopoldo",
 		Company: "SAP",
-		Job_link: "https://www.sap.com.br",
-		Requisition_ID: 50,
+		JobLink: "https://www.sap.com.br",
+		RequisitionID: 50,
 		Description: "Precisa ter experiencia em golang tmj",
 	}
 
