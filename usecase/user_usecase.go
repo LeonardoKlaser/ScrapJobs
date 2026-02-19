@@ -75,3 +75,21 @@ func (usr *UserUsecase) GetUserById(Id int) (model.User, error) {
 	}
 	return res, nil
 }
+
+func (usr *UserUsecase) UpdateUserProfile(userId int, name string, cellphone *string, tax *string) error {
+	return usr.repository.UpdateUserProfile(userId, name, cellphone, tax)
+}
+
+func (usr *UserUsecase) ChangePassword(userId int, currentHash, oldPassword, newPassword string) error {
+	err := bcrypt.CompareHashAndPassword([]byte(currentHash), []byte(oldPassword))
+	if err != nil {
+		return errors.New("senha atual incorreta")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("erro ao criptografar a senha: %w", err)
+	}
+
+	return usr.repository.UpdateUserPassword(userId, string(hashedPassword))
+}

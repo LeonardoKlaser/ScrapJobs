@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"time"
 	"web-scrapper/interfaces"
 	"web-scrapper/logging"
 	"web-scrapper/model"
@@ -38,6 +39,9 @@ func (job JobUseCase) FindJobByRequisitionID(requisition_ID int) (bool, error){
 
 
 func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.SiteScrapingConfig) ([]*model.Job, error) {
+    ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+    defer cancel()
+
     scrapInterface, err := scrapper.NewScraperFactory(selectors)
     if err != nil {
         return nil, err

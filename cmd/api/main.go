@@ -183,6 +183,8 @@ func main() {
 	paymentController := controller.NewPaymentController(paymentUsecase, emailService, asynqClient)
 	notificationController := controller.NewNotificationController(notificationUsecase)
 
+	adminDashboardController := controller.NewAdminDashboardController(dashboardRepository)
+
 	// Analysis Controller (análise manual de IA)
 	var analysisController *controller.AnalysisController
 	if aiAnalyser != nil {
@@ -215,6 +217,7 @@ func main() {
 		privateRoutes.GET("api/dashboard", dashboardController.GetDashboardDataByUserId)
 		privateRoutes.GET("api/getSites", siteCareerController.GetAllSites)
 		privateRoutes.GET("api/notifications", notificationController.GetNotificationsByUser)
+		privateRoutes.GET("/api/admin/dashboard", adminDashboardController.GetAdminDashboard)
 	}
 	privateRoutes.Use(privateRateLimiter)
 	{
@@ -228,9 +231,12 @@ func main() {
 		privateRoutes.POST("/scrape-sandbox", siteCareerController.SandboxScrape)
 		privateRoutes.GET("/curriculum", curriculumController.GetCurriculumByUserId)
 		privateRoutes.POST("/api/logout", userController.Logout)
+		privateRoutes.PATCH("/api/user/profile", userController.UpdateProfile)
+		privateRoutes.POST("/api/user/change-password", userController.ChangePassword)
 		privateRoutes.POST("api/request-site", requestedSiteController.Create)
 		if analysisController != nil {
-			privateRoutes.POST("/api/analyze-job", analysisController.AnalyzeJob)
+			analyzeRateLimiter := middleware.RateLimiter(rate.Limit(3.0/60.0), 2)
+			privateRoutes.POST("/api/analyze-job", analyzeRateLimiter, analysisController.AnalyzeJob)
 		}
 	}
 

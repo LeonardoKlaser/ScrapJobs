@@ -43,7 +43,7 @@ func (usr *UserRepository) CreateUser(user model.User) (model.User, error) {
 
 func (usr *UserRepository) GetUserByEmail(userEmail string) (model.User, error) {
 	query := `
-        SELECT u.id, u.user_name, u.email, u.user_password, u.curriculum_id,
+        SELECT u.id, u.user_name, u.email, u.user_password, u.tax, u.cellphone, u.is_admin, u.curriculum_id,
                p.id, p.name, p.price, p.max_sites, p.max_ai_analyses, p.features
         FROM users u
         LEFT JOIN plans p ON u.plan_id = p.id
@@ -68,6 +68,9 @@ func (usr *UserRepository) GetUserByEmail(userEmail string) (model.User, error) 
 		&userToReturn.Name,
 		&userToReturn.Email,
 		&userToReturn.Password,
+		&userToReturn.Tax,
+		&userToReturn.Cellphone,
+		&userToReturn.IsAdmin,
 		&userToReturn.CurriculumId,
 		&planID,
 		&planName,
@@ -100,7 +103,7 @@ func (usr *UserRepository) GetUserByEmail(userEmail string) (model.User, error) 
 
 func (usr *UserRepository) GetUserById(Id int) (model.User, error) {
 	query := `
-        SELECT u.id, u.user_name, u.email, u.user_password, u.curriculum_id,
+        SELECT u.id, u.user_name, u.email, u.user_password, u.tax, u.cellphone, u.is_admin, u.curriculum_id,
                p.id, p.name, p.price, p.max_sites, p.max_ai_analyses, p.features
         FROM users u
         LEFT JOIN plans p ON u.plan_id = p.id
@@ -126,6 +129,9 @@ func (usr *UserRepository) GetUserById(Id int) (model.User, error) {
 		&userToReturn.Name,
 		&userToReturn.Email,
 		&userToReturn.Password,
+		&userToReturn.Tax,
+		&userToReturn.Cellphone,
+		&userToReturn.IsAdmin,
 		&userToReturn.CurriculumId,
 		&planID,
 		&planName,
@@ -151,4 +157,36 @@ func (usr *UserRepository) GetUserById(Id int) (model.User, error) {
 	}
 
 	return userToReturn, nil
+}
+
+func (usr *UserRepository) UpdateUserProfile(userId int, name string, cellphone *string, tax *string) error {
+	query := `UPDATE users SET user_name = $1, cellphone = $2, tax = $3 WHERE id = $4`
+	queryPrepare, err := usr.db.Prepare(query)
+	if err != nil {
+		return fmt.Errorf("error to prepare database query: %w", err)
+	}
+	defer queryPrepare.Close()
+
+	_, err = queryPrepare.Exec(name, cellphone, tax, userId)
+	if err != nil {
+		return fmt.Errorf("error to update user profile: %w", err)
+	}
+
+	return nil
+}
+
+func (usr *UserRepository) UpdateUserPassword(userId int, hashedPassword string) error {
+	query := `UPDATE users SET user_password = $1 WHERE id = $2`
+	queryPrepare, err := usr.db.Prepare(query)
+	if err != nil {
+		return fmt.Errorf("error to prepare database query: %w", err)
+	}
+	defer queryPrepare.Close()
+
+	_, err = queryPrepare.Exec(hashedPassword, userId)
+	if err != nil {
+		return fmt.Errorf("error to update user password: %w", err)
+	}
+
+	return nil
 }

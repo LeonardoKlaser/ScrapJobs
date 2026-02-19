@@ -85,3 +85,27 @@ func (dr *DashboardRepository) GetDashboardData(userID int) (model.DashboardData
 
 	return dashboardData, nil
 }
+
+func (dr *DashboardRepository) GetAdminDashboardData() (model.AdminDashboardData, error) {
+	var data model.AdminDashboardData
+
+	query := `
+        SELECT
+            COALESCE((SELECT SUM(p.price) FROM users u JOIN plans p ON u.plan_id = p.id WHERE p.price > 0), 0) AS total_revenue,
+            (SELECT COUNT(*) FROM users) AS active_users,
+            (SELECT COUNT(*) FROM site_scraping_config WHERE is_active = TRUE) AS monitored_sites
+    `
+
+	err := dr.connection.QueryRow(query).Scan(
+		&data.TotalRevenue,
+		&data.ActiveUsers,
+		&data.MonitoredSites,
+	)
+	if err != nil {
+		return model.AdminDashboardData{}, fmt.Errorf("erro ao buscar dados do admin dashboard: %w", err)
+	}
+
+	data.ScrapingErrors = 0
+
+	return data, nil
+}

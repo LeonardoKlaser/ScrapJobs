@@ -13,3 +13,10 @@ type MonitoredURL struct {
 	SiteName string `json:"site_name"`
 	BaseURL  string `json:"base_url"`
 }
+
+type AdminDashboardData struct {
+	TotalRevenue   float64 `json:"total_revenue"`
+	ActiveUsers    int     `json:"active_users"`
+	MonitoredSites int     `json:"monitored_sites"`
+	ScrapingErrors int     `json:"scraping_errors"`
+}

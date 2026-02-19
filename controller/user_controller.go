@@ -114,6 +114,76 @@ func (usr *UserController) SignIn(ctx *gin.Context) {
 }
 
 func (usr *UserController) Logout(ctx *gin.Context) {
-    ctx.SetCookie("Authorization", "", -1, "", "", true, true)
-    ctx.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
+	ctx.SetCookie("Authorization", "", -1, "", "", true, true)
+	ctx.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
+}
+
+func (usr *UserController) UpdateProfile(ctx *gin.Context) {
+	userInterface, exists := ctx.Get("user")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
+		return
+	}
+
+	user, ok := userInterface.(model.User)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Tipo de usuário inválido no contexto"})
+		return
+	}
+
+	var body struct {
+		Name      string  `json:"user_name" binding:"required"`
+		Cellphone *string `json:"cellphone"`
+		Tax       *string `json:"tax"`
+	}
+
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := usr.usecase.UpdateUserProfile(user.Id, body.Name, body.Cellphone, body.Tax)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "Perfil atualizado com sucesso"})
+}
+
+func (usr *UserController) ChangePassword(ctx *gin.Context) {
+	userInterface, exists := ctx.Get("user")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
+		return
+	}
+
+	user, ok := userInterface.(model.User)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Tipo de usuário inválido no contexto"})
+		return
+	}
+
+	var body struct {
+		OldPassword string `json:"old_password" binding:"required"`
+		NewPassword string `json:"new_password" binding:"required"`
+	}
+
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if len(body.NewPassword) < 8 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "A nova senha deve ter pelo menos 8 caracteres"})
+		return
+	}
+
+	err := usr.usecase.ChangePassword(user.Id, user.Password, body.OldPassword, body.NewPassword)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "Senha alterada com sucesso"})
 }

@@ -110,11 +110,24 @@ func (s *JobScrapper) Scrape(ctx context.Context, config model.SiteScrapingConfi
 
 	s.configureCollyCallbacks(c, detailCollector, &jobs, &wg, &mu, config)
 
-	if err := c.Visit(config.BaseURL); err != nil {
-		return nil, err
-	}
+	done := make(chan error, 1)
+	go func() {
+		if err := c.Visit(config.BaseURL); err != nil {
+			done <- err
+			return
+		}
+		c.Wait()
+		wg.Wait()
+		done <- nil
+	}()
 
-	c.Wait()
-	wg.Wait()
-	return jobs, nil
+	select {
+	case <-ctx.Done():
+		return nil, fmt.Errorf("scraping timed out for site %s: %w", config.SiteName, ctx.Err())
+	case err := <-done:
+		if err != nil {
+			return nil, err
+		}
+		return jobs, nil
+	}
 }
