@@ -106,7 +106,7 @@ func main() {
 	aiApiLimiter := rate.NewLimiter(rate.Limit(15.0/60.0), 1)
 	rateLimitedAiService := usecase.NewRateLimitedAiAnalyser(aiAnalyser, aiApiLimiter)
 
-	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, rateLimitedAiService, emailService, notificationRepository, clientAsynq)
+	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, rateLimitedAiService, emailService, notificationRepository, clientAsynq, planRepository)
 
 	// PaymentUsecase (necessário para HandleCompleteRegistrationTask)
 	abacatepayGateway := gateway.NewAbacatePayGateway()

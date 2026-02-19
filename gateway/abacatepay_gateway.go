@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"time"
@@ -50,8 +51,20 @@ func (a *AbacatePayGateway) CreateBilling(ctx context.Context, plan *model.Plan,
 	// ID único que usamos para rastrear o registro pendente no Redis
 	pendingRegistrationID := uuid.New().String()
 
+	// Calcula preço final com base no período de cobrança
+	var finalPrice float64
+	var productName string
+	if userData.BillingPeriod == "annual" {
+		finalPrice = plan.Price * 12 * 0.80 // 20% de desconto no plano anual
+		productName = plan.Name + " (Anual)"
+	} else {
+		finalPrice = plan.Price
+		productName = plan.Name + " (Mensal)"
+	}
+	priceInCents := int(math.Round(finalPrice * 100))
+
 	body := &CreateBillingBody{
-		Frequency:     userData.Frequency,
+		Frequency:     "ONE_TIME",
 		Methods:       userData.Methods,
 		CompletionUrl: os.Getenv("FRONTEND_URL") + "/payment-confirmation",
 		ReturnUrl:     os.Getenv("FRONTEND_URL") + "/checkout/" + fmt.Sprintf("%d", plan.ID),
@@ -59,10 +72,10 @@ func (a *AbacatePayGateway) CreateBilling(ctx context.Context, plan *model.Plan,
 		Products: []*BillingProduct{
 			{
 				ExternalId:  fmt.Sprintf("plan-%d", plan.ID),
-				Name:        plan.Name,
-				Description: plan.Name,
+				Name:        productName,
+				Description: productName,
 				Quantity:    1,
-				Price:       int(plan.Price * 100), // em centavos
+				Price:       priceInCents,
 			},
 		},
 		Customer: &BillingCustomer{

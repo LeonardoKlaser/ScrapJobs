@@ -98,6 +98,28 @@ func (usr *JobRepository) UpdateLastSeen(requisition_ID int64) (int, error) {
 	return id, nil
 }
 
+func (usr *JobRepository) GetJobByID(jobID int) (*model.Job, error) {
+	query := `SELECT id, title, location, company, job_link, requisition_id, description FROM jobs WHERE id = $1`
+
+	var job model.Job
+	err := usr.connection.QueryRow(query, jobID).Scan(
+		&job.ID,
+		&job.Title,
+		&job.Location,
+		&job.Company,
+		&job.Job_link,
+		&job.Requisition_ID,
+		&job.Description,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("error fetching job by ID %d: %w", jobID, err)
+	}
+	return &job, nil
+}
+
 func (usr *JobRepository) DeleteOldJobs() error {
 	query := `DELETE FROM jobs WHERE last_seen_at < NOW() - INTERVAL '1 day'`
 

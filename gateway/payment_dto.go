@@ -8,15 +8,15 @@ type InitiatePaymentRequest struct {
 	Tax       string `json:"tax" binding:"required"`
 	Cellphone string `json:"cellphone" binding:"required"`
 
-	Methods   []string `json:"methods" binding:"required"`
-	Frequency string   `json:"frequency" binding:"required"`
+	Methods       []string `json:"methods" binding:"required"`
+	BillingPeriod string   `json:"billing_period" binding:"required,oneof=monthly annual"`
 }
 
 // PendingRegistrationData: Dados armazenados temporariamente no Redis até o pagamento ser confirmado
 type PendingRegistrationData struct {
 	Name      string `json:"name"`
 	Email     string `json:"email"`
-	Password  string `json:"password"` // senha em texto plano — hash feito no CompleteRegistration
+	Password  string `json:"password"` // senha já com hash bcrypt (hash feito no CreatePayment antes de salvar no Redis)
 	Tax       string `json:"tax"`
 	Cellphone string `json:"cellphone"`
 	PlanID    int    `json:"plan_id"`

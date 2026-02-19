@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"web-scrapper/interfaces"
 	"web-scrapper/logging"
@@ -20,6 +19,7 @@ type NotificationsUsecase struct{
 	emailService interfaces.EmailService
 	notificationRepository interfaces.NotificationRepositoryInterface
 	asynqClient *asynq.Client
+	planRepository interfaces.PlanRepositoryInterface
 }
 
 func NewNotificationUsecase(
@@ -28,6 +28,7 @@ func NewNotificationUsecase(
     emailService interfaces.EmailService,
 	notificationRepository interfaces.NotificationRepositoryInterface,
 	asynqClient *asynq.Client,
+	planRepository interfaces.PlanRepositoryInterface,
 ) *NotificationsUsecase{
 	return &NotificationsUsecase{
 		userSiteRepo:    userSiteRepo,
@@ -35,6 +36,7 @@ func NewNotificationUsecase(
         emailService:    emailService,
 		notificationRepository: notificationRepository,
 		asynqClient: asynqClient,
+		planRepository: planRepository,
 	}
 }
 
@@ -57,6 +59,30 @@ func (s *NotificationsUsecase) FindMatches(siteId int, jobs []*model.Job) ([]tas
 			continue
 		}
 
+		// Verificar limite de análises do plano
+		plan, planErr := s.planRepository.GetPlanByUserID(user.UserId)
+		if planErr != nil {
+			logging.Logger.Error().Err(planErr).Int("user_id", user.UserId).Msg("Error fetching user plan, skipping user")
+			continue
+		}
+		monthlyCount, countErr := s.notificationRepository.GetMonthlyAnalysisCount(user.UserId)
+		if countErr != nil {
+			logging.Logger.Error().Err(countErr).Int("user_id", user.UserId).Msg("Error fetching monthly analysis count, skipping user")
+			continue
+		}
+		if plan == nil {
+			logging.Logger.Warn().Int("user_id", user.UserId).Msg("User has no plan assigned, skipping limit check")
+		}
+		// MaxAIAnalyses <= 0 = unlimited
+		if plan != nil && plan.MaxAIAnalyses > 0 && monthlyCount >= plan.MaxAIAnalyses {
+			logging.Logger.Info().Int("user_id", user.UserId).Int("count", monthlyCount).Int("limit", plan.MaxAIAnalyses).Msg("User reached AI analysis limit, skipping")
+			continue
+		}
+		remainingQuota := -1 // unlimited
+		if plan != nil && plan.MaxAIAnalyses > 0 {
+			remainingQuota = plan.MaxAIAnalyses - monthlyCount
+		}
+
 		var jobsToSend []*model.Job
 		var matchedJobIDs []int
 		for _, job := range jobs{
@@ -68,7 +94,7 @@ func (s *NotificationsUsecase) FindMatches(siteId int, jobs []*model.Job) ([]tas
 		if len(matchedJobIDs) == 0 {
 			continue 
 		}
-		log.Printf("usuario encontrando para enviar notificacao: %s", user.Name)
+		logging.Logger.Info().Str("user_name", user.Name).Msg("User matched for notification")
 		notifiedJobsMap, err := s.notificationRepository.GetNotifiedJobIDsForUser(user.UserId, matchedJobIDs)
 		if err != nil{
 			return payloadsToEnqueue, err
@@ -80,9 +106,17 @@ func (s *NotificationsUsecase) FindMatches(siteId int, jobs []*model.Job) ([]tas
 			}
 		}
 
-		log.Printf("Criado lista de jobs para notificar")
+		logging.Logger.Debug().Int("user_id", user.UserId).Int("job_count", len(jobsToSend)).Msg("Jobs list created for notification")
 		if len(jobsToSend) == 0 {
-			continue 
+			continue
+		}
+
+		// Truncar para o limite restante do plano
+		if remainingQuota >= 0 && len(jobsToSend) > remainingQuota {
+			jobsToSend = jobsToSend[:remainingQuota]
+		}
+		if len(jobsToSend) == 0 {
+			continue
 		}
 
 		for _, job := range jobsToSend{
@@ -118,7 +152,7 @@ func (s *NotificationsUsecase) ProcessingJobAnalyze(ctx context.Context, job mod
 	if err != nil {
 		return tasks.NotifyUserPayload{}, fmt.Errorf("ERROR: AI analysis failed for job %s: %v", job.Title, err)				
 	}
-	log.Printf("analise feita para usuario %s com job %s", user.Name, job.Title)
+	logging.Logger.Info().Str("user_name", user.Name).Str("job_title", job.Title).Msg("AI analysis completed")
 		
 	payload:= tasks.NotifyUserPayload{
 		User: user,
@@ -144,7 +178,7 @@ func (s *NotificationsUsecase) ProcessingSingleNotification(ctx context.Context,
 	if err != nil {
 		return fmt.Errorf("ERROR: Email sending failed for job %s: %v", job.Title, err)			
 	}
-	log.Printf("email feita para usuario %s com job %s", user.Name, job.Title)
+	logging.Logger.Info().Str("user_name", user.Name).Str("job_title", job.Title).Msg("Analysis email sent")
 	err = s.notificationRepository.InsertNewNotification(job.ID, user.UserId)
 	if err != nil {
 		return fmt.Errorf("FATAL: Failed to insert notification record for job %d: %v", job.ID, err)

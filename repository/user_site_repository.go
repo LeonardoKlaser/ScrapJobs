@@ -138,6 +138,9 @@ func (dep *UserSiteRepository) GetSubscribedSiteIDs(userId int) (map[int]bool, e
 		}
 		subscribedSites[siteId] = true
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating subscribed sites rows: %w", err)
+	}
 	return subscribedSites, nil
 }
 
@@ -159,6 +162,18 @@ func (usr *UserSiteRepository) DeleteUserSite(userId int, siteId string) error {
 	}
 
 	return nil
+}
+
+// GetUserSiteCount retorna a quantidade de sites monitorados por um usuário
+func (usr *UserSiteRepository) GetUserSiteCount(userID int) (int, error) {
+	query := `SELECT COUNT(*) FROM user_sites WHERE user_id = $1`
+
+	var count int
+	err := usr.connection.QueryRow(query, userID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("error counting user sites for user %d: %w", userID, err)
+	}
+	return count, nil
 }
 
 // UpdateUserSiteFilters atualiza os filtros (palavras-chave) de um user_site

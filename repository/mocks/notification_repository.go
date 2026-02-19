@@ -24,3 +24,8 @@ func (m *MockNotificationRepository) GetNotificationsByUser(userId int, limit in
 	args := m.Called(userId, limit)
 	return args.Get(0).([]model.NotificationWithJob), args.Error(1)
 }
+
+func (m *MockNotificationRepository) GetMonthlyAnalysisCount(userID int) (int, error) {
+	args := m.Called(userID)
+	return args.Int(0), args.Error(1)
+}

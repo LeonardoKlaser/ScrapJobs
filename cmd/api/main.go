@@ -7,8 +7,10 @@ import (
 	"web-scrapper/controller"
 	"web-scrapper/gateway"
 	"web-scrapper/infra/db"
+	"web-scrapper/infra/gemini"
 	"web-scrapper/infra/s3"
 	"web-scrapper/infra/ses"
+	"web-scrapper/interfaces"
 	"web-scrapper/logging"
 	"web-scrapper/middleware"
 	"web-scrapper/model"
@@ -63,6 +65,8 @@ func main() {
 			DBPassword: os.Getenv("PASSWORD_DB"),
 			DBName:     os.Getenv("DBNAME"),
 			RedisAddr:  os.Getenv("REDIS_ADDR"),
+			GeminiKey:  os.Getenv("GEMINI_KEY"),
+			AIModel:    os.Getenv("AI_MODEL"),
 		}
 	}
 
@@ -109,6 +113,24 @@ func main() {
 	// --- Gateway de Pagamento ---
 	abacatepayGateway := gateway.NewAbacatePayGateway()
 
+	// --- Gemini AI Client (opcional — usado para análise manual de vagas) ---
+	var aiAnalyser interfaces.AnalysisService
+	if secrets.GeminiKey != "" && secrets.AIModel != "" {
+		geminiConfig := gemini.Config{
+			ApiKey:   secrets.GeminiKey,
+			ApiModel: secrets.AIModel,
+		}
+		geminiClient, geminiErr := gemini.GeminiClientModel(context.Background(), geminiConfig)
+		if geminiErr != nil {
+			logging.Logger.Warn().Err(geminiErr).Msg("Falha ao criar cliente Gemini — análise manual de IA desabilitada")
+		} else {
+			aiAnalyser = usecase.NewAiAnalyser(geminiClient)
+			logging.Logger.Info().Msg("Cliente Gemini configurado para análise manual de IA")
+		}
+	} else {
+		logging.Logger.Warn().Msg("GEMINI_KEY ou AI_MODEL não definidos — análise manual de IA desabilitada")
+	}
+
 	// Repositories
 	userRepository := repository.NewUserRepository(dbConnection)
 	curriculumRepository := repository.NewCurriculumRepository(dbConnection)
@@ -118,16 +140,17 @@ func main() {
 	planRepository := repository.NewPlanRepository(dbConnection)
 	requestedSiteRepository := repository.NewRequestedSiteRepository(dbConnection)
 	notificationRepository := repository.NewNotificationRepository(dbConnection)
+	jobRepository := repository.NewJobRepository(dbConnection)
 
 	// Usecases
 	userUsecase := usecase.NewUserUsercase(userRepository)
 	curriculumUsecase := usecase.NewCurriculumUsecase(curriculumRepository)
-	userSiteUsecase := usecase.NewUserSiteUsecase(userSiteRepository)
+	userSiteUsecase := usecase.NewUserSiteUsecase(userSiteRepository, planRepository)
 	siteCareerUsecase := usecase.NewSiteCareerUsecase(siteCareerRepository, s3Uploader)
 	planUsecase := usecase.NewPlanUsecase(planRepository)
 	requestedSiteUsecase := usecase.NewRequestedSiteUsecase(requestedSiteRepository)
 	paymentUsecase := usecase.NewPaymentUsecase(abacatepayGateway, redisOpt, userUsecase, planRepository)
-	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, nil, emailService, notificationRepository, asynqClient)
+	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, nil, emailService, notificationRepository, asynqClient, planRepository)
 
 	// Controllers
 	userController := controller.NewUserController(userUsecase)
@@ -142,6 +165,12 @@ func main() {
 	paymentController := controller.NewPaymentController(paymentUsecase, emailService, asynqClient)
 	notificationController := controller.NewNotificationController(notificationUsecase)
 
+	// Analysis Controller (análise manual de IA)
+	var analysisController *controller.AnalysisController
+	if aiAnalyser != nil {
+		analysisController = controller.NewAnalysisController(aiAnalyser, curriculumRepository, jobRepository, notificationRepository, planRepository)
+	}
+
 	// Middleware
 	middlewareAuth := middleware.NewMiddleware(userUsecase)
 
@@ -152,7 +181,6 @@ func main() {
 	publicRoutes.Use(logging.GinMiddleware())
 	publicRoutes.Use(publicRateLimiter)
 	{
-		publicRoutes.POST("/register", userController.SignUp)
 		publicRoutes.POST("/login", userController.SignIn)
 		publicRoutes.GET("/api/plans", planController.GetAllPlans)
 		publicRoutes.POST("/api/payments/create/:planId", paymentController.CreatePayment)
@@ -183,6 +211,9 @@ func main() {
 		privateRoutes.GET("/curriculum", curriculumController.GetCurriculumByUserId)
 		privateRoutes.POST("/api/logout", userController.Logout)
 		privateRoutes.POST("api/request-site", requestedSiteController.Create)
+		if analysisController != nil {
+			privateRoutes.POST("/api/analyze-job", analysisController.AnalyzeJob)
+		}
 	}
 
 	healthRoutes := server.Group("/health")

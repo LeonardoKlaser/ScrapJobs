@@ -1,37 +1,46 @@
 package usecase
 
-import(
-	"web-scrapper/repository"
+import (
+	"fmt"
+	"web-scrapper/interfaces"
 )
 
-type UserSiteUsecase struct{
-	rep *repository.UserSiteRepository
+type UserSiteUsecase struct {
+	rep      interfaces.UserSiteRepositoryInterface
+	planRepo interfaces.PlanRepositoryInterface
 }
 
-func NewUserSiteUsecase(rep *repository.UserSiteRepository) *UserSiteUsecase{
+func NewUserSiteUsecase(rep interfaces.UserSiteRepositoryInterface, planRepo interfaces.PlanRepositoryInterface) *UserSiteUsecase {
 	return &UserSiteUsecase{
-		rep: rep,
+		rep:      rep,
+		planRepo: planRepo,
 	}
 }
 
-
-func (rep *UserSiteUsecase) InsertUserSite(userId int, siteId int, filters []string) error{
-	err := rep.rep.InsertNewUserSite(userId, siteId, filters)
+func (usu *UserSiteUsecase) InsertUserSite(userId int, siteId int, filters []string) error {
+	plan, err := usu.planRepo.GetPlanByUserID(userId)
 	if err != nil {
-		return err
+		return fmt.Errorf("erro ao buscar plano do usuário: %w", err)
 	}
 
-	return nil
+	if plan == nil {
+		return fmt.Errorf("nenhum plano associado ao usuário. Assine um plano para monitorar sites")
+	}
+
+	count, err := usu.rep.GetUserSiteCount(userId)
+	if err != nil {
+		return fmt.Errorf("erro ao contar sites do usuário: %w", err)
+	}
+
+	if count >= plan.MaxSites {
+		return fmt.Errorf("limite de sites atingido (%d/%d). Faça upgrade do seu plano para monitorar mais sites", count, plan.MaxSites)
+	}
+
+	return usu.rep.InsertNewUserSite(userId, siteId, filters)
 }
 
 func (usu *UserSiteUsecase) DeleteUserSite(userId int, siteId string) error {
-	err := usu.rep.DeleteUserSite(userId, siteId)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return usu.rep.DeleteUserSite(userId, siteId)
 }
 
 // UpdateUserSiteFilters atualiza os filtros (palavras-chave) de monitoramento de um site

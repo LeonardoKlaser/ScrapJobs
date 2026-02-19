@@ -10,4 +10,5 @@ type JobRepositoryInterface interface {
 	FindJobsByRequisitionIDs(requisition_IDs []int64) (map[int64]bool, error)
 	UpdateLastSeen(requisition_ID int64) (int, error)
 	DeleteOldJobs() error
+	GetJobByID(jobID int) (*model.Job, error)
 }

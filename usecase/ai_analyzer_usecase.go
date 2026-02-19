@@ -150,7 +150,11 @@ func (a *AiAnalyser) Analyze(ctx context.Context ,curriculum model.Curriculum, j
 	if err != nil {
 		return nullreturn, fmt.Errorf("error to get prompt response: %w", err)
 	}
-	
+
+	if response == nil || len(response.Candidates) == 0 || len(response.Candidates[0].Content.Parts) == 0 {
+		return nullreturn, fmt.Errorf("gemini returned empty response with no candidates")
+	}
+
 	responseText := response.Text()
 	if responseText == "" {
 		return nullreturn, fmt.Errorf("no text content returned from gemini: %s", responseText)
