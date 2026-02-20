@@ -197,8 +197,11 @@ func main() {
 	// Rate limiters
 	publicRateLimiter := middleware.RateLimiter(rate.Limit(5.0/60.0), 2)
 
+	csrfMiddleware := middleware.CSRFProtection()
+
 	publicRoutes := server.Group("/")
 	publicRoutes.Use(logging.GinMiddleware())
+	publicRoutes.Use(csrfMiddleware)
 	publicRoutes.Use(publicRateLimiter)
 	{
 		publicRoutes.POST("/login", userController.SignIn)
@@ -211,6 +214,7 @@ func main() {
 
 	privateRoutes := server.Group("/")
 	privateRoutes.Use(logging.GinMiddleware())
+	privateRoutes.Use(csrfMiddleware)
 	privateRoutes.Use(middlewareAuth.RequireAuth)
 	{
 		privateRoutes.GET("api/me", checkAuthController.CheckAuthUser)

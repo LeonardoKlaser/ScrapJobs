@@ -116,7 +116,7 @@ services:
     container_name: redis
     image: redis:7-alpine
     ports:
-      - "${REDIS_PORT}:${REDIS_PORT}"
+      - "127.0.0.1:${REDIS_PORT}:${REDIS_PORT}"
     command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
       - ./redis.conf:/usr/local/etc/redis/redis.conf
@@ -130,6 +130,20 @@ services:
       timeout: 5s
       retries: 5
 
+  archive-monitor:
+    container_name: go_scrapper_archive_monitor
+    image: ${IMAGE_NAME}
+    command: /app/archive-monitor
+    environment:
+      - AWS_REGION=us-east-1
+      - REDIS_ADDR=${REDIS_ADDR}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - go_network
+    restart: unless-stopped
+
   migrate:
     image: ${IMAGE_NAME}
     depends_on:
@@ -137,7 +151,7 @@ services:
         condition: service_healthy
     networks:
       - go_network
-    restart: unless-stopped
+    restart: "no"
     command: >
       /app/migrate -path /app/migrations -database "postgres://${USER_DB}:${PASSWORD_DB}@go_scrapper_db:5432/${DBNAME}?sslmode=disable" up
 

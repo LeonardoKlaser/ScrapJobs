@@ -98,6 +98,7 @@ func main() {
 	notificationRepository := repository.NewNotificationRepository(dbConnection)
 	userRepository := repository.NewUserRepository(dbConnection)
 	planRepository := repository.NewPlanRepository(dbConnection)
+	dashboardRepository := repository.NewDashboardRepository(dbConnection)
 
 	// Services & Usecases
 	aiAnalyser := usecase.NewAiAnalyser(geminiClient)
@@ -121,6 +122,7 @@ func main() {
 		paymentUsecase,
 		emailService,
 		clientAsynq,
+		dashboardRepository,
 	)
 
 	// Mapeamento das Tarefas para os Handlers

@@ -15,8 +15,16 @@ type MonitoredURL struct {
 }
 
 type AdminDashboardData struct {
-	TotalRevenue   float64 `json:"total_revenue"`
-	ActiveUsers    int     `json:"active_users"`
-	MonitoredSites int     `json:"monitored_sites"`
-	ScrapingErrors int     `json:"scraping_errors"`
+	TotalRevenue   float64          `json:"total_revenue"`
+	ActiveUsers    int              `json:"active_users"`
+	MonitoredSites int              `json:"monitored_sites"`
+	ScrapingErrors int              `json:"scraping_errors"`
+	RecentErrors   []ScrapingError  `json:"recent_errors"`
+}
+
+type ScrapingError struct {
+	ID           int    `json:"id"`
+	SiteName     string `json:"site_name"`
+	ErrorMessage string `json:"error_message"`
+	CreatedAt    string `json:"created_at"`
 }

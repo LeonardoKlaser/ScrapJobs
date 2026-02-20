@@ -107,14 +107,17 @@ func (usr *UserController) SignIn(ctx *gin.Context) {
 		return
 	}
 
+	isSecure := os.Getenv("GIN_MODE") == "release"
 	ctx.SetSameSite(http.SameSiteLaxMode)
-	ctx.SetCookie("Authorization", tokenString, 3600*24, "", "", true, true)
+	ctx.SetCookie("Authorization", tokenString, 3600*24, "", "", isSecure, true)
 
 	ctx.JSON(http.StatusOK, gin.H{})
 }
 
 func (usr *UserController) Logout(ctx *gin.Context) {
-	ctx.SetCookie("Authorization", "", -1, "", "", true, true)
+	isSecure := os.Getenv("GIN_MODE") == "release"
+	ctx.SetSameSite(http.SameSiteLaxMode)
+	ctx.SetCookie("Authorization", "", -1, "", "", isSecure, true)
 	ctx.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
 }
 

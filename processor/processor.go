@@ -7,6 +7,7 @@ import (
 	"os"
 	"web-scrapper/interfaces"
 	"web-scrapper/logging"
+	"web-scrapper/repository"
 	"web-scrapper/tasks"
 	"web-scrapper/usecase"
 
@@ -19,6 +20,7 @@ type TaskProcessor struct {
 	paymentUsecase *usecase.PaymentUsecase
 	emailService   interfaces.EmailService
 	_client        *asynq.Client
+	dashboardRepo  *repository.DashboardRepository
 }
 
 func NewTaskProcessor(
@@ -27,6 +29,7 @@ func NewTaskProcessor(
 	paymentUC *usecase.PaymentUsecase,
 	emailSvc interfaces.EmailService,
 	client *asynq.Client,
+	dashboardRepo *repository.DashboardRepository,
 ) *TaskProcessor {
 	return &TaskProcessor{
 		_scraper:       scraper,
@@ -34,6 +37,7 @@ func NewTaskProcessor(
 		paymentUsecase: paymentUC,
 		emailService:   emailSvc,
 		_client:        client,
+		dashboardRepo:  dashboardRepo,
 	}
 }
 
@@ -50,6 +54,12 @@ func (p *TaskProcessor) HandleScrapeSiteTask(ctx context.Context, t *asynq.Task)
 	newJobs, err := p._scraper.ScrapeAndStoreJobs(ctx, payload.SiteScrapingConfig)
 	if err != nil {
 		logging.Logger.Warn().Err(err).Int("site_id", payload.SiteID).Msg("ScrapeAndStoreJobs failed but task will not be retried")
+		if p.dashboardRepo != nil {
+			recErr := p.dashboardRepo.RecordScrapingError(payload.SiteID, payload.SiteScrapingConfig.SiteName, err.Error(), t.ResultWriter().TaskID())
+			if recErr != nil {
+				logging.Logger.Error().Err(recErr).Msg("Failed to record scraping error")
+			}
+		}
 	}
 
 	if len(newJobs) == 0 {

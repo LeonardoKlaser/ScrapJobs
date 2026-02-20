@@ -93,19 +93,43 @@ func (dr *DashboardRepository) GetAdminDashboardData() (model.AdminDashboardData
         SELECT
             COALESCE((SELECT SUM(p.price) FROM users u JOIN plans p ON u.plan_id = p.id WHERE p.price > 0), 0) AS total_revenue,
             (SELECT COUNT(*) FROM users) AS active_users,
-            (SELECT COUNT(*) FROM site_scraping_config WHERE is_active = TRUE) AS monitored_sites
+            (SELECT COUNT(*) FROM site_scraping_config WHERE is_active = TRUE) AS monitored_sites,
+            (SELECT COUNT(*) FROM scraping_errors WHERE created_at >= NOW() - INTERVAL '24 hours') AS scraping_errors
     `
 
 	err := dr.connection.QueryRow(query).Scan(
 		&data.TotalRevenue,
 		&data.ActiveUsers,
 		&data.MonitoredSites,
+		&data.ScrapingErrors,
 	)
 	if err != nil {
 		return model.AdminDashboardData{}, fmt.Errorf("erro ao buscar dados do admin dashboard: %w", err)
 	}
 
-	data.ScrapingErrors = 0
+	errQuery := `SELECT id, site_name, error_message, created_at FROM scraping_errors ORDER BY created_at DESC LIMIT 10`
+	rows, err := dr.connection.Query(errQuery)
+	if err != nil {
+		return data, nil
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var se model.ScrapingError
+		if err := rows.Scan(&se.ID, &se.SiteName, &se.ErrorMessage, &se.CreatedAt); err != nil {
+			continue
+		}
+		data.RecentErrors = append(data.RecentErrors, se)
+	}
 
 	return data, nil
+}
+
+func (dr *DashboardRepository) RecordScrapingError(siteID int, siteName string, errorMessage string, taskID string) error {
+	query := `INSERT INTO scraping_errors (site_id, site_name, error_message, task_id) VALUES ($1, $2, $3, $4)`
+	_, err := dr.connection.Exec(query, siteID, siteName, errorMessage, taskID)
+	if err != nil {
+		return fmt.Errorf("erro ao registrar erro de scraping: %w", err)
+	}
+	return nil
 }

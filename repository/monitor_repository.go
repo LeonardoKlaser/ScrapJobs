@@ -2,8 +2,8 @@ package repository
 
 import (
 	"context"
-	"log"
 	"time"
+	"web-scrapper/logging"
 	"github.com/hibiken/asynq"
 	"github.com/redis/go-redis/v9"
 )
@@ -55,7 +55,7 @@ func (r *MonitorRepository) MarkTaskAsNotified(ctx context.Context, taskID strin
 	pipe.Expire(ctx, r.setKey, r.ttl)
 	_, err := pipe.Exec(ctx)
 	if err != nil {
-		log.Printf("ERROR: Failed to mark task %s as notified: %v", taskID, err)
+		logging.Logger.Error().Err(err).Str("task_id", taskID).Msg("Failed to mark task as notified")
 		return err
 	}
 	return nil
