@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"os"
+	"strings"
 	"time"
 	"web-scrapper/model"
 	"web-scrapper/usecase"
@@ -189,4 +190,40 @@ func (usr *UserController) ChangePassword(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "Senha alterada com sucesso"})
+}
+
+func (usr *UserController) ValidateCheckout(ctx *gin.Context) {
+	var body struct {
+		Email string `json:"email" binding:"required"`
+		Tax   string `json:"tax" binding:"required"`
+	}
+
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Remove non-numeric characters from tax
+	tax := cleanTax(body.Tax)
+
+	emailExists, taxExists, err := usr.usecase.CheckUserExists(body.Email, tax)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao validar dados"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"email_exists": emailExists,
+		"tax_exists":   taxExists,
+	})
+}
+
+func cleanTax(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }

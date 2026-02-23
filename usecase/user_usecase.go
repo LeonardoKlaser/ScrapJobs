@@ -80,6 +80,10 @@ func (usr *UserUsecase) UpdateUserProfile(userId int, name string, cellphone *st
 	return usr.repository.UpdateUserProfile(userId, name, cellphone, tax)
 }
 
+func (usr *UserUsecase) CheckUserExists(email, tax string) (bool, bool, error) {
+	return usr.repository.CheckUserExists(email, tax)
+}
+
 func (usr *UserUsecase) ChangePassword(userId int, currentHash, oldPassword, newPassword string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(currentHash), []byte(oldPassword))
 	if err != nil {

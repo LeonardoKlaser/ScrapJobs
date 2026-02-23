@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"web-scrapper/model"
 	"web-scrapper/repository"
 	"web-scrapper/usecase"
@@ -77,27 +76,6 @@ func (usecase *SiteCareerController) GetAllSites(ctx *gin.Context){
 }
 
 func (usecase *SiteCareerController) InsertNewSiteCareer(ctx *gin.Context){
-	userInterface, exists := ctx.Get("user")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
-		return
-	}
-
-	user, ok := userInterface.(model.User)
-	if !ok {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Tipo de usuário inválido no contexto"})
-		return
-	}
-
-	adminEmail := os.Getenv("ADMIN_EMAIL")
-	if adminEmail == "" {
-		adminEmail = "adminScrapjobs@gmail.com"
-	}
-	if user.Email != adminEmail {
-		ctx.JSON(http.StatusForbidden, gin.H{"error": "only admins can add new sites"})
-		return
-	}
-
 	err := ctx.Request.ParseMultipartForm(2 << 20)
     if err != nil {
         ctx.JSON(http.StatusBadRequest, gin.H{"error": "Erro ao processar o formulário"})

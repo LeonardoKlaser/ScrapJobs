@@ -175,6 +175,15 @@ func (usr *UserRepository) UpdateUserProfile(userId int, name string, cellphone 
 	return nil
 }
 
+func (usr *UserRepository) CheckUserExists(email string, tax string) (bool, bool, error) {
+	query := `SELECT
+		EXISTS(SELECT 1 FROM users WHERE email = $1),
+		EXISTS(SELECT 1 FROM users WHERE tax = $2 AND tax IS NOT NULL AND tax != '')`
+	var emailExists, taxExists bool
+	err := usr.db.QueryRow(query, email, tax).Scan(&emailExists, &taxExists)
+	return emailExists, taxExists, err
+}
+
 func (usr *UserRepository) UpdateUserPassword(userId int, hashedPassword string) error {
 	query := `UPDATE users SET user_password = $1 WHERE id = $2`
 	queryPrepare, err := usr.db.Prepare(query)

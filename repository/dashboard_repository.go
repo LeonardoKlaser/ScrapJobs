@@ -23,22 +23,28 @@ func (dr *DashboardRepository) GetDashboardData(userID int) (model.DashboardData
 
 	query := `
         SELECT
-            -- Card 1: Total de URLs monitoradas no sistema
-            (SELECT COUNT(*) FROM site_scraping_config WHERE is_active = TRUE) AS monitored_urls_count,
+            -- Card 1: Sites monitorados pelo USUÁRIO
+            (SELECT COUNT(*) FROM user_sites us
+             JOIN site_scraping_config sc ON us.site_id = sc.id
+             WHERE us.user_id = $1 AND sc.is_active = TRUE) AS monitored_urls_count,
 
-            -- Card 2: Vagas novas encontradas hoje
-            (SELECT COUNT(*) FROM jobs WHERE created_at >= current_date) AS new_jobs_today_count,
+            -- Card 2: Vagas novas nos sites do USUÁRIO
+            (SELECT COUNT(*) FROM jobs j
+             JOIN user_sites us ON j.site_id = us.site_id
+             WHERE us.user_id = $1 AND j.created_at >= current_date) AS new_jobs_today_count,
 
             -- Card 3: Total de alertas enviados para o usuário específico
             (SELECT COUNT(*) FROM job_notifications WHERE user_id = $1) AS alerts_sent_count,
 
-            -- Card 4: Lista das 5 últimas vagas encontradas
+            -- Card 4: Últimas 5 vagas dos sites do USUÁRIO
             (
                 SELECT json_agg(j)
                 FROM (
-                    SELECT id, title, location, company, job_link, requisition_id, last_seen_at
-                    FROM jobs
-                    ORDER BY last_seen_at DESC
+                    SELECT j.id, j.title, j.location, j.company, j.job_link, j.requisition_id, j.last_seen_at
+                    FROM jobs j
+                    JOIN user_sites us ON j.site_id = us.site_id
+                    WHERE us.user_id = $1
+                    ORDER BY j.last_seen_at DESC
                     LIMIT 5
                 ) j
             ) AS latest_jobs,

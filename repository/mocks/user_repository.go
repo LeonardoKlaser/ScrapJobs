@@ -34,3 +34,8 @@ func (m *MockUserRepository) UpdateUserPassword(userId int, hashedPassword strin
 	args := m.Called(userId, hashedPassword)
 	return args.Error(0)
 }
+
+func (m *MockUserRepository) CheckUserExists(email string, tax string) (bool, bool, error) {
+	args := m.Called(email, tax)
+	return args.Bool(0), args.Bool(1), args.Error(2)
+}

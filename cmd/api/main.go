@@ -210,6 +210,16 @@ func main() {
 		publicRoutes.POST("/api/webhooks/abacatepay", utils.WebhookAuthMiddleware(), paymentController.HandleWebhook)
 	}
 
+	// Checkout validation — rate limiter próprio, separado do publicRoutes para não herdar o 5/min
+	checkoutValidationLimiter := middleware.RateLimiter(rate.Limit(10.0/60.0), 3)
+	checkoutRoutes := server.Group("/")
+	checkoutRoutes.Use(logging.GinMiddleware())
+	checkoutRoutes.Use(csrfMiddleware)
+	checkoutRoutes.Use(checkoutValidationLimiter)
+	{
+		checkoutRoutes.POST("/api/users/validate-checkout", userController.ValidateCheckout)
+	}
+
 	privateRateLimiter := middleware.RateLimiter(rate.Limit(15.0/60.0), 10)
 
 	privateRoutes := server.Group("/")
@@ -221,7 +231,6 @@ func main() {
 		privateRoutes.GET("api/dashboard", dashboardController.GetDashboardDataByUserId)
 		privateRoutes.GET("api/getSites", siteCareerController.GetAllSites)
 		privateRoutes.GET("api/notifications", notificationController.GetNotificationsByUser)
-		privateRoutes.GET("/api/admin/dashboard", adminDashboardController.GetAdminDashboard)
 	}
 	privateRoutes.Use(privateRateLimiter)
 	{
@@ -231,8 +240,6 @@ func main() {
 		privateRoutes.POST("/userSite", userSiteController.InsertUserSite)
 		privateRoutes.DELETE("/userSite/:siteId", userSiteController.DeleteUserSite)
 		privateRoutes.PATCH("/userSite/:siteId", userSiteController.UpdateUserSiteFilters)
-		privateRoutes.POST("/siteCareer", siteCareerController.InsertNewSiteCareer)
-		privateRoutes.POST("/scrape-sandbox", siteCareerController.SandboxScrape)
 		privateRoutes.GET("/curriculum", curriculumController.GetCurriculumByUserId)
 		privateRoutes.POST("/api/logout", userController.Logout)
 		privateRoutes.PATCH("/api/user/profile", userController.UpdateProfile)
@@ -242,6 +249,18 @@ func main() {
 			analyzeRateLimiter := middleware.RateLimiter(rate.Limit(3.0/60.0), 2)
 			privateRoutes.POST("/api/analyze-job", analyzeRateLimiter, analysisController.AnalyzeJob)
 		}
+	}
+
+	// Admin routes — require authentication + admin role
+	adminRoutes := server.Group("/")
+	adminRoutes.Use(logging.GinMiddleware())
+	adminRoutes.Use(csrfMiddleware)
+	adminRoutes.Use(middlewareAuth.RequireAuth)
+	adminRoutes.Use(middleware.RequireAdmin())
+	{
+		adminRoutes.GET("/api/admin/dashboard", adminDashboardController.GetAdminDashboard)
+		adminRoutes.POST("/siteCareer", siteCareerController.InsertNewSiteCareer)
+		adminRoutes.POST("/scrape-sandbox", siteCareerController.SandboxScrape)
 	}
 
 	healthRoutes := server.Group("/health")

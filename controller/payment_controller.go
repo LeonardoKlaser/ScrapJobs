@@ -60,7 +60,8 @@ func (p *PaymentController) CreatePayment(ctx *gin.Context) {
 	paymentURL, err := p.paymentUsecase.CreatePayment(ctx.Request.Context(), planID, reqBody)
 	if err != nil {
 		log.Error().Err(err).Str("email", reqBody.Email).Int("plan_id", planID).Msg("Erro ao iniciar pagamento no usecase")
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao iniciar processo de pagamento"})
+		friendlyMsg, statusCode := parsePaymentError(err.Error())
+		ctx.JSON(statusCode, gin.H{"error": friendlyMsg})
 		return
 	}
 
@@ -150,6 +151,22 @@ func (p *PaymentController) HandleWebhook(ctx *gin.Context) {
 		Msg("Task CompleteRegistration enfileirada com sucesso")
 
 	ctx.JSON(http.StatusOK, gin.H{"status": "received"})
+}
+
+func parsePaymentError(errMsg string) (string, int) {
+	lower := strings.ToLower(errMsg)
+	switch {
+	case strings.Contains(lower, "taxid") || strings.Contains(lower, "cpf"):
+		return "CPF/CNPJ inválido. Verifique o número informado.", http.StatusBadRequest
+	case strings.Contains(lower, "email"):
+		return "E-mail inválido. Verifique o endereço informado.", http.StatusBadRequest
+	case strings.Contains(lower, "cellphone") || strings.Contains(lower, "phone"):
+		return "Telefone inválido. Verifique o número informado.", http.StatusBadRequest
+	case strings.Contains(lower, "timeout") || strings.Contains(lower, "deadline"):
+		return "Serviço de pagamento temporariamente indisponível. Tente novamente.", http.StatusBadGateway
+	default:
+		return "Erro ao processar pagamento. Tente novamente.", http.StatusInternalServerError
+	}
 }
 
 // cleanString remove todos os caracteres não numéricos (para CPF, celular, etc.)
