@@ -10,11 +10,12 @@ import (
 )
 
 type AnalysisController struct {
-	analysisService    interfaces.AnalysisService
-	curriculumRepo     interfaces.CurriculumRepositoryInterface
-	jobRepo            interfaces.JobRepositoryInterface
-	notificationRepo   interfaces.NotificationRepositoryInterface
-	planRepo           interfaces.PlanRepositoryInterface
+	analysisService  interfaces.AnalysisService
+	curriculumRepo   interfaces.CurriculumRepositoryInterface
+	jobRepo          interfaces.JobRepositoryInterface
+	notificationRepo interfaces.NotificationRepositoryInterface
+	planRepo         interfaces.PlanRepositoryInterface
+	emailService     interfaces.EmailService
 }
 
 func NewAnalysisController(
@@ -23,6 +24,7 @@ func NewAnalysisController(
 	jobRepo interfaces.JobRepositoryInterface,
 	notificationRepo interfaces.NotificationRepositoryInterface,
 	planRepo interfaces.PlanRepositoryInterface,
+	emailService interfaces.EmailService,
 ) *AnalysisController {
 	return &AnalysisController{
 		analysisService:  analysisService,
@@ -30,6 +32,7 @@ func NewAnalysisController(
 		jobRepo:          jobRepo,
 		notificationRepo: notificationRepo,
 		planRepo:         planRepo,
+		emailService:     emailService,
 	}
 }
 
@@ -125,4 +128,51 @@ func (ac *AnalysisController) AnalyzeJob(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, analysis)
+}
+
+type sendAnalysisEmailRequest struct {
+	JobID    int                  `json:"job_id" binding:"required"`
+	Analysis model.ResumeAnalysis `json:"analysis" binding:"required"`
+}
+
+// SendAnalysisEmail envia a análise de IA por email para o usuário.
+// POST /api/analyze-job/send-email
+func (ac *AnalysisController) SendAnalysisEmail(ctx *gin.Context) {
+	userInterface, exists := ctx.Get("user")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
+		return
+	}
+
+	user, ok := userInterface.(model.User)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Tipo de usuário inválido no contexto"})
+		return
+	}
+
+	var body sendAnalysisEmailRequest
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "job_id e analysis são obrigatórios"})
+		return
+	}
+
+	// Buscar job para dados do email
+	job, err := ac.jobRepo.GetJobByID(body.JobID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar vaga"})
+		return
+	}
+	if job == nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Vaga não encontrada"})
+		return
+	}
+
+	err = ac.emailService.SendAnalysisEmail(ctx.Request.Context(), user.Email, *job, body.Analysis)
+	if err != nil {
+		logging.Logger.Error().Err(err).Int("job_id", body.JobID).Int("user_id", user.Id).Msg("Erro ao enviar email de análise")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao enviar email"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "Email enviado com sucesso"})
 }

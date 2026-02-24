@@ -15,7 +15,7 @@ resource "aws_secretsmanager_secret_version" "db_credentials_version" {
     redis_addr   = var.redis_addr
     redis_port   = var.redis_port
     redis_conf   = var.redis_conf
-    gemini_key   = var.gemini_key
+    openai_key   = var.openai_api_key
     ai_model     = var.ai_model
   })
 }

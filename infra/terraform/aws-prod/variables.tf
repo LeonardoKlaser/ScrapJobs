@@ -58,8 +58,8 @@ variable "ai_model" {
   sensitive   = true
 }
 
-variable "gemini_key" {
-  description = "gemini_key"
+variable "openai_api_key" {
+  description = "openai_api_key"
   type        = string
   sensitive   = true
 }

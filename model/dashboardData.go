@@ -14,6 +14,13 @@ type MonitoredURL struct {
 	BaseURL  string `json:"base_url"`
 }
 
+type PaginatedJobs struct {
+	Jobs       []Job `json:"jobs"`
+	TotalCount int   `json:"total_count"`
+	Page       int   `json:"page"`
+	Limit      int   `json:"limit"`
+}
+
 type AdminDashboardData struct {
 	TotalRevenue   float64          `json:"total_revenue"`
 	ActiveUsers    int              `json:"active_users"`

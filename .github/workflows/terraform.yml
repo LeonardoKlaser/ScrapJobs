@@ -28,7 +28,7 @@ jobs:
       TF_VAR_redis_addr: ${{ secrets.REDIS_ADDR }}
       TF_VAR_redis_port: ${{ secrets.REDIS_PORT }}
       TF_VAR_redis_conf: ${{ secrets.REDIS_CONF }}
-      TF_VAR_gemini_key: ${{ secrets.GEMINI_KEY }}
+      TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
       TF_VAR_ai_model: ${{ secrets.AI_MODEL }}
       
     steps:

@@ -229,6 +229,91 @@ func (adapter *SESSenderAdapter) SendAnalysisEmail(ctx context.Context, userEmai
     return adapter.mailSender.SendEmail(ctx, userEmail, subject, bodyText, bodyHtml)
 }
 
+func generateNewJobsEmailBodyHTML(userName string, jobs []*model.Job) (string, error) {
+	const templateStr = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body { font-family: sans-serif; line-height: 1.6; color: #333; }
+            h2 { color: #0056b3; }
+            table { width: 100%%; border-collapse: collapse; margin-top: 15px; }
+            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            a { color: #0056b3; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+        </style>
+    </head>
+    <body>
+        <h2>Novas vagas encontradas para você, {{.UserName}}!</h2>
+        <p>Encontramos <strong>{{len .Jobs}}</strong> nova(s) vaga(s) nos sites que você está monitorando:</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Título</th>
+                    <th>Empresa</th>
+                    <th>Localização</th>
+                    <th>Link</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Jobs}}
+                <tr>
+                    <td>{{.Title}}</td>
+                    <td>{{.Company}}</td>
+                    <td>{{.Location}}</td>
+                    <td><a href="{{.JobLink}}" target="_blank">Ver vaga</a></td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        <p style="margin-top: 20px;">Acesse seu painel no ScrapJobs para analisar essas vagas com IA e receber sugestões personalizadas para o seu currículo.</p>
+        <p>Atenciosamente,<br/>Equipe ScrapJobs</p>
+    </body>
+    </html>`
+
+	data := struct {
+		UserName string
+		Jobs     []*model.Job
+	}{UserName: userName, Jobs: jobs}
+
+	tmpl, err := template.New("newJobsEmail").Parse(templateStr)
+	if err != nil {
+		return "", err
+	}
+	var body bytes.Buffer
+	if err := tmpl.Execute(&body, data); err != nil {
+		return "", err
+	}
+	return body.String(), nil
+}
+
+func generateNewJobsEmailBodyText(userName string, jobs []*model.Job) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Novas vagas encontradas para você, %s!\n\n", userName))
+	sb.WriteString(fmt.Sprintf("Encontramos %d nova(s) vaga(s) nos sites que você está monitorando:\n\n", len(jobs)))
+	for i, job := range jobs {
+		sb.WriteString(fmt.Sprintf("%d. %s — %s (%s)\n   Link: %s\n\n", i+1, job.Title, job.Company, job.Location, job.JobLink))
+	}
+	sb.WriteString("Acesse seu painel no ScrapJobs para analisar essas vagas com IA.\n\n")
+	sb.WriteString("Atenciosamente,\nEquipe ScrapJobs\n")
+	return sb.String()
+}
+
+func (adapter *SESSenderAdapter) SendNewJobsEmail(ctx context.Context, userEmail string, userName string, jobs []*model.Job) error {
+	subject := fmt.Sprintf("ScrapJobs: %d nova(s) vaga(s) encontrada(s)!", len(jobs))
+
+	bodyHtml, err := generateNewJobsEmailBodyHTML(userName, jobs)
+	if err != nil {
+		return fmt.Errorf("erro ao gerar corpo HTML do email de novas vagas: %w", err)
+	}
+
+	bodyText := generateNewJobsEmailBodyText(userName, jobs)
+
+	return adapter.mailSender.SendEmail(ctx, userEmail, subject, bodyText, bodyHtml)
+}
+
 func (adapter *SESSenderAdapter) SendWelcomeEmail(ctx context.Context, userEmail, userName, dashboardLink string) error {
 	subject := "Bem-vindo(a) ao ScrapJobs!"
 

@@ -5,7 +5,6 @@ import (
 	"os"
 	"web-scrapper/gateway"
 	"web-scrapper/infra/db"
-	"web-scrapper/infra/gemini"
 	"web-scrapper/infra/ses"
 	"web-scrapper/logging"
 	"web-scrapper/model"
@@ -17,7 +16,6 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
-	"golang.org/x/time/rate"
 )
 
 func main() {
@@ -42,8 +40,6 @@ func main() {
 			DBPassword: os.Getenv("PASSWORD_DB"),
 			DBName:     os.Getenv("DBNAME"),
 			RedisAddr:  os.Getenv("REDIS_ADDR"),
-			GeminiKey:  os.Getenv("GEMINI_KEY"),
-			AIModel:    os.Getenv("AI_MODEL"),
 		}
 	}
 
@@ -52,15 +48,6 @@ func main() {
 		logging.Logger.Fatal().Err(err).Msg("Could not connect to database")
 	}
 	defer dbConnection.Close()
-
-	geminiConfig := gemini.Config{
-		ApiKey:   secrets.GeminiKey,
-		ApiModel: secrets.AIModel,
-	}
-	geminiClient, err := gemini.GeminiClientModel(context.Background(), geminiConfig)
-	if err != nil {
-		logging.Logger.Fatal().Err(err).Msg("could not create gemini client")
-	}
 
 	// Carrega configuração AWS para SES (email)
 	awsCfg, err := ses.LoadAWSConfig(context.Background())
@@ -101,13 +88,9 @@ func main() {
 	dashboardRepository := repository.NewDashboardRepository(dbConnection)
 
 	// Services & Usecases
-	aiAnalyser := usecase.NewAiAnalyser(geminiClient)
 	jobUsecase := usecase.NewJobUseCase(jobRepository)
 
-	aiApiLimiter := rate.NewLimiter(rate.Limit(15.0/60.0), 1)
-	rateLimitedAiService := usecase.NewRateLimitedAiAnalyser(aiAnalyser, aiApiLimiter)
-
-	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, rateLimitedAiService, emailService, notificationRepository, clientAsynq, planRepository)
+	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, nil, emailService, notificationRepository, clientAsynq, planRepository)
 
 	// PaymentUsecase (necessário para HandleCompleteRegistrationTask)
 	abacatepayGateway := gateway.NewAbacatePayGateway()
@@ -129,8 +112,7 @@ func main() {
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(tasks.TypeScrapSite, taskProcessor.HandleScrapeSiteTask)
 	mux.HandleFunc(tasks.TypeProcessResults, taskProcessor.HandleFindMatchesTask)
-	mux.HandleFunc(tasks.TypeAnalyzeUserJob, taskProcessor.HandleAnalyzeJobUserTask)
-	mux.HandleFunc(tasks.TypeNotifyUser, taskProcessor.HandleNotifyTask)
+	mux.HandleFunc(tasks.TypeNotifyNewJobs, taskProcessor.HandleNotifyNewJobsTask)
 	mux.HandleFunc(tasks.TypeCompleteRegistration, taskProcessor.HandleCompleteRegistrationTask)
 
 	logging.Logger.Info().Msg("Worker Server started...")

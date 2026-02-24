@@ -99,21 +99,39 @@ func (p *TaskProcessor) HandleFindMatchesTask(ctx context.Context, t *asynq.Task
 		return fmt.Errorf("error to notify to site %d: %w", payload.SiteID, err)
 	}
 
-	for _, analysisPayload := range payloadsToEnqueue {
-		p_bytes, err := json.Marshal(analysisPayload)
+	for _, notifyPayload := range payloadsToEnqueue {
+		p_bytes, err := json.Marshal(notifyPayload)
 		if err != nil {
-			logging.Logger.Error().Err(err).Msg("Failed to marshal analysis payload, skipping task")
+			logging.Logger.Error().Err(err).Int("user_id", notifyPayload.User.UserId).Msg("Failed to marshal new jobs payload, skipping task")
 			continue
 		}
 
-		analysisTask := asynq.NewTask(tasks.TypeAnalyzeUserJob, p_bytes, asynq.MaxRetry(3))
-		_, err = p._client.Enqueue(analysisTask, asynq.Queue("default"))
+		notifyTask := asynq.NewTask(tasks.TypeNotifyNewJobs, p_bytes, asynq.MaxRetry(3))
+		_, err = p._client.Enqueue(notifyTask, asynq.Queue("default"))
 		if err != nil {
-			logging.Logger.Error().Err(err).Msg("Failed to enqueue analysis task")
+			logging.Logger.Error().Err(err).Int("user_id", notifyPayload.User.UserId).Msg("Failed to enqueue new jobs notification task")
 		}
 	}
 
 	logging.Logger.Info().Int("site_id", payload.SiteID).Msg("Result processing for site finished")
+	return nil
+}
+
+func (p *TaskProcessor) HandleNotifyNewJobsTask(ctx context.Context, t *asynq.Task) error {
+	var payload tasks.NotifyNewJobsPayload
+	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
+		return fmt.Errorf("error to get payload for new jobs notification: %w", err)
+	}
+
+	logging.Logger.Info().Int("user_id", payload.User.UserId).Int("job_count", len(payload.Jobs)).Msg("Processing new jobs notification")
+
+	err := p._notifier.ProcessNewJobsNotification(ctx, payload.User, payload.Jobs)
+	if err != nil {
+		logging.Logger.Error().Err(err).Int("user_id", payload.User.UserId).Msg("Erro ao processar notificação de novas vagas")
+		return fmt.Errorf("error processing new jobs notification for user %d: %w", payload.User.UserId, err)
+	}
+
+	logging.Logger.Info().Int("user_id", payload.User.UserId).Int("job_count", len(payload.Jobs)).Msg("Notificação de novas vagas processada com sucesso")
 	return nil
 }
 

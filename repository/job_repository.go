@@ -20,14 +20,14 @@ func NewJobRepository(db *sql.DB) *JobRepository {
 }
 
 func (usr *JobRepository) CreateJob(job model.Job) (int, error) {
-	query := `INSERT INTO jobs (title, location, company, job_link, requisition_ID, description) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
+	query := `INSERT INTO jobs (title, location, company, job_link, requisition_ID, description, site_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
 	queryPrepare, err := usr.connection.Prepare(query)
 	if err != nil {
 		return 0, err
 	}
 	defer queryPrepare.Close()
 
-	err = queryPrepare.QueryRow(job.Title, job.Location, job.Company, job.JobLink, job.RequisitionID, job.Description).Scan(&job.ID)
+	err = queryPrepare.QueryRow(job.Title, job.Location, job.Company, job.JobLink, job.RequisitionID, job.Description, job.SiteID).Scan(&job.ID)
 	if err != nil {
 		return 0, err
 	}
@@ -99,11 +99,12 @@ func (usr *JobRepository) UpdateLastSeen(requisition_ID int64) (int, error) {
 }
 
 func (usr *JobRepository) GetJobByID(jobID int) (*model.Job, error) {
-	query := `SELECT id, title, location, company, job_link, requisition_id, description FROM jobs WHERE id = $1`
+	query := `SELECT id, site_id, title, location, company, job_link, requisition_id, description FROM jobs WHERE id = $1`
 
 	var job model.Job
 	err := usr.connection.QueryRow(query, jobID).Scan(
 		&job.ID,
+		&job.SiteID,
 		&job.Title,
 		&job.Location,
 		&job.Company,

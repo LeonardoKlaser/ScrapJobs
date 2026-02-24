@@ -15,7 +15,7 @@ type AppSecrets struct {
 	RedisConf string `json:"redis_conf"`
 
 	
-	GeminiKey string `json:"gemini_key"`
+	OpenAIKey string `json:"openai_key"`
 	AIModel   string `json:"ai_model"`
 
 	AdminNotificationEmail string `json:"admin_notification_email"`

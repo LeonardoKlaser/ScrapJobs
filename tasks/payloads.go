@@ -3,11 +3,12 @@ package tasks
 import "web-scrapper/model"
 
 const (
-	TypeScrapSite      = "scrape:site"
-	TypeProcessResults = "process:results"
-	TypeNotifyUser     = "notify:user"
-	TypeAnalyzeUserJob = "analyze:resume"
+	TypeScrapSite           = "scrape:site"
+	TypeProcessResults      = "process:results"
+	TypeNotifyUser          = "notify:user"
+	TypeAnalyzeUserJob      = "analyze:resume"
 	TypeCompleteRegistration = "payment:complete_registration"
+	TypeNotifyNewJobs       = "notify:new_jobs"
 )
 
 type ScrapeSitePayload struct {
@@ -31,7 +32,12 @@ type AnalyzeUserJobPayload struct {
 	Job *model.Job
 }
 
+type NotifyNewJobsPayload struct {
+	User model.UserSiteCurriculum
+	Jobs []*model.Job
+}
+
 type CompleteRegistrationPayload struct {
 	PendingRegistrationID string `json:"pending_registration_id"`
-	CustomerEmail string `json:"customer_email"`
+	CustomerEmail         string `json:"customer_email"`
 }

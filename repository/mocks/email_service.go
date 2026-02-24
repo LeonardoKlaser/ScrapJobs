@@ -20,3 +20,8 @@ func (m *MockEmailService) SendWelcomeEmail(ctx context.Context, userEmail, user
 	args := m.Called(ctx, userEmail, userName, dashboardLink)
 	return args.Error(0)
 }
+
+func (m *MockEmailService) SendNewJobsEmail(ctx context.Context, userEmail string, userName string, jobs []*model.Job) error {
+	args := m.Called(ctx, userEmail, userName, jobs)
+	return args.Error(0)
+}

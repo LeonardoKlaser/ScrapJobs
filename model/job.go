@@ -2,6 +2,7 @@ package model
 
 type Job struct {
 	ID            int    `json:"id" db:"id"`
+	SiteID        int    `json:"site_id" db:"site_id"`
 	Title         string `json:"title" db:"title"`
 	Location      string `json:"location" db:"location"`
 	Company       string `json:"company" db:"company"`

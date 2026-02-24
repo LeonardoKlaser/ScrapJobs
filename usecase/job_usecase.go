@@ -61,10 +61,11 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
     for _, job := range jobs {
         if _ , ok := exist[job.RequisitionID]; !ok {
 			jobToInsert := model.Job{
-				Title: job.Title,
-				Location: job.Location,
-				Company: selectors.SiteName,
-				JobLink: job.JobLink,
+				SiteID:        selectors.ID,
+				Title:         job.Title,
+				Location:      job.Location,
+				Company:       selectors.SiteName,
+				JobLink:       job.JobLink,
 				RequisitionID: job.RequisitionID,
 			}
             ID, err := uc.Repository.CreateJob(jobToInsert)

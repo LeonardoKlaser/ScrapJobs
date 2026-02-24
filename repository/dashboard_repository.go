@@ -92,6 +92,70 @@ func (dr *DashboardRepository) GetDashboardData(userID int) (model.DashboardData
 	return dashboardData, nil
 }
 
+func (dr *DashboardRepository) GetLatestJobsPaginated(userID, page, limit, days int, search string) (model.PaginatedJobs, error) {
+	var result model.PaginatedJobs
+	result.Page = page
+	result.Limit = limit
+
+	offset := (page - 1) * limit
+
+	baseWhere := `
+		FROM jobs j
+		JOIN user_sites us ON j.site_id = us.site_id
+		WHERE us.user_id = $1
+	`
+	args := []interface{}{userID}
+	argIdx := 2
+
+	if days > 0 {
+		baseWhere += fmt.Sprintf(" AND j.created_at >= NOW() - INTERVAL '1 day' * $%d", argIdx)
+		args = append(args, days)
+		argIdx++
+	}
+
+	if search != "" {
+		baseWhere += fmt.Sprintf(" AND LOWER(j.title) LIKE '%%' || LOWER($%d) || '%%'", argIdx)
+		args = append(args, search)
+		argIdx++
+	}
+
+	// Count query
+	countQuery := "SELECT COUNT(*) " + baseWhere
+	var totalCount int
+	err := dr.connection.QueryRow(countQuery, args...).Scan(&totalCount)
+	if err != nil {
+		return result, fmt.Errorf("erro ao contar vagas: %w", err)
+	}
+	result.TotalCount = totalCount
+
+	// Data query
+	dataQuery := fmt.Sprintf(
+		"SELECT j.id, j.site_id, j.title, j.location, j.company, j.job_link, j.requisition_id, COALESCE(j.description, '') %s ORDER BY j.created_at DESC LIMIT $%d OFFSET $%d",
+		baseWhere, argIdx, argIdx+1,
+	)
+	args = append(args, limit, offset)
+
+	rows, err := dr.connection.Query(dataQuery, args...)
+	if err != nil {
+		return result, fmt.Errorf("erro ao buscar vagas paginadas: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var job model.Job
+		if err := rows.Scan(&job.ID, &job.SiteID, &job.Title, &job.Location, &job.Company, &job.JobLink, &job.RequisitionID, &job.Description); err != nil {
+			return result, fmt.Errorf("erro ao ler vaga: %w", err)
+		}
+		result.Jobs = append(result.Jobs, job)
+	}
+
+	if result.Jobs == nil {
+		result.Jobs = []model.Job{}
+	}
+
+	return result, rows.Err()
+}
+
 func (dr *DashboardRepository) GetAdminDashboardData() (model.AdminDashboardData, error) {
 	var data model.AdminDashboardData
 

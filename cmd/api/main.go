@@ -10,7 +10,7 @@ import (
 	"web-scrapper/controller"
 	"web-scrapper/gateway"
 	"web-scrapper/infra/db"
-	"web-scrapper/infra/gemini"
+	"web-scrapper/infra/openai"
 	"web-scrapper/infra/s3"
 	"web-scrapper/infra/ses"
 	"web-scrapper/interfaces"
@@ -82,7 +82,7 @@ func main() {
 			DBPassword: os.Getenv("PASSWORD_DB"),
 			DBName:     os.Getenv("DBNAME"),
 			RedisAddr:  os.Getenv("REDIS_ADDR"),
-			GeminiKey:  os.Getenv("GEMINI_KEY"),
+			OpenAIKey:  os.Getenv("OPENAI_API_KEY"),
 			AIModel:    os.Getenv("AI_MODEL"),
 		}
 	}
@@ -131,22 +131,22 @@ func main() {
 	// --- Gateway de Pagamento ---
 	abacatepayGateway := gateway.NewAbacatePayGateway()
 
-	// --- Gemini AI Client (opcional — usado para análise manual de vagas) ---
+	// --- OpenAI Client (opcional — usado para análise manual de vagas) ---
 	var aiAnalyser interfaces.AnalysisService
-	if secrets.GeminiKey != "" && secrets.AIModel != "" {
-		geminiConfig := gemini.Config{
-			ApiKey:   secrets.GeminiKey,
+	if secrets.OpenAIKey != "" && secrets.AIModel != "" {
+		openaiConfig := openai.Config{
+			ApiKey:   secrets.OpenAIKey,
 			ApiModel: secrets.AIModel,
 		}
-		geminiClient, geminiErr := gemini.GeminiClientModel(context.Background(), geminiConfig)
-		if geminiErr != nil {
-			logging.Logger.Warn().Err(geminiErr).Msg("Falha ao criar cliente Gemini — análise manual de IA desabilitada")
+		openaiClient, openaiErr := openai.NewOpenAIClient(openaiConfig)
+		if openaiErr != nil {
+			logging.Logger.Warn().Err(openaiErr).Msg("Falha ao criar cliente OpenAI — análise manual de IA desabilitada")
 		} else {
-			aiAnalyser = usecase.NewAiAnalyser(geminiClient)
-			logging.Logger.Info().Msg("Cliente Gemini configurado para análise manual de IA")
+			aiAnalyser = usecase.NewAiAnalyser(openaiClient)
+			logging.Logger.Info().Msg("Cliente OpenAI configurado para análise manual de IA")
 		}
 	} else {
-		logging.Logger.Warn().Msg("GEMINI_KEY ou AI_MODEL não definidos — análise manual de IA desabilitada")
+		logging.Logger.Warn().Msg("OPENAI_API_KEY ou AI_MODEL não definidos — análise manual de IA desabilitada")
 	}
 
 	// Repositories
@@ -188,7 +188,7 @@ func main() {
 	// Analysis Controller (análise manual de IA)
 	var analysisController *controller.AnalysisController
 	if aiAnalyser != nil {
-		analysisController = controller.NewAnalysisController(aiAnalyser, curriculumRepository, jobRepository, notificationRepository, planRepository)
+		analysisController = controller.NewAnalysisController(aiAnalyser, curriculumRepository, jobRepository, notificationRepository, planRepository, emailService)
 	}
 
 	// Middleware
@@ -229,6 +229,7 @@ func main() {
 	{
 		privateRoutes.GET("api/me", checkAuthController.CheckAuthUser)
 		privateRoutes.GET("api/dashboard", dashboardController.GetDashboardDataByUserId)
+		privateRoutes.GET("api/dashboard/jobs", dashboardController.GetLatestJobs)
 		privateRoutes.GET("api/getSites", siteCareerController.GetAllSites)
 		privateRoutes.GET("api/notifications", notificationController.GetNotificationsByUser)
 	}
@@ -248,6 +249,7 @@ func main() {
 		if analysisController != nil {
 			analyzeRateLimiter := middleware.RateLimiter(rate.Limit(3.0/60.0), 2)
 			privateRoutes.POST("/api/analyze-job", analyzeRateLimiter, analysisController.AnalyzeJob)
+			privateRoutes.POST("/api/analyze-job/send-email", analyzeRateLimiter, analysisController.SendAnalysisEmail)
 		}
 	}
 
