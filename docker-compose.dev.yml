@@ -1,3 +1,4 @@
+
 # docker-compose.dev.yml
 # Sobe apenas a infraestrutura local (Postgres + Redis) para desenvolvimento.
 # Os binários Go (api, worker, scheduler) rodam diretamente via `go run` no host.
@@ -21,6 +22,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - go_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${USER_DB:-scrapjobs}"]
       interval: 5s
@@ -35,11 +38,29 @@ services:
       - "6379:6379"
     volumes:
       - redis_dev_data:/data
+    networks:      # <--- ADICIONADO: Boa prática colocar todos na mesma rede
+      - go_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+
+  migrate:
+    build: . 
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - go_network
+    command: >
+      /app/migrate -path /app/migrations -database "postgres://${USER_DB}:${PASSWORD_DB}@postgres:5432/${DBNAME}?sslmode=disable" up
+
+networks:
+  go_network:
+    driver: bridge
 
 volumes:
   postgres_dev_data:
