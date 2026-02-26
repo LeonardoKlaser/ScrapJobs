@@ -7,6 +7,17 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// safeRegister registers collectors, silently ignoring AlreadyRegisteredError.
+func safeRegister(cs ...prometheus.Collector) {
+	for _, c := range cs {
+		if err := prometheus.Register(c); err != nil {
+			if _, ok := err.(prometheus.AlreadyRegisteredError); !ok {
+				panic(err)
+			}
+		}
+	}
+}
+
 // RegisterDBCollector registers gauges that track sql.DB pool stats.
 func RegisterDBCollector(db *sql.DB) {
 	dbOpenConns := prometheus.NewGaugeFunc(prometheus.GaugeOpts{
@@ -30,14 +41,16 @@ func RegisterDBCollector(db *sql.DB) {
 		return float64(db.Stats().InUse)
 	})
 
+	// GaugeFunc reading a cumulative snapshot from sql.DBStats.WaitCount.
+	// Named without _total since it is exposed as a gauge, not a counter.
 	dbWaitCount := prometheus.NewGaugeFunc(prometheus.GaugeOpts{
-		Name: "db_pool_wait_count_total",
-		Help: "Total number of connections waited for",
+		Name: "db_pool_wait_count",
+		Help: "Total number of connections waited for (cumulative)",
 	}, func() float64 {
 		return float64(db.Stats().WaitCount)
 	})
 
-	prometheus.MustRegister(dbOpenConns, dbIdleConns, dbInUseConns, dbWaitCount)
+	safeRegister(dbOpenConns, dbIdleConns, dbInUseConns, dbWaitCount)
 }
 
 // RegisterRedisCollector registers gauges that track go-redis pool stats.
@@ -56,19 +69,21 @@ func RegisterRedisCollector(client *redis.Client) {
 		return float64(client.PoolStats().IdleConns)
 	})
 
+	// GaugeFunc reading cumulative snapshots from redis.PoolStats.
+	// Named without _total since they are exposed as gauges, not counters.
 	redisHits := prometheus.NewGaugeFunc(prometheus.GaugeOpts{
-		Name: "redis_pool_hits_total",
-		Help: "Number of times a free connection was found in the pool",
+		Name: "redis_pool_hits",
+		Help: "Number of times a free connection was found in the pool (cumulative)",
 	}, func() float64 {
 		return float64(client.PoolStats().Hits)
 	})
 
 	redisMisses := prometheus.NewGaugeFunc(prometheus.GaugeOpts{
-		Name: "redis_pool_misses_total",
-		Help: "Number of times a free connection was NOT found in the pool",
+		Name: "redis_pool_misses",
+		Help: "Number of times a free connection was NOT found in the pool (cumulative)",
 	}, func() float64 {
 		return float64(client.PoolStats().Misses)
 	})
 
-	prometheus.MustRegister(redisActiveConns, redisIdleConns, redisHits, redisMisses)
+	safeRegister(redisActiveConns, redisIdleConns, redisHits, redisMisses)
 }
