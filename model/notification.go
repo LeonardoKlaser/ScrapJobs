@@ -11,3 +11,13 @@ type NotificationWithJob struct {
 	JobLocation string `json:"job_location"`
 	JobLink     string `json:"job_link"`
 }
+
+// JobWithFilters representa uma vaga com os filtros do usuário associados
+type JobWithFilters struct {
+	JobID    int      `json:"job_id"`
+	Title    string   `json:"title"`
+	Location string   `json:"location"`
+	Company  string   `json:"company"`
+	JobLink  string   `json:"job_link"`
+	Filters  []string `json:"-"`
+}

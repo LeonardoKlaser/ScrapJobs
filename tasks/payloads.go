@@ -9,6 +9,8 @@ const (
 	TypeAnalyzeUserJob      = "analyze:resume"
 	TypeCompleteRegistration = "payment:complete_registration"
 	TypeNotifyNewJobs       = "notify:new_jobs"
+	TypeMatchUser           = "match:user"
+	TypeSendDigest          = "digest:send"
 )
 
 type ScrapeSitePayload struct {
@@ -40,4 +42,12 @@ type NotifyNewJobsPayload struct {
 type CompleteRegistrationPayload struct {
 	PendingRegistrationID string `json:"pending_registration_id"`
 	CustomerEmail         string `json:"customer_email"`
+}
+
+type MatchUserPayload struct {
+	UserID int `json:"user_id"`
+}
+
+type SendDigestPayload struct {
+	UserID int `json:"user_id"`
 }
