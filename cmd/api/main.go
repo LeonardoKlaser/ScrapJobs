@@ -11,6 +11,7 @@ import (
 	"web-scrapper/gateway"
 	"web-scrapper/infra/db"
 	"web-scrapper/infra/openai"
+	redispkg "web-scrapper/infra/redis"
 	"web-scrapper/infra/s3"
 	"web-scrapper/infra/ses"
 	"web-scrapper/interfaces"
@@ -26,7 +27,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
-	"github.com/redis/go-redis/v9"
 	"golang.org/x/time/rate"
 )
 
@@ -87,6 +87,10 @@ func main() {
 		}
 	}
 
+	if err := utils.ValidateSecrets(secrets); err != nil {
+		logging.Logger.Fatal().Err(err).Msg("Invalid configuration")
+	}
+
 	dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort, secrets.DBUser, secrets.DBPassword, secrets.DBName)
 	if err != nil {
 		logging.Logger.Fatal().Err(err).Msg("Could not connect to database")
@@ -94,7 +98,13 @@ func main() {
 	logging.Logger.Info().Msg("successfully connected to the database")
 	defer dbConnection.Close()
 
-	redisOpt := connectRedis(secrets)
+	redisClient, err := redispkg.NewRedisClient(secrets.RedisAddr)
+	if err != nil {
+		logging.Logger.Fatal().Err(err).Str("redis_addr", secrets.RedisAddr).Msg("Could not connect to Redis")
+	}
+	defer redisClient.Close()
+	logging.Logger.Info().Str("redis_addr", secrets.RedisAddr).Msg("Connected to Redis")
+
 	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: secrets.RedisAddr})
 	defer asynqClient.Close()
 
@@ -167,7 +177,7 @@ func main() {
 	siteCareerUsecase := usecase.NewSiteCareerUsecase(siteCareerRepository, s3Uploader)
 	planUsecase := usecase.NewPlanUsecase(planRepository)
 	requestedSiteUsecase := usecase.NewRequestedSiteUsecase(requestedSiteRepository)
-	paymentUsecase := usecase.NewPaymentUsecase(abacatepayGateway, redisOpt, userUsecase, planRepository)
+	paymentUsecase := usecase.NewPaymentUsecase(abacatepayGateway, redisClient, userUsecase, planRepository)
 	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, nil, emailService, notificationRepository, planRepository, userRepository)
 
 	// Controllers
@@ -293,16 +303,4 @@ func main() {
 		logging.Logger.Fatal().Err(err).Msg("Server forced to shutdown")
 	}
 	logging.Logger.Info().Msg("Server exited gracefully")
-}
-
-func connectRedis(secrets *model.AppSecrets) asynq.RedisConnOpt {
-	redisOpt := asynq.RedisClientOpt{Addr: secrets.RedisAddr}
-	client := redisOpt.MakeRedisClient().(redis.UniversalClient)
-	if _, err := client.Ping(context.Background()).Result(); err != nil {
-		client.Close()
-		logging.Logger.Fatal().Err(err).Str("redis_addr", secrets.RedisAddr).Msg("Falha ao conectar ao Redis")
-	}
-	client.Close()
-	logging.Logger.Info().Str("redis_addr", secrets.RedisAddr).Msg("Conectado ao Redis com sucesso")
-	return redisOpt
 }

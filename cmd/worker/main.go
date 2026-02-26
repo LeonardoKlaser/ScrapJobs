@@ -5,6 +5,7 @@ import (
 	"os"
 	"web-scrapper/gateway"
 	"web-scrapper/infra/db"
+	redispkg "web-scrapper/infra/redis"
 	"web-scrapper/infra/ses"
 	"web-scrapper/logging"
 	"web-scrapper/model"
@@ -41,6 +42,10 @@ func main() {
 			DBName:     os.Getenv("DBNAME"),
 			RedisAddr:  os.Getenv("REDIS_ADDR"),
 		}
+	}
+
+	if err := utils.ValidateSecrets(secrets); err != nil {
+		logging.Logger.Fatal().Err(err).Msg("Invalid configuration")
 	}
 
 	dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort, secrets.DBUser, secrets.DBPassword, secrets.DBName)
@@ -95,8 +100,12 @@ func main() {
 	// PaymentUsecase (necessário para HandleCompleteRegistrationTask)
 	abacatepayGateway := gateway.NewAbacatePayGateway()
 	userUsecase := usecase.NewUserUsercase(userRepository)
-	redisOpt := asynq.RedisClientOpt{Addr: secrets.RedisAddr}
-	paymentUsecase := usecase.NewPaymentUsecase(abacatepayGateway, redisOpt, userUsecase, planRepository)
+	workerRedisClient, err := redispkg.NewRedisClient(secrets.RedisAddr)
+	if err != nil {
+		logging.Logger.Fatal().Err(err).Msg("Could not connect to Redis for PaymentUsecase")
+	}
+	defer workerRedisClient.Close()
+	paymentUsecase := usecase.NewPaymentUsecase(abacatepayGateway, workerRedisClient, userUsecase, planRepository)
 
 	// TaskProcessor
 	taskProcessor := processor.NewTaskProcessor(

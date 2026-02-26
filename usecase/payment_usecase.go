@@ -12,24 +12,19 @@ import (
 	"web-scrapper/logging"
 	"web-scrapper/model"
 
-	"github.com/hibiken/asynq"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type PaymentUsecase struct {
 	paymentGateway *gateway.AbacatePayGateway
-	redisOpt       asynq.RedisConnOpt
+	redisClient    redis.UniversalClient
 	userUsecase    *UserUsecase
 	planRepository interfaces.PlanRepositoryInterface
 }
 
-func NewPaymentUsecase(gw *gateway.AbacatePayGateway, redisOpt asynq.RedisConnOpt, userUsecase *UserUsecase, planRp interfaces.PlanRepositoryInterface) *PaymentUsecase {
-	return &PaymentUsecase{paymentGateway: gw, redisOpt: redisOpt, userUsecase: userUsecase, planRepository: planRp}
-}
-
-func (uc *PaymentUsecase) getRedisClient() redis.UniversalClient {
-	return uc.redisOpt.MakeRedisClient().(redis.UniversalClient)
+func NewPaymentUsecase(gw *gateway.AbacatePayGateway, redisClient redis.UniversalClient, userUsecase *UserUsecase, planRp interfaces.PlanRepositoryInterface) *PaymentUsecase {
+	return &PaymentUsecase{paymentGateway: gw, redisClient: redisClient, userUsecase: userUsecase, planRepository: planRp}
 }
 
 func (uc *PaymentUsecase) CreatePayment(ctx context.Context, planID int, userData gateway.InitiatePaymentRequest) (string, error) {
@@ -79,8 +74,7 @@ func (uc *PaymentUsecase) CreatePayment(ctx context.Context, planID int, userDat
 	log.Info().Str("pending_reg_id", pendingRegistrationID).Msg("Cobrança iniciada com sucesso")
 
 	redisKey := "pending_reg:" + pendingRegistrationID
-	redisClient := uc.getRedisClient()
-	defer redisClient.Close()
+	redisClient := uc.redisClient
 
 	ttl := 1 * time.Hour
 	err = redisClient.Set(ctx, redisKey, jsonData, ttl).Err()
@@ -97,8 +91,7 @@ func (uc *PaymentUsecase) CompleteRegistration(ctx context.Context, pendingRegis
 	log := logging.Logger.With().Str("usecase", "PaymentUsecase").Str("method", "CompleteRegistration").Str("pending_reg_id", pendingRegistrationID).Logger()
 
 	redisKey := "pending_reg:" + pendingRegistrationID
-	redisClient := uc.getRedisClient()
-	defer redisClient.Close()
+	redisClient := uc.redisClient
 
 	log.Info().Msg("Buscando dados de registro pendente no Redis")
 	jsonData, err := redisClient.Get(ctx, redisKey).Result()
