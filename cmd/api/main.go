@@ -185,7 +185,7 @@ func main() {
 	curriculumController := controller.NewCurriculumController(curriculumUsecase)
 	userSiteController := controller.NewUserSiteController(userSiteUsecase)
 	siteCareerController := controller.NewSiteCareerController(siteCareerUsecase, userSiteRepository)
-	healthController := controller.NewHealthController(dbConnection, asynqClient)
+	healthController := controller.NewHealthController(dbConnection, asynqClient, redisClient)
 	checkAuthController := controller.NewCheckAuthController()
 	dashboardController := controller.NewDashboardDataController(dashboardRepository)
 	planController := controller.NewPlanController(planUsecase)
