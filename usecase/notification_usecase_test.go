@@ -2,12 +2,14 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"web-scrapper/model"
 	"web-scrapper/repository/mocks"
 
 	"github.com/hibiken/asynq"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestNotificationsUsecase_FindMatchesAndNotify(t *testing.T) {
@@ -26,6 +28,7 @@ func TestNotificationsUsecase_FindMatchesAndNotify(t *testing.T) {
 		mockNotificationRepo,
 		clientAsynq,
 		mockPlanRepo,
+		nil,
 	)
 
 	siteId := 1
@@ -104,6 +107,7 @@ func TestNotificationsUsecase_MatchJobsForUser(t *testing.T) {
 		mockNotificationRepo,
 		clientAsynq,
 		mockPlanRepo,
+		nil,
 	)
 
 	t.Run("should bulk insert PENDING for matching jobs", func(t *testing.T) {
@@ -162,5 +166,68 @@ func TestNotificationsUsecase_MatchJobsForUser(t *testing.T) {
 
 		assert.NoError(t, err)
 		mockNotificationRepo.AssertNotCalled(t, "BulkInsertPendingNotifications")
+	})
+}
+
+func TestNotificationsUsecase_SendDigestForUser(t *testing.T) {
+	mockNotificationRepo := new(mocks.MockNotificationRepository)
+	mockEmailService := new(mocks.MockEmailService)
+	mockUserRepo := new(mocks.MockUserRepository)
+
+	notificationUsecase := NewNotificationUsecase(
+		nil,
+		nil,
+		mockEmailService,
+		mockNotificationRepo,
+		nil,
+		nil,
+		mockUserRepo,
+	)
+
+	t.Run("should send digest email and mark notifications as SENT", func(t *testing.T) {
+		userID := 10
+		pendingJobs := []model.NotificationWithJob{
+			{ID: 1, JobID: 100, UserID: userID, JobTitle: "Go Dev", JobCompany: "Acme", JobLocation: "Remote", JobLink: "https://acme.com/1"},
+			{ID: 2, JobID: 101, UserID: userID, JobTitle: "Go Senior", JobCompany: "Acme", JobLocation: "SP", JobLink: "https://acme.com/2"},
+		}
+
+		mockNotificationRepo.On("GetPendingJobsForUser", userID).Return(pendingJobs, nil).Once()
+		mockUserRepo.On("GetUserBasicInfo", userID).Return("Test User", "test@example.com", nil).Once()
+		mockEmailService.On("SendNewJobsEmail", mock.Anything, "test@example.com", "Test User", mock.AnythingOfType("[]*model.Job")).Return(nil).Once()
+		mockNotificationRepo.On("BulkUpdateNotificationStatus", userID, []int{100, 101}, "SENT").Return(nil).Once()
+
+		err := notificationUsecase.SendDigestForUser(context.Background(), userID)
+
+		assert.NoError(t, err)
+		mockNotificationRepo.AssertExpectations(t)
+		mockUserRepo.AssertExpectations(t)
+		mockEmailService.AssertExpectations(t)
+	})
+
+	t.Run("should return nil when no pending notifications exist", func(t *testing.T) {
+		userID := 20
+
+		mockNotificationRepo.On("GetPendingJobsForUser", userID).Return([]model.NotificationWithJob{}, nil).Once()
+
+		err := notificationUsecase.SendDigestForUser(context.Background(), userID)
+
+		assert.NoError(t, err)
+		mockEmailService.AssertNotCalled(t, "SendNewJobsEmail")
+	})
+
+	t.Run("should NOT mark SENT if email fails", func(t *testing.T) {
+		userID := 30
+		pendingJobs := []model.NotificationWithJob{
+			{ID: 3, JobID: 200, UserID: userID, JobTitle: "Dev", JobCompany: "Beta", JobLocation: "RJ", JobLink: "https://beta.com/1"},
+		}
+
+		mockNotificationRepo.On("GetPendingJobsForUser", userID).Return(pendingJobs, nil).Once()
+		mockUserRepo.On("GetUserBasicInfo", userID).Return("Fail User", "fail@example.com", nil).Once()
+		mockEmailService.On("SendNewJobsEmail", mock.Anything, "fail@example.com", "Fail User", mock.AnythingOfType("[]*model.Job")).Return(fmt.Errorf("SES error")).Once()
+
+		err := notificationUsecase.SendDigestForUser(context.Background(), userID)
+
+		assert.Error(t, err)
+		mockNotificationRepo.AssertNotCalled(t, "BulkUpdateNotificationStatus")
 	})
 }

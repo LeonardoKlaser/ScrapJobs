@@ -20,6 +20,7 @@ type NotificationsUsecase struct{
 	notificationRepository interfaces.NotificationRepositoryInterface
 	asynqClient *asynq.Client
 	planRepository interfaces.PlanRepositoryInterface
+	userRepository interfaces.UserRepositoryInterface
 }
 
 func NewNotificationUsecase(
@@ -29,6 +30,7 @@ func NewNotificationUsecase(
 	notificationRepository interfaces.NotificationRepositoryInterface,
 	asynqClient *asynq.Client,
 	planRepository interfaces.PlanRepositoryInterface,
+	userRepository interfaces.UserRepositoryInterface,
 ) *NotificationsUsecase{
 	return &NotificationsUsecase{
 		userSiteRepo:    userSiteRepo,
@@ -37,6 +39,7 @@ func NewNotificationUsecase(
 		notificationRepository: notificationRepository,
 		asynqClient: asynqClient,
 		planRepository: planRepository,
+		userRepository: userRepository,
 	}
 }
 
@@ -205,5 +208,46 @@ func (s *NotificationsUsecase) ProcessingSingleNotification(ctx context.Context,
 	}
 	logging.Logger.Info().Str("user_name", user.Name).Str("job_title", job.Title).Msg("Analysis email sent")
 
+	return nil
+}
+
+func (s *NotificationsUsecase) SendDigestForUser(ctx context.Context, userID int) error {
+	pendingNotifications, err := s.notificationRepository.GetPendingJobsForUser(userID)
+	if err != nil {
+		return fmt.Errorf("error fetching pending notifications for user %d: %w", userID, err)
+	}
+
+	if len(pendingNotifications) == 0 {
+		logging.Logger.Debug().Int("user_id", userID).Msg("No pending notifications for user")
+		return nil
+	}
+
+	userName, userEmail, err := s.userRepository.GetUserBasicInfo(userID)
+	if err != nil {
+		return fmt.Errorf("error fetching user info for user %d: %w", userID, err)
+	}
+
+	jobs := make([]*model.Job, len(pendingNotifications))
+	jobIDs := make([]int, len(pendingNotifications))
+	for i, n := range pendingNotifications {
+		jobs[i] = &model.Job{
+			ID:       n.JobID,
+			Title:    n.JobTitle,
+			Company:  n.JobCompany,
+			Location: n.JobLocation,
+			JobLink:  n.JobLink,
+		}
+		jobIDs[i] = n.JobID
+	}
+
+	if err := s.emailService.SendNewJobsEmail(ctx, userEmail, userName, jobs); err != nil {
+		return fmt.Errorf("error sending digest email for user %d: %w", userID, err)
+	}
+
+	if err := s.notificationRepository.BulkUpdateNotificationStatus(userID, jobIDs, "SENT"); err != nil {
+		return fmt.Errorf("error marking notifications as SENT for user %d: %w", userID, err)
+	}
+
+	logging.Logger.Info().Int("user_id", userID).Int("job_count", len(jobs)).Msg("Digest email sent and notifications marked as SENT")
 	return nil
 }
