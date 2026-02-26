@@ -74,7 +74,8 @@ func main() {
     sigCh := make(chan os.Signal, 1)
     signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-    // Run initial scraping on startup
+    // Run all processes on startup. Match/digest may find no new data if scraping
+    // hasn't finished yet — this is fine, the next ticker cycle (4h/8h) will catch up.
     go enqueueScrapingTasks(context.Background(), siteRepo, client)
     go enqueueMatchTasks(context.Background(), userSiteRepo, client)
     go enqueueDigestTasks(context.Background(), notificationRepo, client)
@@ -152,7 +153,7 @@ func enqueueMatchTasks(ctx context.Context, userSiteRepo *repository.UserSiteRep
 				return
 			}
 
-			task := asynq.NewTask(tasks.TypeMatchUser, payload, asynq.MaxRetry(3))
+			task := asynq.NewTask(tasks.TypeMatchUser, payload, asynq.MaxRetry(3), asynq.Unique(4*time.Hour))
 			info, err := client.EnqueueContext(ctx, task)
 			if err != nil {
 				logging.Logger.Error().Err(err).Int("user_id", uid).Msg("Could not enqueue match task")
@@ -187,7 +188,7 @@ func enqueueDigestTasks(ctx context.Context, notificationRepo *repository.Notifi
 				return
 			}
 
-			task := asynq.NewTask(tasks.TypeSendDigest, payload, asynq.MaxRetry(3))
+			task := asynq.NewTask(tasks.TypeSendDigest, payload, asynq.MaxRetry(3), asynq.Unique(8*time.Hour))
 			info, err := client.EnqueueContext(ctx, task)
 			if err != nil {
 				logging.Logger.Error().Err(err).Int("user_id", uid).Msg("Could not enqueue digest task")
