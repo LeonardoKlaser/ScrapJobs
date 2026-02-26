@@ -10,7 +10,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func ConnectDB(host string, port string, user string, password string, dbname string) (*sql.DB, error) {
+func ConnectDB(host string, port string, user string, password string, dbname string, opts ...func(*sql.DB)) (*sql.DB, error) {
 	portNumber, err := strconv.Atoi(port)
 	if err != nil {
 		return nil, fmt.Errorf("error converting port to int: %w", err)
@@ -32,6 +32,10 @@ func ConnectDB(host string, port string, user string, password string, dbname st
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 	db.SetConnMaxIdleTime(3 * time.Minute)
+
+	for _, opt := range opts {
+		opt(db)
+	}
 
 	err = db.Ping()
 	if err != nil {

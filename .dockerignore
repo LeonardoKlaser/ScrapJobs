@@ -1,0 +1,12 @@
+.git
+.github
+.vscode
+.idea
+*.md
+docker-compose*.yml
+.env*
+**/*_test.go
+**/testdata
+**/*.test
+redis.conf
+.golangci.yml

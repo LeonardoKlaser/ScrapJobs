@@ -58,6 +58,7 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 	var jobs []*model.Job
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+	sem := make(chan struct{}, 3) // max 3 concurrent detail page fetches
 
 	doc.Find(*config.JobListItemSelector).Each(func(_ int, sel *goquery.Selection) {
 		title := strings.TrimSpace(sel.Find(*config.TitleSelector).Text())
@@ -80,9 +81,11 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 
 		if jobLink != "" && config.JobDescriptionSelector != nil {
 			wg.Add(1)
+			sem <- struct{}{}
 			go func(j *model.Job, link string) {
 				defer wg.Done()
-				s.fetchJobDetails(ctx, config, j, link)
+				defer func() { <-sem }()
+				s.fetchJobDetails(allocCtx, config, j, link)
 			}(job, jobLink)
 		}
 
@@ -95,15 +98,8 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 	return jobs, nil
 }
 
-func (s *HeadlessScraper) fetchJobDetails(ctx context.Context, config model.SiteScrapingConfig, job *model.Job, jobURL string) {
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	taskCtx, cancel := chromedp.NewContext(allocCtx)
+func (s *HeadlessScraper) fetchJobDetails(allocCtx context.Context, config model.SiteScrapingConfig, job *model.Job, jobURL string) {
+	taskCtx, cancel := chromedp.NewContext(allocCtx) // reuses existing Chrome allocator
 	defer cancel()
 
 	var detailHTML string
