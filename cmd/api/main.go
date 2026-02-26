@@ -11,6 +11,7 @@ import (
 	"web-scrapper/gateway"
 	"web-scrapper/infra/db"
 	"web-scrapper/infra/openai"
+	"web-scrapper/infra/metrics"
 	redispkg "web-scrapper/infra/redis"
 	"web-scrapper/infra/s3"
 	"web-scrapper/infra/ses"
@@ -27,6 +28,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/time/rate"
 )
 
@@ -107,6 +109,10 @@ func main() {
 
 	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: secrets.RedisAddr})
 	defer asynqClient.Close()
+
+	// --- Prometheus pool collectors ---
+	metrics.RegisterDBCollector(dbConnection)
+	metrics.RegisterRedisCollector(redisClient)
 
 	// --- S3 Uploader (opcional — usado apenas para upload de logos de sites) ---
 	var s3Uploader s3.UploaderInterface
@@ -211,6 +217,7 @@ func main() {
 
 	publicRoutes := server.Group("/")
 	publicRoutes.Use(logging.GinMiddleware())
+	publicRoutes.Use(metrics.GinPrometheus())
 	publicRoutes.Use(csrfMiddleware)
 	publicRoutes.Use(publicRateLimiter)
 	{
@@ -224,6 +231,7 @@ func main() {
 	checkoutValidationLimiter := middleware.RateLimiter(rate.Limit(10.0/60.0), 3)
 	checkoutRoutes := server.Group("/")
 	checkoutRoutes.Use(logging.GinMiddleware())
+	checkoutRoutes.Use(metrics.GinPrometheus())
 	checkoutRoutes.Use(csrfMiddleware)
 	checkoutRoutes.Use(checkoutValidationLimiter)
 	{
@@ -234,6 +242,7 @@ func main() {
 
 	privateRoutes := server.Group("/")
 	privateRoutes.Use(logging.GinMiddleware())
+	privateRoutes.Use(metrics.GinPrometheus())
 	privateRoutes.Use(csrfMiddleware)
 	privateRoutes.Use(middlewareAuth.RequireAuth)
 	{
@@ -266,6 +275,7 @@ func main() {
 	// Admin routes — require authentication + admin role
 	adminRoutes := server.Group("/")
 	adminRoutes.Use(logging.GinMiddleware())
+	adminRoutes.Use(metrics.GinPrometheus())
 	adminRoutes.Use(csrfMiddleware)
 	adminRoutes.Use(middlewareAuth.RequireAuth)
 	adminRoutes.Use(middleware.RequireAdmin())
@@ -280,6 +290,9 @@ func main() {
 		healthRoutes.GET("/live", healthController.Liveness)
 		healthRoutes.GET("/ready", healthController.Readiness)
 	}
+
+	// Prometheus metrics endpoint
+	server.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	srv := &http.Server{
 		Addr:    ":8080",
