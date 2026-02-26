@@ -43,72 +43,6 @@ func NewNotificationUsecase(
 	}
 }
 
-func (s *NotificationsUsecase) FindMatches(siteId int, jobs []*model.Job) ([]tasks.NotifyNewJobsPayload, error) {
-	var payloadsToEnqueue []tasks.NotifyNewJobsPayload
-	userWithCurriculum, err := s.userSiteRepo.GetUsersBySiteId(siteId)
-	if err != nil {
-		return payloadsToEnqueue, fmt.Errorf("error to get users by site Id %d: %w", siteId, err)
-	}
-
-	jobsById := make(map[int]*model.Job)
-	for _, job := range jobs {
-		jobsById[job.ID] = job
-	}
-
-	for _, user := range userWithCurriculum {
-		var jobsToSend []*model.Job
-		var matchedJobIDs []int
-		for _, job := range jobs {
-			if s.matchJobWithFilters(*job, user.TargetWords) {
-				matchedJobIDs = append(matchedJobIDs, job.ID)
-			}
-		}
-
-		if len(matchedJobIDs) == 0 {
-			continue
-		}
-		logging.Logger.Info().Str("user_name", user.Name).Msg("User matched for notification")
-		notifiedJobsMap, err := s.notificationRepository.GetNotifiedJobIDsForUser(user.UserId, matchedJobIDs)
-		if err != nil {
-			return payloadsToEnqueue, err
-		}
-
-		for _, jobId := range matchedJobIDs {
-			if _, alreadyNotified := notifiedJobsMap[jobId]; !alreadyNotified {
-				jobsToSend = append(jobsToSend, jobsById[jobId])
-			}
-		}
-
-		logging.Logger.Debug().Int("user_id", user.UserId).Int("job_count", len(jobsToSend)).Msg("Jobs list created for notification")
-		if len(jobsToSend) == 0 {
-			continue
-		}
-
-		payloadsToEnqueue = append(payloadsToEnqueue, tasks.NotifyNewJobsPayload{
-			User: user,
-			Jobs: jobsToSend,
-		})
-	}
-	return payloadsToEnqueue, nil
-}
-
-func (s *NotificationsUsecase) matchJobWithFilters(job model.Job, filters []string) bool {
-    if len(filters) == 0 {
-        return true 
-    }
-
-    
-    jobTitleLower := strings.ToLower(job.Title)
-
-    for _, filter := range filters {
-        if strings.Contains(jobTitleLower, strings.ToLower(filter)) {
-            return true 
-        }
-    }
-
-    return false 
-}
-
 func matchJobWithFiltersFromList(jobTitle string, filters []string) bool {
 	if len(filters) == 0 {
 		return true
@@ -150,23 +84,6 @@ func (s *NotificationsUsecase) MatchJobsForUser(ctx context.Context, userID int)
 	}
 
 	logging.Logger.Info().Int("user_id", userID).Int("matched_count", len(matchedJobIDs)).Msg("Pending notifications created for user")
-	return nil
-}
-
-func (s *NotificationsUsecase) ProcessNewJobsNotification(ctx context.Context, user model.UserSiteCurriculum, jobs []*model.Job) error {
-	// Insert notification records for all jobs first (idempotency)
-	for _, job := range jobs {
-		err := s.notificationRepository.InsertNewNotification(job.ID, user.UserId)
-		if err != nil {
-			logging.Logger.Error().Err(err).Int("job_id", job.ID).Int("user_id", user.UserId).Msg("Failed to insert notification record")
-		}
-	}
-
-	err := s.emailService.SendNewJobsEmail(ctx, user.Email, user.Name, jobs)
-	if err != nil {
-		return fmt.Errorf("ERROR: Email sending failed for user %s: %w", user.Name, err)
-	}
-	logging.Logger.Info().Str("user_name", user.Name).Int("job_count", len(jobs)).Msg("New jobs email sent")
 	return nil
 }
 

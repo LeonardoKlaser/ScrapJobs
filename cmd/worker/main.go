@@ -111,8 +111,8 @@ func main() {
 	// Mapeamento das Tarefas para os Handlers
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(tasks.TypeScrapSite, taskProcessor.HandleScrapeSiteTask)
-	mux.HandleFunc(tasks.TypeProcessResults, taskProcessor.HandleFindMatchesTask)
-	mux.HandleFunc(tasks.TypeNotifyNewJobs, taskProcessor.HandleNotifyNewJobsTask)
+	mux.HandleFunc(tasks.TypeMatchUser, taskProcessor.HandleMatchUserTask)
+	mux.HandleFunc(tasks.TypeSendDigest, taskProcessor.HandleSendDigestTask)
 	mux.HandleFunc(tasks.TypeCompleteRegistration, taskProcessor.HandleCompleteRegistrationTask)
 
 	logging.Logger.Info().Msg("Worker Server started...")

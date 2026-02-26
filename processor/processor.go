@@ -51,7 +51,7 @@ func (p *TaskProcessor) HandleScrapeSiteTask(ctx context.Context, t *asynq.Task)
 
 	logging.Logger.Info().Int("site_id", payload.SiteID).Msg("Processing task to scrap site")
 
-	newJobs, err := p._scraper.ScrapeAndStoreJobs(ctx, payload.SiteScrapingConfig)
+	_, err := p._scraper.ScrapeAndStoreJobs(ctx, payload.SiteScrapingConfig)
 	if err != nil {
 		logging.Logger.Warn().Err(err).Int("site_id", payload.SiteID).Msg("ScrapeAndStoreJobs failed but task will not be retried")
 		if p.dashboardRepo != nil {
@@ -62,76 +62,43 @@ func (p *TaskProcessor) HandleScrapeSiteTask(ctx context.Context, t *asynq.Task)
 		}
 	}
 
-	if len(newJobs) == 0 {
-		logging.Logger.Info().Int("site_id", payload.SiteID).Msg("No new jobs for site")
-		return nil
-	}
-
-	resultsPayload, err := json.Marshal(tasks.ProcessResultsPayload{
-		SiteID: payload.SiteID,
-		Jobs:   newJobs,
-	})
-	if err != nil {
-		return fmt.Errorf("error marshaling results payload for site %d: %w", payload.SiteID, err)
-	}
-
-	nextTask := asynq.NewTask(tasks.TypeProcessResults, resultsPayload, asynq.MaxRetry(3))
-	info, err := p._client.EnqueueContext(ctx, nextTask)
-	if err != nil {
-		return fmt.Errorf("error enqueuing result task for site %d: %w", payload.SiteID, err)
-	}
-
-	logging.Logger.Info().Int("site_id", payload.SiteID).Str("next_task_id", info.ID).Msg("Task de processamento de resultados enfileirada")
-	logging.Logger.Info().Int("site_id", payload.SiteID).Str("next_task_id", info.ID).Msg("Scrap finished, process task enqueued")
+	logging.Logger.Info().Int("site_id", payload.SiteID).Msg("Scraping task completed")
 	return nil
 }
 
-func (p *TaskProcessor) HandleFindMatchesTask(ctx context.Context, t *asynq.Task) error {
-	var payload tasks.ProcessResultsPayload
+func (p *TaskProcessor) HandleMatchUserTask(ctx context.Context, t *asynq.Task) error {
+	var payload tasks.MatchUserPayload
 	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
-		return fmt.Errorf("error to get payload results: %w", err)
+		logging.Logger.Error().Err(err).Msg("Falha ao decodificar payload HandleMatchUserTask")
+		return fmt.Errorf("error decoding MatchUserPayload: %w", err)
 	}
 
-	logging.Logger.Info().Int("site_id", payload.SiteID).Int("job_count", len(payload.Jobs)).Msg("Processing results for site")
+	logging.Logger.Info().Int("user_id", payload.UserID).Msg("Processing match job for user")
 
-	payloadsToEnqueue, err := p._notifier.FindMatches(payload.SiteID, payload.Jobs)
-	if err != nil {
-		return fmt.Errorf("error to notify to site %d: %w", payload.SiteID, err)
+	if err := p._notifier.MatchJobsForUser(ctx, payload.UserID); err != nil {
+		logging.Logger.Error().Err(err).Int("user_id", payload.UserID).Msg("MatchJobsForUser failed")
+		return fmt.Errorf("error matching jobs for user %d: %w", payload.UserID, err)
 	}
 
-	for _, notifyPayload := range payloadsToEnqueue {
-		p_bytes, err := json.Marshal(notifyPayload)
-		if err != nil {
-			logging.Logger.Error().Err(err).Int("user_id", notifyPayload.User.UserId).Msg("Failed to marshal new jobs payload, skipping task")
-			continue
-		}
-
-		notifyTask := asynq.NewTask(tasks.TypeNotifyNewJobs, p_bytes, asynq.MaxRetry(3))
-		_, err = p._client.Enqueue(notifyTask, asynq.Queue("default"))
-		if err != nil {
-			logging.Logger.Error().Err(err).Int("user_id", notifyPayload.User.UserId).Msg("Failed to enqueue new jobs notification task")
-		}
-	}
-
-	logging.Logger.Info().Int("site_id", payload.SiteID).Msg("Result processing for site finished")
+	logging.Logger.Info().Int("user_id", payload.UserID).Msg("Match job completed for user")
 	return nil
 }
 
-func (p *TaskProcessor) HandleNotifyNewJobsTask(ctx context.Context, t *asynq.Task) error {
-	var payload tasks.NotifyNewJobsPayload
+func (p *TaskProcessor) HandleSendDigestTask(ctx context.Context, t *asynq.Task) error {
+	var payload tasks.SendDigestPayload
 	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
-		return fmt.Errorf("error to get payload for new jobs notification: %w", err)
+		logging.Logger.Error().Err(err).Msg("Falha ao decodificar payload HandleSendDigestTask")
+		return fmt.Errorf("error decoding SendDigestPayload: %w", err)
 	}
 
-	logging.Logger.Info().Int("user_id", payload.User.UserId).Int("job_count", len(payload.Jobs)).Msg("Processing new jobs notification")
+	logging.Logger.Info().Int("user_id", payload.UserID).Msg("Processing digest email for user")
 
-	err := p._notifier.ProcessNewJobsNotification(ctx, payload.User, payload.Jobs)
-	if err != nil {
-		logging.Logger.Error().Err(err).Int("user_id", payload.User.UserId).Msg("Erro ao processar notificação de novas vagas")
-		return fmt.Errorf("error processing new jobs notification for user %d: %w", payload.User.UserId, err)
+	if err := p._notifier.SendDigestForUser(ctx, payload.UserID); err != nil {
+		logging.Logger.Error().Err(err).Int("user_id", payload.UserID).Msg("SendDigestForUser failed")
+		return fmt.Errorf("error sending digest for user %d: %w", payload.UserID, err)
 	}
 
-	logging.Logger.Info().Int("user_id", payload.User.UserId).Int("job_count", len(payload.Jobs)).Msg("Notificação de novas vagas processada com sucesso")
+	logging.Logger.Info().Int("user_id", payload.UserID).Msg("Digest email sent for user")
 	return nil
 }
 
