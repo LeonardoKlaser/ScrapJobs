@@ -9,4 +9,5 @@ type UserSiteRepositoryInterface interface {
 	DeleteUserSite(userId int, siteId string) error
 	UpdateUserSiteFilters(userId int, siteId int, filters []string) error
 	GetUserSiteCount(userID int) (int, error)
+	GetActiveUserIDs() ([]int, error)
 }

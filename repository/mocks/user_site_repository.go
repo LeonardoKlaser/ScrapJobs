@@ -39,3 +39,8 @@ func (m *MockUserSiteRepository) GetUserSiteCount(userID int) (int, error) {
 	args := m.Called(userID)
 	return args.Int(0), args.Error(1)
 }
+
+func (m *MockUserSiteRepository) GetActiveUserIDs() ([]int, error) {
+	args := m.Called()
+	return args.Get(0).([]int), args.Error(1)
+}

@@ -29,3 +29,28 @@ func (m *MockNotificationRepository) GetMonthlyAnalysisCount(userID int) (int, e
 	args := m.Called(userID)
 	return args.Int(0), args.Error(1)
 }
+
+func (m *MockNotificationRepository) BulkInsertPendingNotifications(userID int, jobIDs []int) error {
+	args := m.Called(userID, jobIDs)
+	return args.Error(0)
+}
+
+func (m *MockNotificationRepository) GetUserIDsWithPendingNotifications() ([]int, error) {
+	args := m.Called()
+	return args.Get(0).([]int), args.Error(1)
+}
+
+func (m *MockNotificationRepository) GetPendingJobsForUser(userID int) ([]model.NotificationWithJob, error) {
+	args := m.Called(userID)
+	return args.Get(0).([]model.NotificationWithJob), args.Error(1)
+}
+
+func (m *MockNotificationRepository) BulkUpdateNotificationStatus(userID int, jobIDs []int, status string) error {
+	args := m.Called(userID, jobIDs, status)
+	return args.Error(0)
+}
+
+func (m *MockNotificationRepository) GetUnnotifiedJobsForUser(userID int) ([]model.JobWithFilters, error) {
+	args := m.Called(userID)
+	return args.Get(0).([]model.JobWithFilters), args.Error(1)
+}

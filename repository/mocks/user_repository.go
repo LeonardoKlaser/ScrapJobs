@@ -39,3 +39,8 @@ func (m *MockUserRepository) CheckUserExists(email string, tax string) (bool, bo
 	args := m.Called(email, tax)
 	return args.Bool(0), args.Bool(1), args.Error(2)
 }
+
+func (m *MockUserRepository) GetUserBasicInfo(userID int) (string, string, error) {
+	args := m.Called(userID)
+	return args.String(0), args.String(1), args.Error(2)
+}

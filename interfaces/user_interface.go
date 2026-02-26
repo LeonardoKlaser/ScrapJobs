@@ -9,4 +9,5 @@ type UserRepositoryInterface interface {
 	UpdateUserProfile(userId int, name string, cellphone *string, tax *string) error
 	UpdateUserPassword(userId int, hashedPassword string) error
 	CheckUserExists(email string, tax string) (bool, bool, error)
+	GetUserBasicInfo(userID int) (string, string, error)
 }
