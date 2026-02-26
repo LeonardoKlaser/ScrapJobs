@@ -1,7 +1,11 @@
 .env
 .infra/terraform/.terraform/
 
-# Go
+# Go binaries
+api
+worker
+scheduler
+archive-monitor
 *.exe
 *.exe~
 *.dll
