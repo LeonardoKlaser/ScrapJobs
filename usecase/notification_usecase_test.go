@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"testing"
 	"web-scrapper/model"
 	"web-scrapper/repository/mocks"
@@ -85,5 +86,81 @@ func TestNotificationsUsecase_FindMatchesAndNotify(t *testing.T) {
 		assert.Len(t, payloads[0].Jobs, 1)
 		mockUserSiteRepo.AssertExpectations(t)
 		mockNotificationRepo.AssertExpectations(t)
+	})
+}
+
+func TestNotificationsUsecase_MatchJobsForUser(t *testing.T) {
+	mockUserSiteRepo := new(mocks.MockUserSiteRepository)
+	mockNotificationRepo := new(mocks.MockNotificationRepository)
+	mockEmailService := new(mocks.MockEmailService)
+	mockPlanRepo := new(mocks.MockPlanRepository)
+	clientAsynq := asynq.NewClient(asynq.RedisClientOpt{Addr: "redis:6379"})
+	defer clientAsynq.Close()
+
+	notificationUsecase := NewNotificationUsecase(
+		mockUserSiteRepo,
+		nil,
+		mockEmailService,
+		mockNotificationRepo,
+		clientAsynq,
+		mockPlanRepo,
+	)
+
+	t.Run("should bulk insert PENDING for matching jobs", func(t *testing.T) {
+		userID := 10
+		jobsWithFilters := []model.JobWithFilters{
+			{JobID: 1, Title: "Go Developer", Company: "Acme", Filters: []string{"developer"}},
+			{JobID: 2, Title: "Python Engineer", Company: "Acme", Filters: []string{"developer"}},
+			{JobID: 3, Title: "Go Developer Senior", Company: "Beta", Filters: []string{"developer"}},
+		}
+
+		mockNotificationRepo.On("GetUnnotifiedJobsForUser", userID).Return(jobsWithFilters, nil).Once()
+		mockNotificationRepo.On("BulkInsertPendingNotifications", userID, []int{1, 3}).Return(nil).Once()
+
+		err := notificationUsecase.MatchJobsForUser(context.Background(), userID)
+
+		assert.NoError(t, err)
+		mockNotificationRepo.AssertExpectations(t)
+	})
+
+	t.Run("should skip bulk insert when no jobs match filters", func(t *testing.T) {
+		userID := 20
+		jobsWithFilters := []model.JobWithFilters{
+			{JobID: 5, Title: "Python Engineer", Company: "Acme", Filters: []string{"java"}},
+		}
+
+		mockNotificationRepo.On("GetUnnotifiedJobsForUser", userID).Return(jobsWithFilters, nil).Once()
+
+		err := notificationUsecase.MatchJobsForUser(context.Background(), userID)
+
+		assert.NoError(t, err)
+		mockNotificationRepo.AssertNotCalled(t, "BulkInsertPendingNotifications")
+	})
+
+	t.Run("should match all jobs when user has no filters", func(t *testing.T) {
+		userID := 30
+		jobsWithFilters := []model.JobWithFilters{
+			{JobID: 10, Title: "Any Job", Company: "Acme", Filters: []string{}},
+			{JobID: 11, Title: "Another Job", Company: "Beta", Filters: []string{}},
+		}
+
+		mockNotificationRepo.On("GetUnnotifiedJobsForUser", userID).Return(jobsWithFilters, nil).Once()
+		mockNotificationRepo.On("BulkInsertPendingNotifications", userID, []int{10, 11}).Return(nil).Once()
+
+		err := notificationUsecase.MatchJobsForUser(context.Background(), userID)
+
+		assert.NoError(t, err)
+		mockNotificationRepo.AssertExpectations(t)
+	})
+
+	t.Run("should return nil when no unnotified jobs exist", func(t *testing.T) {
+		userID := 40
+
+		mockNotificationRepo.On("GetUnnotifiedJobsForUser", userID).Return([]model.JobWithFilters{}, nil).Once()
+
+		err := notificationUsecase.MatchJobsForUser(context.Background(), userID)
+
+		assert.NoError(t, err)
+		mockNotificationRepo.AssertNotCalled(t, "BulkInsertPendingNotifications")
 	})
 }

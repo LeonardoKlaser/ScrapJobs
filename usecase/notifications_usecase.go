@@ -106,6 +106,50 @@ func (s *NotificationsUsecase) matchJobWithFilters(job model.Job, filters []stri
     return false 
 }
 
+func matchJobWithFiltersFromList(jobTitle string, filters []string) bool {
+	if len(filters) == 0 {
+		return true
+	}
+	jobTitleLower := strings.ToLower(jobTitle)
+	for _, filter := range filters {
+		if strings.Contains(jobTitleLower, strings.ToLower(filter)) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *NotificationsUsecase) MatchJobsForUser(ctx context.Context, userID int) error {
+	jobs, err := s.notificationRepository.GetUnnotifiedJobsForUser(userID)
+	if err != nil {
+		return fmt.Errorf("error fetching unnotified jobs for user %d: %w", userID, err)
+	}
+
+	if len(jobs) == 0 {
+		logging.Logger.Debug().Int("user_id", userID).Msg("No unnotified jobs found for user")
+		return nil
+	}
+
+	var matchedJobIDs []int
+	for _, job := range jobs {
+		if matchJobWithFiltersFromList(job.Title, job.Filters) {
+			matchedJobIDs = append(matchedJobIDs, job.JobID)
+		}
+	}
+
+	if len(matchedJobIDs) == 0 {
+		logging.Logger.Debug().Int("user_id", userID).Msg("No jobs matched user filters")
+		return nil
+	}
+
+	if err := s.notificationRepository.BulkInsertPendingNotifications(userID, matchedJobIDs); err != nil {
+		return fmt.Errorf("error inserting pending notifications for user %d: %w", userID, err)
+	}
+
+	logging.Logger.Info().Int("user_id", userID).Int("matched_count", len(matchedJobIDs)).Msg("Pending notifications created for user")
+	return nil
+}
+
 func (s *NotificationsUsecase) ProcessNewJobsNotification(ctx context.Context, user model.UserSiteCurriculum, jobs []*model.Job) error {
 	// Insert notification records for all jobs first (idempotency)
 	for _, job := range jobs {
