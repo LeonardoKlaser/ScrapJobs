@@ -19,7 +19,6 @@ type TaskProcessor struct {
 	_notifier      usecase.NotificationsUsecase
 	paymentUsecase *usecase.PaymentUsecase
 	emailService   interfaces.EmailService
-	_client        *asynq.Client
 	dashboardRepo  *repository.DashboardRepository
 }
 
@@ -28,7 +27,6 @@ func NewTaskProcessor(
 	notifier usecase.NotificationsUsecase,
 	paymentUC *usecase.PaymentUsecase,
 	emailSvc interfaces.EmailService,
-	client *asynq.Client,
 	dashboardRepo *repository.DashboardRepository,
 ) *TaskProcessor {
 	return &TaskProcessor{
@@ -36,7 +34,6 @@ func NewTaskProcessor(
 		_notifier:      notifier,
 		paymentUsecase: paymentUC,
 		emailService:   emailSvc,
-		_client:        client,
 		dashboardRepo:  dashboardRepo,
 	}
 }
@@ -99,48 +96,6 @@ func (p *TaskProcessor) HandleSendDigestTask(ctx context.Context, t *asynq.Task)
 	}
 
 	logging.Logger.Info().Int("user_id", payload.UserID).Msg("Digest email sent for user")
-	return nil
-}
-
-func (p *TaskProcessor) HandleAnalyzeJobUserTask(ctx context.Context, t *asynq.Task) error {
-	var payload tasks.AnalyzeUserJobPayload
-	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
-		return fmt.Errorf("error to get payload to analysis: %w", err)
-	}
-
-	jobAnalyzed, err := p._notifier.ProcessingJobAnalyze(ctx, *payload.Job, payload.User)
-	if err != nil {
-		return fmt.Errorf("error to analyze job: %s to user: %d: %w", payload.Job.Title, payload.User.UserId, err)
-	}
-
-	payloadJobAnalyzed, err := json.Marshal(jobAnalyzed)
-	if err != nil {
-		logging.Logger.Error().Err(err).Msg("Failed to marshal notify user payload")
-		return nil
-	}
-
-	analyzeTask := asynq.NewTask(tasks.TypeNotifyUser, payloadJobAnalyzed, asynq.MaxRetry(3))
-	_, err = p._client.Enqueue(analyzeTask, asynq.Queue("default"))
-	if err != nil {
-		logging.Logger.Error().Err(err).Int("user_id", jobAnalyzed.User.UserId).Int("job_id", jobAnalyzed.Job.ID).Msg("Failed to enqueue notification task")
-		return err
-	}
-	return nil
-}
-
-func (p *TaskProcessor) HandleNotifyTask(ctx context.Context, t *asynq.Task) error {
-	var payload tasks.NotifyUserPayload
-	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
-		return fmt.Errorf("error to get payload to notify: %w", err)
-	}
-
-	err := p._notifier.ProcessingSingleNotification(ctx, *payload.Job, payload.User, payload.Analysis)
-	if err != nil {
-		logging.Logger.Error().Err(err).Int("user_id", payload.User.UserId).Int("job_id", payload.Job.ID).Msg("Erro ao processar notificação única (envio de email ou registro DB)")
-		return fmt.Errorf("error processing notification for job %d, user %d: %w", payload.Job.ID, payload.User.UserId, err)
-	}
-
-	logging.Logger.Info().Int("user_id", payload.User.UserId).Int("job_id", payload.Job.ID).Msg("Notificação processada com sucesso")
 	return nil
 }
 

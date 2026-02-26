@@ -168,7 +168,7 @@ func main() {
 	planUsecase := usecase.NewPlanUsecase(planRepository)
 	requestedSiteUsecase := usecase.NewRequestedSiteUsecase(requestedSiteRepository)
 	paymentUsecase := usecase.NewPaymentUsecase(abacatepayGateway, redisOpt, userUsecase, planRepository)
-	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, nil, emailService, notificationRepository, asynqClient, planRepository, userRepository)
+	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, nil, emailService, notificationRepository, planRepository, userRepository)
 
 	// Controllers
 	userController := controller.NewUserController(userUsecase)

@@ -90,7 +90,7 @@ func main() {
 	// Services & Usecases
 	jobUsecase := usecase.NewJobUseCase(jobRepository)
 
-	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, nil, emailService, notificationRepository, clientAsynq, planRepository, userRepository)
+	notificationUsecase := usecase.NewNotificationUsecase(userSiteRepository, nil, emailService, notificationRepository, planRepository, userRepository)
 
 	// PaymentUsecase (necessário para HandleCompleteRegistrationTask)
 	abacatepayGateway := gateway.NewAbacatePayGateway()
@@ -104,7 +104,6 @@ func main() {
 		*notificationUsecase,
 		paymentUsecase,
 		emailService,
-		clientAsynq,
 		dashboardRepository,
 	)
 

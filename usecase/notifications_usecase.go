@@ -7,9 +7,6 @@ import (
 	"web-scrapper/interfaces"
 	"web-scrapper/logging"
 	"web-scrapper/model"
-	"web-scrapper/tasks"
-
-	"github.com/hibiken/asynq"
 )
 
 
@@ -18,7 +15,6 @@ type NotificationsUsecase struct{
 	analysisService interfaces.AnalysisService
 	emailService interfaces.EmailService
 	notificationRepository interfaces.NotificationRepositoryInterface
-	asynqClient *asynq.Client
 	planRepository interfaces.PlanRepositoryInterface
 	userRepository interfaces.UserRepositoryInterface
 }
@@ -28,7 +24,6 @@ func NewNotificationUsecase(
     analysisService interfaces.AnalysisService,
     emailService interfaces.EmailService,
 	notificationRepository interfaces.NotificationRepositoryInterface,
-	asynqClient *asynq.Client,
 	planRepository interfaces.PlanRepositoryInterface,
 	userRepository interfaces.UserRepositoryInterface,
 ) *NotificationsUsecase{
@@ -37,7 +32,6 @@ func NewNotificationUsecase(
         analysisService: analysisService,
         emailService:    emailService,
 		notificationRepository: notificationRepository,
-		asynqClient: asynqClient,
 		planRepository: planRepository,
 		userRepository: userRepository,
 	}
@@ -87,22 +81,6 @@ func (s *NotificationsUsecase) MatchJobsForUser(ctx context.Context, userID int)
 	return nil
 }
 
-func (s *NotificationsUsecase) ProcessingJobAnalyze(ctx context.Context, job model.Job, user model.UserSiteCurriculum) (tasks.NotifyUserPayload, error) {
-	analysis, err := s.analysisService.Analyze(ctx, *user.Curriculum, job)
-	if err != nil {
-		return tasks.NotifyUserPayload{}, fmt.Errorf("ERROR: AI analysis failed for job %s: %v", job.Title, err)				
-	}
-	logging.Logger.Info().Str("user_name", user.Name).Str("job_title", job.Title).Msg("AI analysis completed")
-		
-	payload:= tasks.NotifyUserPayload{
-		User: user,
-		Job: &job,
-		Analysis: analysis,
-	}
-	return payload, nil
-}
-
-
 // GetNotificationsByUser retorna o histórico de notificações de um usuário com dados da vaga
 func (s *NotificationsUsecase) GetNotificationsByUser(userId int, limit int) ([]model.NotificationWithJob, error) {
 	notifications, err := s.notificationRepository.GetNotificationsByUser(userId, limit)
@@ -110,22 +88,6 @@ func (s *NotificationsUsecase) GetNotificationsByUser(userId int, limit int) ([]
 		return nil, fmt.Errorf("error fetching notifications for user %d: %w", userId, err)
 	}
 	return notifications, nil
-}
-
-func (s *NotificationsUsecase) ProcessingSingleNotification(ctx context.Context, job model.Job, user model.UserSiteCurriculum, analysis model.ResumeAnalysis) error {
-	// Insert notification first to prevent duplicate emails on retry
-	err := s.notificationRepository.InsertNewNotification(job.ID, user.UserId)
-	if err != nil {
-		return fmt.Errorf("FATAL: Failed to insert notification record for job %d: %w", job.ID, err)
-	}
-
-	err = s.emailService.SendAnalysisEmail(ctx, user.Email, job, analysis)
-	if err != nil {
-		return fmt.Errorf("ERROR: Email sending failed for job %s: %w", job.Title, err)
-	}
-	logging.Logger.Info().Str("user_name", user.Name).Str("job_title", job.Title).Msg("Analysis email sent")
-
-	return nil
 }
 
 func (s *NotificationsUsecase) SendDigestForUser(ctx context.Context, userID int) error {

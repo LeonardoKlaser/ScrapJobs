@@ -4,8 +4,6 @@ import "web-scrapper/model"
 
 const (
 	TypeScrapSite           = "scrape:site"
-	TypeNotifyUser          = "notify:user"
-	TypeAnalyzeUserJob      = "analyze:resume"
 	TypeCompleteRegistration = "payment:complete_registration"
 	TypeMatchUser           = "match:user"
 	TypeSendDigest          = "digest:send"
@@ -14,17 +12,6 @@ const (
 type ScrapeSitePayload struct {
 	SiteID             int
 	SiteScrapingConfig model.SiteScrapingConfig
-}
-
-type NotifyUserPayload struct {
-	User model.UserSiteCurriculum
-	Job *model.Job
-	Analysis model.ResumeAnalysis
-}
-
-type AnalyzeUserJobPayload struct {
-	User model.UserSiteCurriculum
-	Job *model.Job
 }
 
 type CompleteRegistrationPayload struct {

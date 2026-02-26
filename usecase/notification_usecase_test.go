@@ -7,7 +7,6 @@ import (
 	"web-scrapper/model"
 	"web-scrapper/repository/mocks"
 
-	"github.com/hibiken/asynq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -17,15 +16,12 @@ func TestNotificationsUsecase_MatchJobsForUser(t *testing.T) {
 	mockNotificationRepo := new(mocks.MockNotificationRepository)
 	mockEmailService := new(mocks.MockEmailService)
 	mockPlanRepo := new(mocks.MockPlanRepository)
-	clientAsynq := asynq.NewClient(asynq.RedisClientOpt{Addr: "redis:6379"})
-	defer clientAsynq.Close()
 
 	notificationUsecase := NewNotificationUsecase(
 		mockUserSiteRepo,
 		nil,
 		mockEmailService,
 		mockNotificationRepo,
-		clientAsynq,
 		mockPlanRepo,
 		nil,
 	)
@@ -99,7 +95,6 @@ func TestNotificationsUsecase_SendDigestForUser(t *testing.T) {
 		nil,
 		mockEmailService,
 		mockNotificationRepo,
-		nil,
 		nil,
 		mockUserRepo,
 	)
