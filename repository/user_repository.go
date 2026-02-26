@@ -199,3 +199,14 @@ func (usr *UserRepository) UpdateUserPassword(userId int, hashedPassword string)
 
 	return nil
 }
+
+func (usr *UserRepository) GetUserBasicInfo(userID int) (string, string, error) {
+	query := `SELECT user_name, email FROM users WHERE id = $1`
+
+	var name, email string
+	err := usr.db.QueryRow(query, userID).Scan(&name, &email)
+	if err != nil {
+		return "", "", fmt.Errorf("error fetching basic info for user %d: %w", userID, err)
+	}
+	return name, email, nil
+}

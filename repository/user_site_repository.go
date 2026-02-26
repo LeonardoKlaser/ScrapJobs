@@ -201,3 +201,23 @@ func (usr *UserSiteRepository) UpdateUserSiteFilters(userId int, siteId int, fil
 
 	return nil
 }
+
+func (dep *UserSiteRepository) GetActiveUserIDs() ([]int, error) {
+	query := `SELECT DISTINCT user_id FROM user_sites`
+
+	rows, err := dep.connection.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching active user IDs: %w", err)
+	}
+	defer rows.Close()
+
+	var userIDs []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("error scanning user id: %w", err)
+		}
+		userIDs = append(userIDs, id)
+	}
+	return userIDs, rows.Err()
+}
