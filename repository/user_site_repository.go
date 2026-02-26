@@ -202,8 +202,11 @@ func (usr *UserSiteRepository) UpdateUserSiteFilters(userId int, siteId int, fil
 	return nil
 }
 
+// GetActiveUserIDs returns all user IDs that have at least one monitored site.
+// The query is unbounded but acceptable: user count scales with paid subscriptions
+// (expected <10k). If scale becomes a concern, add LIMIT/OFFSET pagination.
 func (dep *UserSiteRepository) GetActiveUserIDs() ([]int, error) {
-	query := `SELECT DISTINCT user_id FROM user_sites`
+	query := `SELECT DISTINCT user_id FROM user_sites ORDER BY user_id`
 
 	rows, err := dep.connection.Query(query)
 	if err != nil {

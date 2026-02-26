@@ -131,4 +131,22 @@ func LoadMonitorConfig() (*MonitorConfig, error) {
 	return cfg, nil
 }
 
-
+// ValidateSecrets checks that required database and Redis fields are set.
+func ValidateSecrets(s *model.AppSecrets) error {
+	if s.DBHost == "" {
+		return fmt.Errorf("HOST_DB is required")
+	}
+	if s.DBPort == "" {
+		return fmt.Errorf("PORT_DB is required")
+	}
+	if s.DBUser == "" {
+		return fmt.Errorf("USER_DB is required")
+	}
+	if s.DBName == "" {
+		return fmt.Errorf("DBNAME is required")
+	}
+	if s.RedisAddr == "" {
+		return fmt.Errorf("REDIS_ADDR is required")
+	}
+	return nil
+}

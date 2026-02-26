@@ -8,6 +8,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"database/sql"
 	"web-scrapper/infra/db"
 	"web-scrapper/logging"
 	"web-scrapper/model"
@@ -44,10 +45,17 @@ func main() {
         }
     }
 
+    if err := utils.ValidateSecrets(secrets); err != nil {
+        logging.Logger.Fatal().Err(err).Msg("Invalid configuration")
+    }
+
     client := asynq.NewClient(asynq.RedisClientOpt{Addr: secrets.RedisAddr})
     defer client.Close()
 
-    dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort,secrets.DBUser,secrets.DBPassword,secrets.DBName)
+    dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort,secrets.DBUser,secrets.DBPassword,secrets.DBName, func(d *sql.DB) {
+        d.SetMaxOpenConns(5)
+        d.SetMaxIdleConns(2)
+    })
     if err != nil {
         logging.Logger.Fatal().Err(err).Msg("Scheduler could not connect to db")
     }
@@ -70,32 +78,46 @@ func main() {
     tickerDigest := time.NewTicker(8 * time.Hour)
     defer tickerDigest.Stop()
 
-    // Graceful shutdown
+    // Graceful shutdown: cancellable context + WaitGroup for all goroutines
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
     sigCh := make(chan os.Signal, 1)
     signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
+    var wg sync.WaitGroup
+
     // Run all processes on startup. Match/digest may find no new data if scraping
     // hasn't finished yet — this is fine, the next ticker cycle (4h/8h) will catch up.
-    go enqueueScrapingTasks(context.Background(), siteRepo, client)
-    go enqueueMatchTasks(context.Background(), userSiteRepo, client)
-    go enqueueDigestTasks(context.Background(), notificationRepo, client)
+    wg.Add(3)
+    go func() { defer wg.Done(); enqueueScrapingTasks(ctx, siteRepo, client) }()
+    go func() { defer wg.Done(); enqueueMatchTasks(ctx, userSiteRepo, client) }()
+    go func() { defer wg.Done(); enqueueDigestTasks(ctx, notificationRepo, client) }()
 
     for {
         select {
         case <-ticker.C:
-            go enqueueScrapingTasks(context.Background(), siteRepo, client)
+            wg.Add(1)
+            go func() { defer wg.Done(); enqueueScrapingTasks(ctx, siteRepo, client) }()
         case <-tickerDeleteJobs.C:
+            wg.Add(1)
             go func() {
+                defer wg.Done()
                 if err := jobRepo.DeleteOldJobs(); err != nil {
                     logging.Logger.Error().Err(err).Msg("ERROR: failed to delete old jobs")
                 }
             }()
         case <-tickerMatch.C:
-            go enqueueMatchTasks(context.Background(), userSiteRepo, client)
+            wg.Add(1)
+            go func() { defer wg.Done(); enqueueMatchTasks(ctx, userSiteRepo, client) }()
         case <-tickerDigest.C:
-            go enqueueDigestTasks(context.Background(), notificationRepo, client)
+            wg.Add(1)
+            go func() { defer wg.Done(); enqueueDigestTasks(ctx, notificationRepo, client) }()
         case sig := <-sigCh:
-            logging.Logger.Info().Str("signal", sig.String()).Msg("Scheduler shutting down")
+            logging.Logger.Info().Str("signal", sig.String()).Msg("Scheduler shutting down, waiting for in-flight tasks...")
+            cancel()
+            wg.Wait()
+            logging.Logger.Info().Msg("Scheduler shut down gracefully")
             return
         }
     }
@@ -108,11 +130,14 @@ func enqueueScrapingTasks(ctx context.Context, siteRepo *repository.SiteCareerRe
         return
     }
     logging.Logger.Info().Int("count", len(sites)).Msg("Sites coletados")
+    sem := make(chan struct{}, 10)
     var wg sync.WaitGroup
     for _, site := range sites {
         wg.Add(1)
+        sem <- struct{}{}
         go func(s model.SiteScrapingConfig){
             defer wg.Done()
+            defer func() { <-sem }()
             payload, err := json.Marshal(tasks.ScrapeSitePayload{
                 SiteID: s.ID,
                 SiteScrapingConfig: s,
@@ -142,11 +167,14 @@ func enqueueMatchTasks(ctx context.Context, userSiteRepo *repository.UserSiteRep
 	}
 	logging.Logger.Info().Int("count", len(userIDs)).Msg("Active users for match")
 
+	sem := make(chan struct{}, 10)
 	var wg sync.WaitGroup
 	for _, userID := range userIDs {
 		wg.Add(1)
+		sem <- struct{}{}
 		go func(uid int) {
 			defer wg.Done()
+			defer func() { <-sem }()
 			payload, err := json.Marshal(tasks.MatchUserPayload{UserID: uid})
 			if err != nil {
 				logging.Logger.Error().Err(err).Int("user_id", uid).Msg("Could not marshal match task")
@@ -177,11 +205,14 @@ func enqueueDigestTasks(ctx context.Context, notificationRepo *repository.Notifi
 		return
 	}
 
+	sem := make(chan struct{}, 10)
 	var wg sync.WaitGroup
 	for _, userID := range userIDs {
 		wg.Add(1)
+		sem <- struct{}{}
 		go func(uid int) {
 			defer wg.Done()
+			defer func() { <-sem }()
 			payload, err := json.Marshal(tasks.SendDigestPayload{UserID: uid})
 			if err != nil {
 				logging.Logger.Error().Err(err).Int("user_id", uid).Msg("Could not marshal digest task")

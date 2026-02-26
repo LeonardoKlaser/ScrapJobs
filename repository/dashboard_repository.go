@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"web-scrapper/logging"
 	"web-scrapper/model"
 )
 
@@ -180,6 +181,7 @@ func (dr *DashboardRepository) GetAdminDashboardData() (model.AdminDashboardData
 	errQuery := `SELECT id, site_name, error_message, created_at FROM scraping_errors ORDER BY created_at DESC LIMIT 10`
 	rows, err := dr.connection.Query(errQuery)
 	if err != nil {
+		logging.Logger.Error().Err(err).Msg("failed to query scraping errors")
 		return data, nil
 	}
 	defer rows.Close()
@@ -187,6 +189,7 @@ func (dr *DashboardRepository) GetAdminDashboardData() (model.AdminDashboardData
 	for rows.Next() {
 		var se model.ScrapingError
 		if err := rows.Scan(&se.ID, &se.SiteName, &se.ErrorMessage, &se.CreatedAt); err != nil {
+			logging.Logger.Warn().Err(err).Msg("failed to scan scraping error row")
 			continue
 		}
 		data.RecentErrors = append(data.RecentErrors, se)
