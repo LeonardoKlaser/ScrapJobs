@@ -185,7 +185,7 @@ func (usr *UserRepository) GetUserById(Id int) (model.User, error) {
 }
 
 func (usr *UserRepository) UpdateUserProfile(userId int, name string, cellphone *string, tax *string) error {
-	query := `UPDATE users SET user_name = $1, cellphone = $2, tax = $3 WHERE id = $4`
+	query := `UPDATE users SET user_name = $1, cellphone = $2, tax = $3 WHERE id = $4 AND deleted_at IS NULL`
 	queryPrepare, err := usr.db.Prepare(query)
 	if err != nil {
 		return fmt.Errorf("error to prepare database query: %w", err)
@@ -250,7 +250,7 @@ func (usr *UserRepository) SoftDeleteUser(userId int) error {
 }
 
 func (usr *UserRepository) UpdateExpiresAt(userId int, expiresAt time.Time) error {
-	query := `UPDATE users SET expires_at = $1 WHERE id = $2`
+	query := `UPDATE users SET expires_at = $1 WHERE id = $2 AND deleted_at IS NULL`
 	_, err := usr.db.Exec(query, expiresAt, userId)
 	if err != nil {
 		return fmt.Errorf("error updating expires_at for user %d: %w", userId, err)
