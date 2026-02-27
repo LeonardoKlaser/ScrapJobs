@@ -46,3 +46,12 @@ func (r *PasswordResetRepository) MarkUsed(tokenID int) error {
 	}
 	return nil
 }
+
+func (r *PasswordResetRepository) DeleteExpiredTokens() (int64, error) {
+	query := `DELETE FROM password_reset_tokens WHERE expires_at < NOW() OR used_at IS NOT NULL`
+	result, err := r.db.Exec(query)
+	if err != nil {
+		return 0, fmt.Errorf("error deleting expired tokens: %w", err)
+	}
+	return result.RowsAffected()
+}

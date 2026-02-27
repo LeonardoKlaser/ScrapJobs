@@ -41,7 +41,11 @@ func (controller *CheckAuthController) CheckAuthUser(ctx *gin.Context) {
 		return
 	}
 
-	siteCount, _ := controller.userSiteRepo.GetUserSiteCount(user.Id)
+	siteCount, err := controller.userSiteRepo.GetUserSiteCount(user.Id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar dados do usuário"})
+		return
+	}
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"id":                    user.Id,

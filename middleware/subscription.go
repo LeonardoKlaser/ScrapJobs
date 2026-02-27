@@ -20,7 +20,7 @@ func RequireActiveSubscription() gin.HandlerFunc {
 			ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Tipo de usuário inválido"})
 			return
 		}
-		if user.ExpiresAt == nil || user.ExpiresAt.Before(time.Now()) {
+		if user.ExpiresAt != nil && user.ExpiresAt.Before(time.Now()) {
 			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "subscription_expired"})
 			return
 		}

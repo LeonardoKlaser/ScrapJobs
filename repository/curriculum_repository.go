@@ -164,3 +164,20 @@ func (cur *CurriculumRepository) CountCurriculumsByUserID(userId int) (int, erro
 	}
 	return count, nil
 }
+
+func (cur *CurriculumRepository) DeleteCurriculumIfNotLast(userId int, curriculumId int) error {
+	query := `DELETE FROM curriculum WHERE id = $1 AND user_id = $2 AND (SELECT COUNT(*) FROM curriculum WHERE user_id = $2) > 1`
+	result, err := cur.connection.Exec(query, curriculumId, userId)
+	if err != nil {
+		return fmt.Errorf("error deleting curriculum: %w", err)
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		count, countErr := cur.CountCurriculumsByUserID(userId)
+		if countErr == nil && count <= 1 {
+			return fmt.Errorf("não é possível excluir o único currículo")
+		}
+		return fmt.Errorf("curriculum not found or does not belong to user")
+	}
+	return nil
+}

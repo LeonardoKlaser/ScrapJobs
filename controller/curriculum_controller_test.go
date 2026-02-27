@@ -3,6 +3,7 @@ package controller
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -138,8 +139,7 @@ func TestCurriculumController_DeleteCurriculum(t *testing.T) {
 	user := model.User{Id: 1, Name: "Test", Email: "test@test.com"}
 
 	t.Run("should delete curriculum successfully", func(t *testing.T) {
-		mockRepo.On("CountCurriculumsByUserID", 1).Return(2, nil).Once()
-		mockRepo.On("DeleteCurriculum", 1, 5).Return(nil).Once()
+		mockRepo.On("DeleteCurriculumIfNotLast", 1, 5).Return(nil).Once()
 
 		w := httptest.NewRecorder()
 		_, router := gin.CreateTestContext(w)
@@ -157,7 +157,7 @@ func TestCurriculumController_DeleteCurriculum(t *testing.T) {
 	})
 
 	t.Run("should return 400 when only one curriculum", func(t *testing.T) {
-		mockRepo.On("CountCurriculumsByUserID", 1).Return(1, nil).Once()
+		mockRepo.On("DeleteCurriculumIfNotLast", 1, 5).Return(errors.New("não é possível excluir o único currículo")).Once()
 
 		w := httptest.NewRecorder()
 		_, router := gin.CreateTestContext(w)

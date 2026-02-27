@@ -82,6 +82,7 @@ func main() {
     jobRepo := repository.NewJobRepository(dbConnection)
     userSiteRepo := repository.NewUserSiteRepository(dbConnection)
     notificationRepo := repository.NewNotificationRepository(dbConnection)
+    resetRepo := repository.NewPasswordResetRepository(dbConnection)
 
     // Ticker to run every 120 minutes
     ticker := time.NewTicker(120 * time.Minute)
@@ -118,11 +119,20 @@ func main() {
             wg.Add(1)
             go func() { defer wg.Done(); enqueueScrapingTasks(ctx, siteRepo, client) }()
         case <-tickerDeleteJobs.C:
-            wg.Add(1)
+            wg.Add(2)
             go func() {
                 defer wg.Done()
                 if err := jobRepo.DeleteOldJobs(); err != nil {
                     logging.Logger.Error().Err(err).Msg("ERROR: failed to delete old jobs")
+                }
+            }()
+            go func() {
+                defer wg.Done()
+                deleted, err := resetRepo.DeleteExpiredTokens()
+                if err != nil {
+                    logging.Logger.Error().Err(err).Msg("ERROR: failed to delete expired reset tokens")
+                } else if deleted > 0 {
+                    logging.Logger.Info().Int64("count", deleted).Msg("Expired reset tokens cleaned up")
                 }
             }()
         case <-tickerMatch.C:

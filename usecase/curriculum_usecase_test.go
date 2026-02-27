@@ -104,8 +104,7 @@ func TestCurriculumUsecase_DeleteCurriculum(t *testing.T) {
 	uc := NewCurriculumUsecase(mockRepo)
 
 	t.Run("should delete curriculum successfully when user has multiple", func(t *testing.T) {
-		mockRepo.On("CountCurriculumsByUserID", 1).Return(2, nil).Once()
-		mockRepo.On("DeleteCurriculum", 1, 5).Return(nil).Once()
+		mockRepo.On("DeleteCurriculumIfNotLast", 1, 5).Return(nil).Once()
 
 		err := uc.DeleteCurriculum(1, 5)
 
@@ -114,7 +113,7 @@ func TestCurriculumUsecase_DeleteCurriculum(t *testing.T) {
 	})
 
 	t.Run("should return error when only one curriculum", func(t *testing.T) {
-		mockRepo.On("CountCurriculumsByUserID", 1).Return(1, nil).Once()
+		mockRepo.On("DeleteCurriculumIfNotLast", 1, 5).Return(errors.New("não é possível excluir o único currículo")).Once()
 
 		err := uc.DeleteCurriculum(1, 5)
 
@@ -123,8 +122,8 @@ func TestCurriculumUsecase_DeleteCurriculum(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	})
 
-	t.Run("should return error when count fails", func(t *testing.T) {
-		mockRepo.On("CountCurriculumsByUserID", 1).Return(0, errors.New("db error")).Once()
+	t.Run("should return error when repo fails", func(t *testing.T) {
+		mockRepo.On("DeleteCurriculumIfNotLast", 1, 5).Return(errors.New("db error")).Once()
 
 		err := uc.DeleteCurriculum(1, 5)
 

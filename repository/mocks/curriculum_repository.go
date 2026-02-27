@@ -34,3 +34,8 @@ func (m *MockCurriculumRepository) CountCurriculumsByUserID(userId int) (int, er
 	args := m.Called(userId)
 	return args.Int(0), args.Error(1)
 }
+
+func (m *MockCurriculumRepository) DeleteCurriculumIfNotLast(userId int, curriculumId int) error {
+	args := m.Called(userId, curriculumId)
+	return args.Error(0)
+}
