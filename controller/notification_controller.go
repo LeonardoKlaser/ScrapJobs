@@ -19,8 +19,17 @@ func NewNotificationController(uc *usecase.NotificationsUsecase) *NotificationCo
 	}
 }
 
-// GetNotificationsByUser retorna o histórico de notificações do usuário autenticado.
-// Query param opcional: limit (default: 50, max: 200)
+// GetNotificationsByUser godoc
+// @Summary Listar notificacoes
+// @Description Retorna historico de notificacoes do usuario
+// @Tags Notifications
+// @Produce json
+// @Param limit query int false "Limite de resultados (max 200)" default(50)
+// @Success 200 {array} model.NotificationWithJob
+// @Failure 401 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Security CookieAuth
+// @Router /api/notifications [get]
 func (nc *NotificationController) GetNotificationsByUser(ctx *gin.Context) {
 	userInterface, exists := ctx.Get("user")
 	if !exists {

@@ -111,8 +111,13 @@ func LoadMonitorConfig() (*MonitorConfig, error) {
 
 	queuesStr := getVal( "QUEUES_TO_MONITOR", "default")
 
+	redisAddr := getVal("REDIS_ADDR", "")
+	if redisAddr == "" {
+		redisAddr = os.Getenv("REDIS_URL")
+	}
+
 	cfg := &MonitorConfig{
-		RedisAddr:              getVal("REDIS_ADDR", ""),
+		RedisAddr:              redisAddr,
 		PollingInterval:        pollingInterval,
 		AdminNotificationEmail: getVal("ADMIN_NOTIFICATION_EMAIL", ""),
 		NotifiedTaskSetKey:     getVal("NOTIFIED_TASK_SET_KEY", "scrapjobs:notified_archived_tasks"),
@@ -122,7 +127,7 @@ func LoadMonitorConfig() (*MonitorConfig, error) {
 	}
 
 	if cfg.RedisAddr == "" {
-		return nil, fmt.Errorf("redis address (REDIS_ADDR) must be configured")
+		return nil, fmt.Errorf("redis address (REDIS_ADDR or REDIS_URL) must be configured")
 	}
 	if cfg.AdminNotificationEmail == "" {
 		return nil, fmt.Errorf("admin notification email (ADMIN_NOTIFICATION_EMAIL) must be configured")
@@ -132,21 +137,26 @@ func LoadMonitorConfig() (*MonitorConfig, error) {
 }
 
 // ValidateSecrets checks that required database and Redis fields are set.
+// When DATABASE_URL is set, individual DB field checks are skipped.
+// When REDIS_URL is set, REDIS_ADDR check is skipped.
 func ValidateSecrets(s *model.AppSecrets) error {
-	if s.DBHost == "" {
-		return fmt.Errorf("HOST_DB is required")
+	// If DATABASE_URL is set, skip individual DB field checks
+	if os.Getenv("DATABASE_URL") == "" {
+		if s.DBHost == "" {
+			return fmt.Errorf("HOST_DB is required (or set DATABASE_URL)")
+		}
+		if s.DBPort == "" {
+			return fmt.Errorf("PORT_DB is required (or set DATABASE_URL)")
+		}
+		if s.DBUser == "" {
+			return fmt.Errorf("USER_DB is required (or set DATABASE_URL)")
+		}
+		if s.DBName == "" {
+			return fmt.Errorf("DBNAME is required (or set DATABASE_URL)")
+		}
 	}
-	if s.DBPort == "" {
-		return fmt.Errorf("PORT_DB is required")
-	}
-	if s.DBUser == "" {
-		return fmt.Errorf("USER_DB is required")
-	}
-	if s.DBName == "" {
-		return fmt.Errorf("DBNAME is required")
-	}
-	if s.RedisAddr == "" {
-		return fmt.Errorf("REDIS_ADDR is required")
+	if os.Getenv("REDIS_URL") == "" && s.RedisAddr == "" {
+		return fmt.Errorf("REDIS_ADDR is required (or set REDIS_URL)")
 	}
 	return nil
 }

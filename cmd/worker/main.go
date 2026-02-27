@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"os"
 	"web-scrapper/gateway"
 	"web-scrapper/infra/db"
@@ -48,7 +49,12 @@ func main() {
 		logging.Logger.Fatal().Err(err).Msg("Invalid configuration")
 	}
 
-	dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort, secrets.DBUser, secrets.DBPassword, secrets.DBName)
+	var dbConnection *sql.DB
+	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+		dbConnection, err = db.ConnectDBFromURL(dbURL)
+	} else {
+		dbConnection, err = db.ConnectDB(secrets.DBHost, secrets.DBPort, secrets.DBUser, secrets.DBPassword, secrets.DBName)
+	}
 	if err != nil {
 		logging.Logger.Fatal().Err(err).Msg("Could not connect to database")
 	}
@@ -69,8 +75,18 @@ func main() {
 	mailSender := ses.NewSESMailSender(clientSES, senderEmail)
 	emailService := usecase.NewSESSenderAdapter(mailSender)
 
+	redisAddr := secrets.RedisAddr
+	if redisAddr == "" {
+		redisAddr = os.Getenv("REDIS_URL")
+	}
+
+	var asynqRedisOpt asynq.RedisConnOpt = asynq.RedisClientOpt{Addr: redisAddr}
+	if parsed, parseErr := asynq.ParseRedisURI(redisAddr); parseErr == nil {
+		asynqRedisOpt = parsed
+	}
+
 	srv := asynq.NewServer(
-		asynq.RedisClientOpt{Addr: secrets.RedisAddr},
+		asynqRedisOpt,
 		asynq.Config{
 			Concurrency: 4,
 			Queues: map[string]int{
@@ -81,7 +97,7 @@ func main() {
 		},
 	)
 
-	clientAsynq := asynq.NewClient(asynq.RedisClientOpt{Addr: secrets.RedisAddr})
+	clientAsynq := asynq.NewClient(asynqRedisOpt)
 	defer clientAsynq.Close()
 
 	// Repositories
@@ -100,7 +116,7 @@ func main() {
 	// PaymentUsecase (necessário para HandleCompleteRegistrationTask)
 	abacatepayGateway := gateway.NewAbacatePayGateway()
 	userUsecase := usecase.NewUserUsercase(userRepository)
-	workerRedisClient, err := redispkg.NewRedisClient(secrets.RedisAddr)
+	workerRedisClient, err := redispkg.NewRedisClient(redisAddr)
 	if err != nil {
 		logging.Logger.Fatal().Err(err).Msg("Could not connect to Redis for PaymentUsecase")
 	}

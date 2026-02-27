@@ -17,6 +17,14 @@ func NewPlanController(usecase *usecase.PlanUsecase) *PlanController {
 	}
 }
 
+// GetAllPlans godoc
+// @Summary Listar planos
+// @Description Retorna todos os planos de assinatura disponiveis
+// @Tags Plans
+// @Produce json
+// @Success 200 {array} model.Plan
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/plans [get]
 func (uc *PlanController) GetAllPlans(ctx *gin.Context) {
 	plans, err := uc.usecase.GetAllPlans()
 	if err != nil {

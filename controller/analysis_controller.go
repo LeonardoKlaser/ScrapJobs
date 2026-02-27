@@ -40,8 +40,21 @@ type analyzeJobRequest struct {
 	JobID int `json:"job_id" binding:"required"`
 }
 
-// AnalyzeJob executa uma análise de IA manual para um job específico.
-// POST /api/analyze-job
+// AnalyzeJob godoc
+// @Summary Analisar vaga com IA
+// @Description Analisa compatibilidade do curriculo com uma vaga usando IA
+// @Tags Analysis
+// @Accept json
+// @Produce json
+// @Param body body model.AnalyzeJobRequest true "ID da vaga"
+// @Success 200 {object} model.ResumeAnalysis
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 401 {object} model.ErrorResponse
+// @Failure 403 {object} model.ErrorResponse
+// @Failure 404 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Security CookieAuth
+// @Router /api/analyze-job [post]
 func (ac *AnalysisController) AnalyzeJob(ctx *gin.Context) {
 	userInterface, exists := ctx.Get("user")
 	if !exists {
@@ -135,8 +148,20 @@ type sendAnalysisEmailRequest struct {
 	Analysis model.ResumeAnalysis `json:"analysis" binding:"required"`
 }
 
-// SendAnalysisEmail envia a análise de IA por email para o usuário.
-// POST /api/analyze-job/send-email
+// SendAnalysisEmail godoc
+// @Summary Enviar analise por email
+// @Description Envia resultado da analise de compatibilidade por email
+// @Tags Analysis
+// @Accept json
+// @Produce json
+// @Param body body model.SendAnalysisEmailRequest true "ID da vaga e resultado da analise"
+// @Success 200 {object} model.MessageResponse
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 401 {object} model.ErrorResponse
+// @Failure 404 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Security CookieAuth
+// @Router /api/analyze-job/send-email [post]
 func (ac *AnalysisController) SendAnalysisEmail(ctx *gin.Context) {
 	userInterface, exists := ctx.Get("user")
 	if !exists {

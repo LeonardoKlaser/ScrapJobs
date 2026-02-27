@@ -57,6 +57,17 @@ func (usr *UserController) SignUp(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, nil)
 }
 
+// SignIn godoc
+// @Summary Login do usuario
+// @Description Autentica o usuario e retorna JWT em cookie HTTP-only
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body model.LoginRequest true "Credenciais de login"
+// @Success 200 {object} object "Cookie Authorization definido"
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /login [post]
 func (usr *UserController) SignIn(ctx *gin.Context) {
 	var body struct {
 		Email    string
@@ -115,6 +126,14 @@ func (usr *UserController) SignIn(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{})
 }
 
+// Logout godoc
+// @Summary Logout do usuario
+// @Description Remove o cookie de autenticacao
+// @Tags Auth
+// @Produce json
+// @Success 200 {object} model.MessageResponse
+// @Security CookieAuth
+// @Router /api/logout [post]
 func (usr *UserController) Logout(ctx *gin.Context) {
 	isSecure := os.Getenv("GIN_MODE") == "release"
 	ctx.SetSameSite(http.SameSiteLaxMode)
@@ -122,6 +141,19 @@ func (usr *UserController) Logout(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
 }
 
+// UpdateProfile godoc
+// @Summary Atualizar perfil
+// @Description Atualiza nome, telefone e CPF do usuario
+// @Tags User
+// @Accept json
+// @Produce json
+// @Param body body model.UpdateProfileRequest true "Dados do perfil"
+// @Success 200 {object} model.MessageResponse
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 401 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Security CookieAuth
+// @Router /api/user/profile [patch]
 func (usr *UserController) UpdateProfile(ctx *gin.Context) {
 	userInterface, exists := ctx.Get("user")
 	if !exists {
@@ -155,6 +187,19 @@ func (usr *UserController) UpdateProfile(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Perfil atualizado com sucesso"})
 }
 
+// ChangePassword godoc
+// @Summary Alterar senha
+// @Description Altera a senha do usuario autenticado
+// @Tags User
+// @Accept json
+// @Produce json
+// @Param body body model.ChangePasswordRequest true "Senhas antiga e nova"
+// @Success 200 {object} model.MessageResponse
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 401 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Security CookieAuth
+// @Router /api/user/change-password [post]
 func (usr *UserController) ChangePassword(ctx *gin.Context) {
 	userInterface, exists := ctx.Get("user")
 	if !exists {
@@ -192,6 +237,17 @@ func (usr *UserController) ChangePassword(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Senha alterada com sucesso"})
 }
 
+// ValidateCheckout godoc
+// @Summary Validar dados de checkout
+// @Description Verifica se email e CPF ja estao cadastrados
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body model.ValidateCheckoutRequest true "Email e CPF"
+// @Success 200 {object} model.ValidateCheckoutResponse
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/users/validate-checkout [post]
 func (usr *UserController) ValidateCheckout(ctx *gin.Context) {
 	var body struct {
 		Email string `json:"email" binding:"required"`

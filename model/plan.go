@@ -8,5 +8,5 @@ type Plan struct {
 	Price         float64        `json:"price"`
 	MaxSites      int            `json:"max_sites"`
 	MaxAIAnalyses int            `json:"max_ai_analyses"`
-	Features      pq.StringArray `json:"features" gorm:"type:text[]"`
+	Features      pq.StringArray `json:"features" gorm:"type:text[]" swaggertype:"array,string"`
 }

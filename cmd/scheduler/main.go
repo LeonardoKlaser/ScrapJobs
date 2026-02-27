@@ -49,13 +49,31 @@ func main() {
         logging.Logger.Fatal().Err(err).Msg("Invalid configuration")
     }
 
-    client := asynq.NewClient(asynq.RedisClientOpt{Addr: secrets.RedisAddr})
+    redisAddr := secrets.RedisAddr
+    if redisAddr == "" {
+        redisAddr = os.Getenv("REDIS_URL")
+    }
+
+    var asynqRedisOpt asynq.RedisConnOpt = asynq.RedisClientOpt{Addr: redisAddr}
+    if parsed, parseErr := asynq.ParseRedisURI(redisAddr); parseErr == nil {
+        asynqRedisOpt = parsed
+    }
+
+    client := asynq.NewClient(asynqRedisOpt)
     defer client.Close()
 
-    dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort,secrets.DBUser,secrets.DBPassword,secrets.DBName, func(d *sql.DB) {
-        d.SetMaxOpenConns(5)
-        d.SetMaxIdleConns(2)
-    })
+    var dbConnection *sql.DB
+    if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+        dbConnection, err = db.ConnectDBFromURL(dbURL, func(d *sql.DB) {
+            d.SetMaxOpenConns(5)
+            d.SetMaxIdleConns(2)
+        })
+    } else {
+        dbConnection, err = db.ConnectDB(secrets.DBHost, secrets.DBPort,secrets.DBUser,secrets.DBPassword,secrets.DBName, func(d *sql.DB) {
+            d.SetMaxOpenConns(5)
+            d.SetMaxIdleConns(2)
+        })
+    }
     if err != nil {
         logging.Logger.Fatal().Err(err).Msg("Scheduler could not connect to db")
     }

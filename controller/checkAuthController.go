@@ -16,6 +16,16 @@ func NewCheckAuthController () CheckAuthController {
 	}
 }
 
+// CheckAuthUser godoc
+// @Summary Verificar autenticacao
+// @Description Retorna dados do usuario autenticado
+// @Tags Auth
+// @Produce json
+// @Success 200 {object} model.User
+// @Failure 401 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Security CookieAuth
+// @Router /api/me [get]
 func (controller *CheckAuthController) CheckAuthUser( ctx *gin.Context){
 	userInterface, exists := ctx.Get("user")
 	if !exists {

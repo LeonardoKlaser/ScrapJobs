@@ -19,6 +19,19 @@ func NewRequestedSiteController(usecase *usecase.RequestedSiteUsecase) *Requeste
 	}
 }
 
+// Create godoc
+// @Summary Solicitar novo site
+// @Description Envia solicitacao de um novo site de carreiras para o admin
+// @Tags RequestedSite
+// @Accept json
+// @Produce json
+// @Param body body model.RequestedSiteRequest true "URL do site"
+// @Success 201 {object} model.MessageResponse
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 401 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Security CookieAuth
+// @Router /api/request-site [post]
 func (c *RequestedSiteController) Create(ctx *gin.Context) {
 	userInterface, exists := ctx.Get("user")
 	if !exists {

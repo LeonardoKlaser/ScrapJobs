@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"os"
 	"os/signal"
@@ -29,9 +30,22 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"golang.org/x/time/rate"
+
+	_ "web-scrapper/docs/swagger"
 )
 
+// @title ScrapJobs API
+// @version 1.0
+// @description API para plataforma de scraping e matching de vagas de emprego.
+// @host localhost:8080
+// @BasePath /
+// @securityDefinitions.apikey CookieAuth
+// @in cookie
+// @name Authorization
 func main() {
 	if os.Getenv("GIN_MODE") != "release" {
 		godotenv.Load()
@@ -93,21 +107,35 @@ func main() {
 		logging.Logger.Fatal().Err(err).Msg("Invalid configuration")
 	}
 
-	dbConnection, err := db.ConnectDB(secrets.DBHost, secrets.DBPort, secrets.DBUser, secrets.DBPassword, secrets.DBName)
+	var dbConnection *sql.DB
+	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+		dbConnection, err = db.ConnectDBFromURL(dbURL)
+	} else {
+		dbConnection, err = db.ConnectDB(secrets.DBHost, secrets.DBPort, secrets.DBUser, secrets.DBPassword, secrets.DBName)
+	}
 	if err != nil {
 		logging.Logger.Fatal().Err(err).Msg("Could not connect to database")
 	}
 	logging.Logger.Info().Msg("successfully connected to the database")
 	defer dbConnection.Close()
 
-	redisClient, err := redispkg.NewRedisClient(secrets.RedisAddr)
+	redisAddr := secrets.RedisAddr
+	if redisAddr == "" {
+		redisAddr = os.Getenv("REDIS_URL")
+	}
+
+	redisClient, err := redispkg.NewRedisClient(redisAddr)
 	if err != nil {
-		logging.Logger.Fatal().Err(err).Str("redis_addr", secrets.RedisAddr).Msg("Could not connect to Redis")
+		logging.Logger.Fatal().Err(err).Msg("Could not connect to Redis")
 	}
 	defer redisClient.Close()
-	logging.Logger.Info().Str("redis_addr", secrets.RedisAddr).Msg("Connected to Redis")
+	logging.Logger.Info().Msg("Connected to Redis")
 
-	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: secrets.RedisAddr})
+	var asynqRedisOpt asynq.RedisConnOpt = asynq.RedisClientOpt{Addr: redisAddr}
+	if parsed, parseErr := asynq.ParseRedisURI(redisAddr); parseErr == nil {
+		asynqRedisOpt = parsed
+	}
+	asynqClient := asynq.NewClient(asynqRedisOpt)
 	defer asynqClient.Close()
 
 	// --- Prometheus pool collectors ---
@@ -210,8 +238,9 @@ func main() {
 	// Middleware
 	middlewareAuth := middleware.NewMiddleware(userUsecase)
 
-	// Rate limiters
-	publicRateLimiter := middleware.RateLimiter(rate.Limit(5.0/60.0), 2)
+	// Rate limiters — distributed via Redis
+	rateLimiterFn := newRedisRateLimiterFactory(redisClient)
+	publicRateLimiter := rateLimiterFn(5, 60)
 
 	csrfMiddleware := middleware.CSRFProtection()
 
@@ -228,7 +257,7 @@ func main() {
 	}
 
 	// Checkout validation — rate limiter próprio, separado do publicRoutes para não herdar o 5/min
-	checkoutValidationLimiter := middleware.RateLimiter(rate.Limit(10.0/60.0), 3)
+	checkoutValidationLimiter := rateLimiterFn(10, 60)
 	checkoutRoutes := server.Group("/")
 	checkoutRoutes.Use(logging.GinMiddleware())
 	checkoutRoutes.Use(metrics.GinPrometheus())
@@ -238,7 +267,7 @@ func main() {
 		checkoutRoutes.POST("/api/users/validate-checkout", userController.ValidateCheckout)
 	}
 
-	privateRateLimiter := middleware.RateLimiter(rate.Limit(15.0/60.0), 10)
+	privateRateLimiter := rateLimiterFn(15, 60)
 
 	privateRoutes := server.Group("/")
 	privateRoutes.Use(logging.GinMiddleware())
@@ -266,7 +295,7 @@ func main() {
 		privateRoutes.POST("/api/user/change-password", userController.ChangePassword)
 		privateRoutes.POST("api/request-site", requestedSiteController.Create)
 		if analysisController != nil {
-			analyzeRateLimiter := middleware.RateLimiter(rate.Limit(3.0/60.0), 2)
+			analyzeRateLimiter := rateLimiterFn(3, 60)
 			privateRoutes.POST("/api/analyze-job", analyzeRateLimiter, analysisController.AnalyzeJob)
 			privateRoutes.POST("/api/analyze-job/send-email", analyzeRateLimiter, analysisController.SendAnalysisEmail)
 		}
@@ -289,6 +318,11 @@ func main() {
 	{
 		healthRoutes.GET("/live", healthController.Liveness)
 		healthRoutes.GET("/ready", healthController.Readiness)
+	}
+
+	// Swagger documentation (dev only)
+	if os.Getenv("GIN_MODE") != "release" {
+		server.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 
 	// Prometheus metrics endpoint
@@ -316,4 +350,19 @@ func main() {
 		logging.Logger.Fatal().Err(err).Msg("Server forced to shutdown")
 	}
 	logging.Logger.Info().Msg("Server exited gracefully")
+}
+
+// newRedisRateLimiterFactory returns a function that creates rate-limiting
+// middleware backed by Redis. If redisClient is nil, it falls back to in-memory.
+func newRedisRateLimiterFactory(redisClient *redis.Client) func(limit, windowSeconds int) gin.HandlerFunc {
+	if redisClient == nil {
+		return func(limit, windowSeconds int) gin.HandlerFunc {
+			// Convert to rate.Limit: limit requests per windowSeconds
+			r := rate.Limit(float64(limit) / float64(windowSeconds))
+			return middleware.RateLimiter(r, limit)
+		}
+	}
+	return func(limit, windowSeconds int) gin.HandlerFunc {
+		return middleware.RedisRateLimiter(redisClient, limit, windowSeconds)
+	}
 }

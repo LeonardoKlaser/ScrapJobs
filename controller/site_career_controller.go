@@ -23,6 +23,16 @@ func NewSiteCareerController(usecase *usecase.SiteCareerUsecase, userSiteReposit
 	}
 }
 
+// GetAllSites godoc
+// @Summary Listar sites de carreiras
+// @Description Retorna todos os sites com status de inscricao do usuario
+// @Tags Sites
+// @Produce json
+// @Success 200 {array} model.SiteDTO
+// @Failure 401 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Security CookieAuth
+// @Router /api/getSites [get]
 func (usecase *SiteCareerController) GetAllSites(ctx *gin.Context){
 	type siteDTO struct{
 		SiteName     string  `json:"site_name"`
@@ -75,6 +85,19 @@ func (usecase *SiteCareerController) GetAllSites(ctx *gin.Context){
 	ctx.JSON(http.StatusOK, response)
 }
 
+// InsertNewSiteCareer godoc
+// @Summary Adicionar site de carreiras
+// @Description Cria nova configuracao de scraping para um site (admin)
+// @Tags Sites
+// @Accept multipart/form-data
+// @Produce json
+// @Param siteData formData string true "JSON da configuracao do site"
+// @Param logo formData file false "Logo da empresa"
+// @Success 201 {object} model.SiteScrapingConfig
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Security CookieAuth
+// @Router /siteCareer [post]
 func (usecase *SiteCareerController) InsertNewSiteCareer(ctx *gin.Context){
 	err := ctx.Request.ParseMultipartForm(2 << 20)
     if err != nil {
@@ -120,6 +143,18 @@ func (usecase *SiteCareerController) InsertNewSiteCareer(ctx *gin.Context){
 	ctx.JSON(http.StatusCreated, res)
 }
 
+// SandboxScrape godoc
+// @Summary Testar scraping (sandbox)
+// @Description Executa scraping de teste com a configuracao fornecida (admin)
+// @Tags Sites
+// @Accept json
+// @Produce json
+// @Param body body model.SiteScrapingConfig true "Configuracao de scraping"
+// @Success 200 {object} model.SandboxScrapeResponse
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 500 {object} model.SandboxScrapeErrorResponse
+// @Security CookieAuth
+// @Router /scrape-sandbox [post]
 func (usecase *SiteCareerController) SandboxScrape(ctx *gin.Context){
 	var config model.SiteScrapingConfig
 	if err := ctx.ShouldBindJSON(&config); err != nil {

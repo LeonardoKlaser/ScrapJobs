@@ -20,6 +20,19 @@ func NewUserSiteController(usecase *usecase.UserSiteUsecase) *UserSiteController
 	}
 }
 
+// InsertUserSite godoc
+// @Summary Inscrever-se em site
+// @Description Adiciona inscricao do usuario em um site de carreiras
+// @Tags UserSite
+// @Accept json
+// @Produce json
+// @Param body body model.UserSiteRequest true "ID do site e palavras-chave"
+// @Success 201 {object} object
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 401 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Security CookieAuth
+// @Router /userSite [post]
 func (usecase *UserSiteController) InsertUserSite(ctx *gin.Context) {
 	userInterface, exists := ctx.Get("user")
 	if !exists {
@@ -49,6 +62,18 @@ func (usecase *UserSiteController) InsertUserSite(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, gin.H{})
 }
 
+// DeleteUserSite godoc
+// @Summary Cancelar inscricao em site
+// @Description Remove inscricao do usuario em um site de carreiras
+// @Tags UserSite
+// @Produce json
+// @Param siteId path string true "ID do site"
+// @Success 200 {object} model.MessageResponse
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 401 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Security CookieAuth
+// @Router /userSite/{siteId} [delete]
 func (usc *UserSiteController) DeleteUserSite(ctx *gin.Context) {
 	userInterface, exists := ctx.Get("user")
 	if !exists {
@@ -77,9 +102,20 @@ func (usc *UserSiteController) DeleteUserSite(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "User unregistered from site successfully"})
 }
 
-// UpdateUserSiteFilters atualiza os filtros (palavras-chave) de monitoramento de um site.
-// PATCH /userSite/:siteId
-// Body: { "target_words": ["golang", "backend"] }
+// UpdateUserSiteFilters godoc
+// @Summary Atualizar filtros do site
+// @Description Atualiza as palavras-chave de filtragem para um site inscrito
+// @Tags UserSite
+// @Accept json
+// @Produce json
+// @Param siteId path string true "ID do site"
+// @Param body body model.UpdateUserSiteFiltersRequest true "Palavras-chave"
+// @Success 200 {object} model.MessageResponse
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 401 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Security CookieAuth
+// @Router /userSite/{siteId} [patch]
 func (usc *UserSiteController) UpdateUserSiteFilters(ctx *gin.Context) {
 	userInterface, exists := ctx.Get("user")
 	if !exists {

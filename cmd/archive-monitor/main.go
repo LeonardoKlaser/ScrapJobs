@@ -7,14 +7,11 @@ import (
 	"syscall"
 	"time"
 
-	"web-scrapper/infra/ses"
 	"web-scrapper/logging"
 	"web-scrapper/usecase"
 	"web-scrapper/utils"
 
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/hibiken/asynq"
-	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -27,24 +24,16 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// Initialize dependencies using the loaded config
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: cfg.RedisAddr,
-	})
-	defer redisClient.Close()
-
-	asynqRedisOpt := asynq.RedisClientOpt{Addr: cfg.RedisAddr}
+	// Initialize dependencies using the loaded config.
+	// cfg.RedisAddr may be a redis:// URL (from REDIS_URL) or plain host:port.
+	var asynqRedisOpt asynq.RedisConnOpt = asynq.RedisClientOpt{Addr: cfg.RedisAddr}
+	if parsed, parseErr := asynq.ParseRedisURI(cfg.RedisAddr); parseErr == nil {
+		asynqRedisOpt = parsed
+	}
 	inspector := asynq.NewInspector(asynqRedisOpt)
 	defer inspector.Close()
 
-	awsCfg, err := ses.LoadAWSConfig(ctx)
-	if err != nil {
-		logging.Logger.Fatal().Err(err).Msg("FATAL: could not load aws config")
-	}
-
-	cloudwatchClient := cloudwatch.NewFromConfig(awsCfg)
-
-	monitorUsecase := usecase.NewMonitorUsecase(inspector, cloudwatchClient)
+	monitorUsecase := usecase.NewMonitorUsecase(inspector)
 
 	// Setup main loop
 	ticker := time.NewTicker(cfg.PollingInterval)

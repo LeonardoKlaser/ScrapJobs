@@ -4,25 +4,16 @@ import (
 	"context"
 	"strings"
 	"web-scrapper/logging"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+
 	"github.com/hibiken/asynq"
 )
 
 type MonitorUsecase struct{
 	inspector *asynq.Inspector
-	cloudWatchSvc *cloudwatch.Client
 }
 
-func NewMonitorUsecase(
-	inspector *asynq.Inspector,
-	cloudWatchSvc *cloudwatch.Client,
-) *MonitorUsecase {
-	return &MonitorUsecase{
-		inspector:   inspector,
-		cloudWatchSvc: cloudWatchSvc,
-	}
+func NewMonitorUsecase(inspector *asynq.Inspector) *MonitorUsecase {
+	return &MonitorUsecase{inspector: inspector}
 }
 
 func (uc *MonitorUsecase) CheckAndNotifyArchivedTasks(ctx context.Context, queueName string) error{
@@ -37,7 +28,7 @@ func (uc *MonitorUsecase) CheckAndNotifyArchivedTasks(ctx context.Context, queue
 		}
 		// Para qualquer outro erro, registamos como um erro real.
 		logging.Logger.Error().Err(err).Str("queue", queueName).Msg("Could not get queue info")
-		return uc.publishArchivedTasksMetric(ctx, queueName, 0)
+		return err
 	}
 
 	archivedCount := 0
@@ -45,30 +36,22 @@ func (uc *MonitorUsecase) CheckAndNotifyArchivedTasks(ctx context.Context, queue
 		archivedCount = queueInfo.Archived
 	}
 
-	return uc.publishArchivedTasksMetric(ctx, queueName, archivedCount); 
+	return uc.publishArchivedTasksMetric(ctx, queueName, archivedCount)
 }
 
 func (uc *MonitorUsecase) publishArchivedTasksMetric(ctx context.Context, queueName string, count int) error {
-	_, err := uc.cloudWatchSvc.PutMetricData(ctx, &cloudwatch.PutMetricDataInput{
-		Namespace: aws.String("ScrapJobs/Application"),
-		MetricData: []types.MetricDatum{
-			{
-				MetricName: aws.String("AsynqArchivedQueueDepth"),
-				Value:      aws.Float64(float64(count)),
-				Unit:       types.StandardUnitCount,
-				Dimensions: []types.Dimension{ // Adicionar a fila como dimensão é uma boa prática
-					{
-						Name:  aws.String("QueueName"),
-						Value: aws.String(queueName),
-					},
-				},
-			},
-		},
-	})
-	if err != nil {
-        logging.Logger.Error().Err(err).Str("queue", queueName).Msg("Failed to publish CloudWatch metric")
-    } else {
-        logging.Logger.Info().Str("queue", queueName).Int("archived_count", count).Msg("Successfully published archived tasks metric")
-    }
-	return err
+	if count > 0 {
+		logging.Logger.Warn().
+			Str("queue", queueName).
+			Int("archived_count", count).
+			Str("metric", "AsynqArchivedQueueDepth").
+			Msg("Archived tasks detected")
+	} else {
+		logging.Logger.Info().
+			Str("queue", queueName).
+			Int("archived_count", 0).
+			Str("metric", "AsynqArchivedQueueDepth").
+			Msg("No archived tasks")
+	}
+	return nil
 }

@@ -1,0 +1,1441 @@
+basePath: /
+definitions:
+  gateway.InitiatePaymentRequest:
+    properties:
+      billing_period:
+        enum:
+        - monthly
+        - annual
+        type: string
+      cellphone:
+        type: string
+      email:
+        type: string
+      methods:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      tax:
+        type: string
+    required:
+    - billing_period
+    - cellphone
+    - email
+    - methods
+    - name
+    - password
+    - tax
+    type: object
+  gateway.WebhookBilling:
+    properties:
+      amount:
+        type: integer
+      customer:
+        $ref: '#/definitions/gateway.WebhookBillingCustomer'
+      externalId:
+        description: nosso pendingRegistrationID
+        type: string
+      frequency:
+        type: string
+      id:
+        type: string
+      kind:
+        items:
+          type: string
+        type: array
+      paidAmount:
+        type: integer
+      products:
+        items:
+          $ref: '#/definitions/gateway.WebhookBillingProduct'
+        type: array
+      status:
+        description: '"PAID"'
+        type: string
+    type: object
+  gateway.WebhookBillingCustomer:
+    properties:
+      id:
+        type: string
+      metadata:
+        additionalProperties:
+          type: string
+        description: contém email, name, cellphone, taxId
+        type: object
+    type: object
+  gateway.WebhookBillingProduct:
+    properties:
+      externalId:
+        type: string
+      id:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  gateway.WebhookData:
+    properties:
+      billing:
+        $ref: '#/definitions/gateway.WebhookBilling'
+      payment:
+        $ref: '#/definitions/gateway.WebhookPayment'
+    type: object
+  gateway.WebhookPayload:
+    properties:
+      data:
+        $ref: '#/definitions/gateway.WebhookData'
+      devMode:
+        type: boolean
+      event:
+        description: '"billing.paid", "withdraw.done", etc.'
+        type: string
+      id:
+        type: string
+    type: object
+  gateway.WebhookPayment:
+    properties:
+      amount:
+        type: integer
+      fee:
+        type: integer
+      method:
+        type: string
+    type: object
+  model.AdminDashboardData:
+    properties:
+      active_users:
+        type: integer
+      monitored_sites:
+        type: integer
+      recent_errors:
+        items:
+          $ref: '#/definitions/model.ScrapingError'
+        type: array
+      scraping_errors:
+        type: integer
+      total_revenue:
+        type: number
+    type: object
+  model.AnalyzeJobRequest:
+    properties:
+      job_id:
+        example: 42
+        type: integer
+    required:
+    - job_id
+    type: object
+  model.ChangePasswordRequest:
+    properties:
+      new_password:
+        example: senhaNova456
+        minLength: 8
+        type: string
+      old_password:
+        example: senhaAntiga123
+        type: string
+    required:
+    - new_password
+    - old_password
+    type: object
+  model.CreatePaymentResponse:
+    properties:
+      url:
+        example: https://abacatepay.com/billing/abc123
+        type: string
+    type: object
+  model.Curriculum:
+    properties:
+      educations:
+        items:
+          $ref: '#/definitions/model.Education'
+        type: array
+      experiences:
+        items:
+          $ref: '#/definitions/model.Experience'
+        type: array
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      languages:
+        type: string
+      skills:
+        type: string
+      summary:
+        type: string
+      title:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  model.DashboardData:
+    properties:
+      alerts_sent_count:
+        type: integer
+      latest_jobs:
+        items:
+          $ref: '#/definitions/model.Job'
+        type: array
+      monitored_urls_count:
+        type: integer
+      new_jobs_today_count:
+        type: integer
+      user_monitored_urls:
+        items:
+          $ref: '#/definitions/model.MonitoredURL'
+        type: array
+    type: object
+  model.Education:
+    properties:
+      degree:
+        type: string
+      institution:
+        type: string
+      year:
+        type: string
+    type: object
+  model.ErrorResponse:
+    properties:
+      error:
+        example: mensagem de erro
+        type: string
+    type: object
+  model.Experience:
+    properties:
+      company:
+        type: string
+      description:
+        type: string
+      title:
+        type: string
+    type: object
+  model.Gap:
+    properties:
+      areaDescription:
+        type: string
+      jobRequirementImpacted:
+        type: string
+    type: object
+  model.HealthResponse:
+    properties:
+      status:
+        example: UP
+        type: string
+    type: object
+  model.Job:
+    properties:
+      company:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      job_id:
+        type: integer
+      job_link:
+        type: string
+      location:
+        type: string
+      site_id:
+        type: integer
+      title:
+        type: string
+    type: object
+  model.LoginRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: senha123
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  model.MatchAnalysis:
+    properties:
+      overallScoreNumeric:
+        type: integer
+      overallScoreQualitative:
+        type: string
+      summary:
+        type: string
+    type: object
+  model.MessageResponse:
+    properties:
+      message:
+        example: operação realizada com sucesso
+        type: string
+    type: object
+  model.MonitoredURL:
+    properties:
+      base_url:
+        type: string
+      site_name:
+        type: string
+    type: object
+  model.NotificationWithJob:
+    properties:
+      id:
+        type: integer
+      job_company:
+        type: string
+      job_id:
+        type: integer
+      job_link:
+        type: string
+      job_location:
+        type: string
+      job_title:
+        type: string
+      notified_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  model.PaginatedJobs:
+    properties:
+      jobs:
+        items:
+          $ref: '#/definitions/model.Job'
+        type: array
+      limit:
+        type: integer
+      page:
+        type: integer
+      total_count:
+        type: integer
+    type: object
+  model.Plan:
+    properties:
+      features:
+        items:
+          type: string
+        type: array
+      id:
+        type: integer
+      max_ai_analyses:
+        type: integer
+      max_sites:
+        type: integer
+      name:
+        type: string
+      price:
+        type: number
+    type: object
+  model.ReadinessResponse:
+    properties:
+      database:
+        example: UP
+        type: string
+      redis:
+        example: UP
+        type: string
+    type: object
+  model.RequestedSiteRequest:
+    properties:
+      url:
+        example: https://careers.google.com
+        type: string
+    required:
+    - url
+    type: object
+  model.ResumeAnalysis:
+    properties:
+      actionableResumeSuggestions:
+        items:
+          $ref: '#/definitions/model.Suggestion'
+        type: array
+      finalConsiderations:
+        type: string
+      gapsAndImprovementAreas:
+        items:
+          $ref: '#/definitions/model.Gap'
+        type: array
+      matchAnalysis:
+        $ref: '#/definitions/model.MatchAnalysis'
+      strengthsForThisJob:
+        items:
+          $ref: '#/definitions/model.Strength'
+        type: array
+    type: object
+  model.SandboxScrapeErrorResponse:
+    properties:
+      error:
+        example: falha ao executar scraping
+        type: string
+      message:
+        example: erro no scraping
+        type: string
+      success:
+        example: false
+        type: boolean
+    type: object
+  model.SandboxScrapeResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/model.Job'
+        type: array
+      message:
+        example: Scraping concluído com sucesso
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  model.ScrapingError:
+    properties:
+      created_at:
+        type: string
+      error_message:
+        type: string
+      id:
+        type: integer
+      site_name:
+        type: string
+    type: object
+  model.SendAnalysisEmailRequest:
+    properties:
+      analysis:
+        $ref: '#/definitions/model.ResumeAnalysis'
+      job_id:
+        example: 42
+        type: integer
+    required:
+    - analysis
+    - job_id
+    type: object
+  model.SiteDTO:
+    properties:
+      base_url:
+        example: https://carreiras.ifood.com.br
+        type: string
+      is_subscribed:
+        example: true
+        type: boolean
+      logo_url:
+        example: https://s3.amazonaws.com/logos/ifood.webp
+        type: string
+      site_id:
+        example: 1
+        type: integer
+      site_name:
+        example: iFood
+        type: string
+    type: object
+  model.SiteScrapingConfig:
+    properties:
+      api_endpoint_template:
+        type: string
+      api_headers_json:
+        type: string
+      api_method:
+        type: string
+      api_payload_template:
+        type: string
+      base_url:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      job_description_selector:
+        type: string
+      job_list_item_selector:
+        type: string
+      job_requisition_id_selector:
+        type: string
+      json_data_mappings:
+        type: string
+      link_attribute:
+        type: string
+      link_selector:
+        type: string
+      location_selector:
+        type: string
+      logo_url:
+        type: string
+      next_page_selector:
+        type: string
+      scraping_type:
+        description: '''HTML'', ''API'', ''HEADLESS'''
+        type: string
+      site_name:
+        type: string
+      title_selector:
+        type: string
+    type: object
+  model.StatusResponse:
+    properties:
+      status:
+        example: received
+        type: string
+    type: object
+  model.Strength:
+    properties:
+      point:
+        type: string
+      relevanceToJob:
+        type: string
+    type: object
+  model.Suggestion:
+    properties:
+      curriculumSectionToApply:
+        type: string
+      exampleWording:
+        type: string
+      reasoningForThisJob:
+        type: string
+      suggestion:
+        type: string
+    type: object
+  model.UpdateProfileRequest:
+    properties:
+      cellphone:
+        example: "11999998888"
+        type: string
+      tax:
+        example: 123.456.789-00
+        type: string
+      user_name:
+        example: João Silva
+        type: string
+    required:
+    - user_name
+    type: object
+  model.UpdateUserSiteFiltersRequest:
+    properties:
+      target_words:
+        items:
+          type: string
+        type: array
+    type: object
+  model.User:
+    properties:
+      cellphone:
+        type: string
+      curriculum_id:
+        type: integer
+      email:
+        type: string
+      id:
+        type: integer
+      is_admin:
+        type: boolean
+      plan:
+        $ref: '#/definitions/model.Plan'
+      plan_id:
+        type: integer
+      tax:
+        type: string
+      user_name:
+        type: string
+    type: object
+  model.UserSiteRequest:
+    properties:
+      site_id:
+        type: integer
+      target_words:
+        items:
+          type: string
+        type: array
+    type: object
+  model.ValidateCheckoutRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      tax:
+        example: 123.456.789-00
+        type: string
+    required:
+    - email
+    - tax
+    type: object
+  model.ValidateCheckoutResponse:
+    properties:
+      email_exists:
+        example: false
+        type: boolean
+      tax_exists:
+        example: false
+        type: boolean
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API para plataforma de scraping e matching de vagas de emprego.
+  title: ScrapJobs API
+  version: "1.0"
+paths:
+  /api/admin/dashboard:
+    get:
+      description: Retorna metricas administrativas (somente admin)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AdminDashboardData'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Dashboard administrativo
+      tags:
+      - Admin
+  /api/analyze-job:
+    post:
+      consumes:
+      - application/json
+      description: Analisa compatibilidade do curriculo com uma vaga usando IA
+      parameters:
+      - description: ID da vaga
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.AnalyzeJobRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ResumeAnalysis'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Analisar vaga com IA
+      tags:
+      - Analysis
+  /api/analyze-job/send-email:
+    post:
+      consumes:
+      - application/json
+      description: Envia resultado da analise de compatibilidade por email
+      parameters:
+      - description: ID da vaga e resultado da analise
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.SendAnalysisEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Enviar analise por email
+      tags:
+      - Analysis
+  /api/dashboard:
+    get:
+      description: Retorna estatisticas e vagas recentes do usuario
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.DashboardData'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Dados do dashboard
+      tags:
+      - Dashboard
+  /api/dashboard/jobs:
+    get:
+      description: Retorna vagas com paginacao e filtros
+      parameters:
+      - default: 1
+        description: Pagina
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Limite por pagina (max 50)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Filtrar por dias
+        in: query
+        name: days
+        type: integer
+      - description: Buscar por titulo
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.PaginatedJobs'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Vagas recentes paginadas
+      tags:
+      - Dashboard
+  /api/getSites:
+    get:
+      description: Retorna todos os sites com status de inscricao do usuario
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.SiteDTO'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Listar sites de carreiras
+      tags:
+      - Sites
+  /api/logout:
+    post:
+      description: Remove o cookie de autenticacao
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.MessageResponse'
+      security:
+      - CookieAuth: []
+      summary: Logout do usuario
+      tags:
+      - Auth
+  /api/me:
+    get:
+      description: Retorna dados do usuario autenticado
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.User'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Verificar autenticacao
+      tags:
+      - Auth
+  /api/notifications:
+    get:
+      description: Retorna historico de notificacoes do usuario
+      parameters:
+      - default: 50
+        description: Limite de resultados (max 200)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.NotificationWithJob'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Listar notificacoes
+      tags:
+      - Notifications
+  /api/payments/create/{planId}:
+    post:
+      consumes:
+      - application/json
+      description: Inicia processo de pagamento para um plano
+      parameters:
+      - description: ID do plano
+        in: path
+        name: planId
+        required: true
+        type: integer
+      - description: Dados de pagamento
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/gateway.InitiatePaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.CreatePaymentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Criar pagamento
+      tags:
+      - Payment
+  /api/plans:
+    get:
+      description: Retorna todos os planos de assinatura disponiveis
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Plan'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Listar planos
+      tags:
+      - Plans
+  /api/request-site:
+    post:
+      consumes:
+      - application/json
+      description: Envia solicitacao de um novo site de carreiras para o admin
+      parameters:
+      - description: URL do site
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.RequestedSiteRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Solicitar novo site
+      tags:
+      - RequestedSite
+  /api/user/change-password:
+    post:
+      consumes:
+      - application/json
+      description: Altera a senha do usuario autenticado
+      parameters:
+      - description: Senhas antiga e nova
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Alterar senha
+      tags:
+      - User
+  /api/user/profile:
+    patch:
+      consumes:
+      - application/json
+      description: Atualiza nome, telefone e CPF do usuario
+      parameters:
+      - description: Dados do perfil
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Atualizar perfil
+      tags:
+      - User
+  /api/users/validate-checkout:
+    post:
+      consumes:
+      - application/json
+      description: Verifica se email e CPF ja estao cadastrados
+      parameters:
+      - description: Email e CPF
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.ValidateCheckoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ValidateCheckoutResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Validar dados de checkout
+      tags:
+      - Auth
+  /api/webhooks/abacatepay:
+    post:
+      consumes:
+      - application/json
+      description: Recebe notificacao de pagamento do AbacatePay
+      parameters:
+      - description: Payload do webhook
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/gateway.WebhookPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.StatusResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Webhook de pagamento
+      tags:
+      - Payment
+  /curriculum:
+    get:
+      description: Retorna todos os curriculos do usuario autenticado
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Curriculum'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Listar curriculos
+      tags:
+      - Curriculum
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo curriculo para o usuario autenticado
+      parameters:
+      - description: Dados do curriculo
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.Curriculum'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Curriculum'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Criar curriculo
+      tags:
+      - Curriculum
+  /curriculum/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Atualiza um curriculo existente
+      parameters:
+      - description: ID do curriculo
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados atualizados
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.Curriculum'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Curriculum'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Atualizar curriculo
+      tags:
+      - Curriculum
+  /curriculum/{id}/active:
+    patch:
+      description: Define um curriculo como ativo para o usuario
+      parameters:
+      - description: ID do curriculo
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Ativar curriculo
+      tags:
+      - Curriculum
+  /health/live:
+    get:
+      description: Verifica se a API esta rodando
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.HealthResponse'
+      summary: Liveness check
+      tags:
+      - Health
+  /health/ready:
+    get:
+      description: Verifica se o banco de dados e Redis estao acessiveis
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ReadinessResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/model.ReadinessResponse'
+      summary: Readiness check
+      tags:
+      - Health
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Autentica o usuario e retorna JWT em cookie HTTP-only
+      parameters:
+      - description: Credenciais de login
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Cookie Authorization definido
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Login do usuario
+      tags:
+      - Auth
+  /scrape-sandbox:
+    post:
+      consumes:
+      - application/json
+      description: Executa scraping de teste com a configuracao fornecida (admin)
+      parameters:
+      - description: Configuracao de scraping
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.SiteScrapingConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.SandboxScrapeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.SandboxScrapeErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Testar scraping (sandbox)
+      tags:
+      - Sites
+  /siteCareer:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Cria nova configuracao de scraping para um site (admin)
+      parameters:
+      - description: JSON da configuracao do site
+        in: formData
+        name: siteData
+        required: true
+        type: string
+      - description: Logo da empresa
+        in: formData
+        name: logo
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.SiteScrapingConfig'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Adicionar site de carreiras
+      tags:
+      - Sites
+  /userSite:
+    post:
+      consumes:
+      - application/json
+      description: Adiciona inscricao do usuario em um site de carreiras
+      parameters:
+      - description: ID do site e palavras-chave
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserSiteRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Inscrever-se em site
+      tags:
+      - UserSite
+  /userSite/{siteId}:
+    delete:
+      description: Remove inscricao do usuario em um site de carreiras
+      parameters:
+      - description: ID do site
+        in: path
+        name: siteId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Cancelar inscricao em site
+      tags:
+      - UserSite
+    patch:
+      consumes:
+      - application/json
+      description: Atualiza as palavras-chave de filtragem para um site inscrito
+      parameters:
+      - description: ID do site
+        in: path
+        name: siteId
+        required: true
+        type: string
+      - description: Palavras-chave
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateUserSiteFiltersRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Atualizar filtros do site
+      tags:
+      - UserSite
+securityDefinitions:
+  CookieAuth:
+    in: cookie
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

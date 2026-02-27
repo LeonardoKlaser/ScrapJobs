@@ -16,14 +16,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// Ensure gateway.AbacatePayGateway satisfies the interface at compile time
+var _ interfaces.PaymentGatewayInterface = (*gateway.AbacatePayGateway)(nil)
+
 type PaymentUsecase struct {
-	paymentGateway *gateway.AbacatePayGateway
+	paymentGateway interfaces.PaymentGatewayInterface
 	redisClient    redis.UniversalClient
 	userUsecase    *UserUsecase
 	planRepository interfaces.PlanRepositoryInterface
 }
 
-func NewPaymentUsecase(gw *gateway.AbacatePayGateway, redisClient redis.UniversalClient, userUsecase *UserUsecase, planRp interfaces.PlanRepositoryInterface) *PaymentUsecase {
+func NewPaymentUsecase(gw interfaces.PaymentGatewayInterface, redisClient redis.UniversalClient, userUsecase *UserUsecase, planRp interfaces.PlanRepositoryInterface) *PaymentUsecase {
 	return &PaymentUsecase{paymentGateway: gw, redisClient: redisClient, userUsecase: userUsecase, planRepository: planRp}
 }
 

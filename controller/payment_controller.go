@@ -35,6 +35,19 @@ func NewPaymentController(
 	}
 }
 
+// CreatePayment godoc
+// @Summary Criar pagamento
+// @Description Inicia processo de pagamento para um plano
+// @Tags Payment
+// @Accept json
+// @Produce json
+// @Param planId path int true "ID do plano"
+// @Param body body gateway.InitiatePaymentRequest true "Dados de pagamento"
+// @Success 200 {object} model.CreatePaymentResponse
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Failure 502 {object} model.ErrorResponse
+// @Router /api/payments/create/{planId} [post]
 func (p *PaymentController) CreatePayment(ctx *gin.Context) {
 	log := logging.Logger
 	planIDStr := ctx.Param("planId")
@@ -69,8 +82,17 @@ func (p *PaymentController) CreatePayment(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"url": paymentURL})
 }
 
-// HandleWebhook processa os eventos de webhook da AbacatePay.
-// Suporta o evento "billing.paid" para completar o registro do usuário.
+// HandleWebhook godoc
+// @Summary Webhook de pagamento
+// @Description Recebe notificacao de pagamento do AbacatePay
+// @Tags Payment
+// @Accept json
+// @Produce json
+// @Param body body gateway.WebhookPayload true "Payload do webhook"
+// @Success 200 {object} model.StatusResponse
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/webhooks/abacatepay [post]
 func (p *PaymentController) HandleWebhook(ctx *gin.Context) {
 	log := logging.Logger
 

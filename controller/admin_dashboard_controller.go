@@ -17,6 +17,15 @@ func NewAdminDashboardController(rep *repository.DashboardRepository) *AdminDash
 	}
 }
 
+// GetAdminDashboard godoc
+// @Summary Dashboard administrativo
+// @Description Retorna metricas administrativas (somente admin)
+// @Tags Admin
+// @Produce json
+// @Success 200 {object} model.AdminDashboardData
+// @Failure 500 {object} model.ErrorResponse
+// @Security CookieAuth
+// @Router /api/admin/dashboard [get]
 func (c *AdminDashboardController) GetAdminDashboard(ctx *gin.Context) {
 	data, err := c.repo.GetAdminDashboardData()
 	if err != nil {
