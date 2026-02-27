@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 	"web-scrapper/model"
 
 	"github.com/lib/pq"
@@ -20,7 +21,7 @@ func NewUserRepository(DB *sql.DB) *UserRepository {
 }
 
 func (usr *UserRepository) CreateUser(user model.User) (model.User, error) {
-	query := `INSERT INTO users (user_name, email, user_password, cellphone, tax, plan_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, user_name, email`
+	query := `INSERT INTO users (user_name, email, user_password, cellphone, tax, plan_id, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, user_name, email`
 	queryPrepare, err := usr.db.Prepare(query)
 	if err != nil {
 		return model.User{}, fmt.Errorf("error to prepare database query: %w", err)
@@ -28,7 +29,7 @@ func (usr *UserRepository) CreateUser(user model.User) (model.User, error) {
 	defer queryPrepare.Close()
 
 	var created model.User
-	err = queryPrepare.QueryRow(user.Name, user.Email, user.Password, user.Cellphone, user.Tax, user.PlanID).Scan(
+	err = queryPrepare.QueryRow(user.Name, user.Email, user.Password, user.Cellphone, user.Tax, user.PlanID, user.ExpiresAt).Scan(
 		&created.Id,
 		&created.Name,
 		&created.Email,
@@ -44,10 +45,11 @@ func (usr *UserRepository) CreateUser(user model.User) (model.User, error) {
 func (usr *UserRepository) GetUserByEmail(userEmail string) (model.User, error) {
 	query := `
         SELECT u.id, u.user_name, u.email, u.user_password, u.tax, u.cellphone, u.is_admin, u.curriculum_id,
+               u.expires_at, u.deleted_at,
                p.id, p.name, p.price, p.max_sites, p.max_ai_analyses, p.features
         FROM users u
         LEFT JOIN plans p ON u.plan_id = p.id
-        WHERE u.email = $1`
+        WHERE u.email = $1 AND u.deleted_at IS NULL`
 	queryPrepare, err := usr.db.Prepare(query)
 	if err != nil {
 		return model.User{}, fmt.Errorf("error to prepare database query: %w", err)
@@ -62,6 +64,8 @@ func (usr *UserRepository) GetUserByEmail(userEmail string) (model.User, error) 
 	var planMaxSites sql.NullInt64
 	var planMaxAI sql.NullInt64
 	var features pq.StringArray
+	var expiresAt sql.NullTime
+	var deletedAt sql.NullTime
 
 	err = queryPrepare.QueryRow(userEmail).Scan(
 		&userToReturn.Id,
@@ -72,6 +76,8 @@ func (usr *UserRepository) GetUserByEmail(userEmail string) (model.User, error) 
 		&userToReturn.Cellphone,
 		&userToReturn.IsAdmin,
 		&userToReturn.CurriculumId,
+		&expiresAt,
+		&deletedAt,
 		&planID,
 		&planName,
 		&planPrice,
@@ -84,6 +90,13 @@ func (usr *UserRepository) GetUserByEmail(userEmail string) (model.User, error) 
 			return model.User{}, nil
 		}
 		return model.User{}, fmt.Errorf("error to get user from database: %w", err)
+	}
+
+	if expiresAt.Valid {
+		userToReturn.ExpiresAt = &expiresAt.Time
+	}
+	if deletedAt.Valid {
+		userToReturn.DeletedAt = &deletedAt.Time
 	}
 
 	if planID.Valid {
@@ -104,10 +117,11 @@ func (usr *UserRepository) GetUserByEmail(userEmail string) (model.User, error) 
 func (usr *UserRepository) GetUserById(Id int) (model.User, error) {
 	query := `
         SELECT u.id, u.user_name, u.email, u.user_password, u.tax, u.cellphone, u.is_admin, u.curriculum_id,
+               u.expires_at, u.deleted_at,
                p.id, p.name, p.price, p.max_sites, p.max_ai_analyses, p.features
         FROM users u
         LEFT JOIN plans p ON u.plan_id = p.id
-        WHERE u.id = $1`
+        WHERE u.id = $1 AND u.deleted_at IS NULL`
 
 	queryPrepare, err := usr.db.Prepare(query)
 	if err != nil {
@@ -123,6 +137,8 @@ func (usr *UserRepository) GetUserById(Id int) (model.User, error) {
 	var planMaxSites sql.NullInt64
 	var planMaxAI sql.NullInt64
 	var features pq.StringArray
+	var expiresAt sql.NullTime
+	var deletedAt sql.NullTime
 
 	err = queryPrepare.QueryRow(Id).Scan(
 		&userToReturn.Id,
@@ -133,6 +149,8 @@ func (usr *UserRepository) GetUserById(Id int) (model.User, error) {
 		&userToReturn.Cellphone,
 		&userToReturn.IsAdmin,
 		&userToReturn.CurriculumId,
+		&expiresAt,
+		&deletedAt,
 		&planID,
 		&planName,
 		&planPrice,
@@ -142,6 +160,13 @@ func (usr *UserRepository) GetUserById(Id int) (model.User, error) {
 	)
 	if err != nil {
 		return model.User{}, fmt.Errorf("error to get user from database: %w", err)
+	}
+
+	if expiresAt.Valid {
+		userToReturn.ExpiresAt = &expiresAt.Time
+	}
+	if deletedAt.Valid {
+		userToReturn.DeletedAt = &deletedAt.Time
 	}
 
 	if planID.Valid {
@@ -209,4 +234,26 @@ func (usr *UserRepository) GetUserBasicInfo(userID int) (string, string, error) 
 		return "", "", fmt.Errorf("error fetching basic info for user %d: %w", userID, err)
 	}
 	return name, email, nil
+}
+
+func (usr *UserRepository) SoftDeleteUser(userId int) error {
+	query := `UPDATE users SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
+	result, err := usr.db.Exec(query, userId)
+	if err != nil {
+		return fmt.Errorf("error soft-deleting user %d: %w", userId, err)
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("user %d not found or already deleted", userId)
+	}
+	return nil
+}
+
+func (usr *UserRepository) UpdateExpiresAt(userId int, expiresAt time.Time) error {
+	query := `UPDATE users SET expires_at = $1 WHERE id = $2`
+	_, err := usr.db.Exec(query, expiresAt, userId)
+	if err != nil {
+		return fmt.Errorf("error updating expires_at for user %d: %w", userId, err)
+	}
+	return nil
 }

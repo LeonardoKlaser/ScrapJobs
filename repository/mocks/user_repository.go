@@ -1,6 +1,7 @@
 package mocks
 
 import (
+	"time"
 	"web-scrapper/model"
 
 	"github.com/stretchr/testify/mock"
@@ -43,4 +44,14 @@ func (m *MockUserRepository) CheckUserExists(email string, tax string) (bool, bo
 func (m *MockUserRepository) GetUserBasicInfo(userID int) (string, string, error) {
 	args := m.Called(userID)
 	return args.String(0), args.String(1), args.Error(2)
+}
+
+func (m *MockUserRepository) SoftDeleteUser(userId int) error {
+	args := m.Called(userId)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) UpdateExpiresAt(userId int, expiresAt time.Time) error {
+	args := m.Called(userId, expiresAt)
+	return args.Error(0)
 }

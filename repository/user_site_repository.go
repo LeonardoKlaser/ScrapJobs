@@ -206,7 +206,7 @@ func (usr *UserSiteRepository) UpdateUserSiteFilters(userId int, siteId int, fil
 // The query is unbounded but acceptable: user count scales with paid subscriptions
 // (expected <10k). If scale becomes a concern, add LIMIT/OFFSET pagination.
 func (dep *UserSiteRepository) GetActiveUserIDs() ([]int, error) {
-	query := `SELECT DISTINCT user_id FROM user_sites ORDER BY user_id`
+	query := `SELECT DISTINCT us.user_id FROM user_sites us INNER JOIN users u ON us.user_id = u.id WHERE u.expires_at > NOW() AND u.deleted_at IS NULL ORDER BY us.user_id`
 
 	rows, err := dep.connection.Query(query)
 	if err != nil {

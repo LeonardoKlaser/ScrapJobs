@@ -1,6 +1,9 @@
 package interfaces
 
-import "web-scrapper/model"
+import (
+	"time"
+	"web-scrapper/model"
+)
 
 type UserRepositoryInterface interface {
 	CreateUser(user model.User) (model.User, error)
@@ -10,4 +13,6 @@ type UserRepositoryInterface interface {
 	UpdateUserPassword(userId int, hashedPassword string) error
 	CheckUserExists(email string, tax string) (bool, bool, error)
 	GetUserBasicInfo(userID int) (string, string, error)
+	SoftDeleteUser(userId int) error
+	UpdateExpiresAt(userId int, expiresAt time.Time) error
 }
