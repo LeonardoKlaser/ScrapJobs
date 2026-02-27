@@ -326,3 +326,46 @@ func (adapter *SESSenderAdapter) SendWelcomeEmail(ctx context.Context, userEmail
 
 	return adapter.mailSender.SendEmail(ctx, userEmail, subject, bodyText, bodyHtml)
 }
+
+func generatePasswordResetEmailHTML(userName, resetLink string) (string, error) {
+	const templateStr = `
+    <!DOCTYPE html><html><head><meta charset="UTF-8"><style>/* Estilos aqui */
+        .button { background-color: #28a745; color: white; padding: 12px 25px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; font-weight: bold; }
+    </style></head>
+    <body><h2>Olá {{.UserName}},</h2>
+    <p>Recebemos uma solicitação para redefinir sua senha.</p>
+    <p>Clique no botão abaixo para criar uma nova senha:</p>
+    <p style="text-align: center; margin-top: 25px; margin-bottom: 25px;">
+        <a href="{{.ResetLink}}" class="button">Redefinir Senha</a>
+    </p>
+    <p>Este link é válido por 1 hora. Se você não solicitou esta redefinição, ignore este e-mail.</p>
+    <p>Atenciosamente,<br/>Equipe ScrapJobs</p></body></html>`
+
+	data := struct {
+		UserName  string
+		ResetLink string
+	}{UserName: userName, ResetLink: resetLink}
+
+	tmpl, err := template.New("passwordResetEmail").Parse(templateStr)
+	if err != nil {
+		return "", err
+	}
+	var body bytes.Buffer
+	if err := tmpl.Execute(&body, data); err != nil {
+		return "", err
+	}
+	return body.String(), nil
+}
+
+func (adapter *SESSenderAdapter) SendPasswordResetEmail(ctx context.Context, email, userName, resetLink string) error {
+	subject := "ScrapJobs — Redefinição de Senha"
+
+	bodyHTML, err := generatePasswordResetEmailHTML(userName, resetLink)
+	if err != nil {
+		return fmt.Errorf("erro ao gerar corpo HTML do email de redefinição de senha: %w", err)
+	}
+
+	bodyText := fmt.Sprintf("Olá %s, clique no link para redefinir sua senha: %s (válido por 1 hora)", userName, resetLink)
+
+	return adapter.mailSender.SendEmail(ctx, email, subject, bodyText, bodyHTML)
+}

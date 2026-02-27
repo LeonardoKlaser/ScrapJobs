@@ -203,6 +203,7 @@ func main() {
 	requestedSiteRepository := repository.NewRequestedSiteRepository(dbConnection)
 	notificationRepository := repository.NewNotificationRepository(dbConnection)
 	jobRepository := repository.NewJobRepository(dbConnection)
+	passwordResetRepo := repository.NewPasswordResetRepository(dbConnection)
 
 	// Usecases
 	userUsecase := usecase.NewUserUsercase(userRepository)
@@ -226,6 +227,8 @@ func main() {
 	requestedSiteController := controller.NewRequestedSiteController(requestedSiteUsecase)
 	paymentController := controller.NewPaymentController(paymentUsecase, emailService, asynqClient)
 	notificationController := controller.NewNotificationController(notificationUsecase)
+
+	passwordResetController := controller.NewPasswordResetController(passwordResetRepo, userRepository, emailService)
 
 	adminDashboardController := controller.NewAdminDashboardController(dashboardRepository)
 
@@ -254,6 +257,18 @@ func main() {
 		publicRoutes.GET("/api/plans", planController.GetAllPlans)
 		publicRoutes.POST("/api/payments/create/:planId", paymentController.CreatePayment)
 		publicRoutes.POST("/api/webhooks/abacatepay", utils.WebhookAuthMiddleware(), paymentController.HandleWebhook)
+	}
+
+	// Forgot/reset password — rate limiter próprio, mais restritivo
+	forgotPasswordLimiter := rateLimiterFn(3, 60)
+	forgotPasswordRoutes := server.Group("/")
+	forgotPasswordRoutes.Use(logging.GinMiddleware())
+	forgotPasswordRoutes.Use(metrics.GinPrometheus())
+	forgotPasswordRoutes.Use(csrfMiddleware)
+	forgotPasswordRoutes.Use(forgotPasswordLimiter)
+	{
+		forgotPasswordRoutes.POST("/api/forgot-password", passwordResetController.ForgotPassword)
+		forgotPasswordRoutes.POST("/api/reset-password", passwordResetController.ResetPassword)
 	}
 
 	// Checkout validation — rate limiter próprio, separado do publicRoutes para não herdar o 5/min

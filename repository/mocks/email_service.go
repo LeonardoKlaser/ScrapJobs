@@ -25,3 +25,8 @@ func (m *MockEmailService) SendNewJobsEmail(ctx context.Context, userEmail strin
 	args := m.Called(ctx, userEmail, userName, jobs)
 	return args.Error(0)
 }
+
+func (m *MockEmailService) SendPasswordResetEmail(ctx context.Context, email, userName, resetLink string) error {
+	args := m.Called(ctx, email, userName, resetLink)
+	return args.Error(0)
+}
