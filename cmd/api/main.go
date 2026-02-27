@@ -230,6 +230,8 @@ func main() {
 
 	passwordResetController := controller.NewPasswordResetController(passwordResetRepo, userRepository, emailService)
 
+	accountController := controller.NewAccountController(userRepository)
+
 	adminDashboardController := controller.NewAdminDashboardController(dashboardRepository)
 
 	// Analysis Controller (análise manual de IA)
@@ -292,6 +294,7 @@ func main() {
 		privateRoutes.POST("/api/logout", userController.Logout)
 		privateRoutes.PATCH("/api/user/profile", userController.UpdateProfile)
 		privateRoutes.POST("/api/user/change-password", userController.ChangePassword)
+		privateRoutes.DELETE("/api/user/account", accountController.DeleteAccount)
 	}
 
 	// Routes that require active subscription
@@ -314,6 +317,7 @@ func main() {
 			analyzeRateLimiter := rateLimiterFn(3, 60)
 			subscribedRoutes.POST("/api/analyze-job", analyzeRateLimiter, analysisController.AnalyzeJob)
 			subscribedRoutes.POST("/api/analyze-job/send-email", analyzeRateLimiter, analysisController.SendAnalysisEmail)
+			subscribedRoutes.GET("/api/analyze-job/history", analysisController.GetAnalysisHistory)
 		}
 	}
 

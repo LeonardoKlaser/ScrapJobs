@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"encoding/json"
 	"net/http"
+	"strconv"
 	"web-scrapper/interfaces"
 	"web-scrapper/logging"
 	"web-scrapper/model"
@@ -145,9 +147,10 @@ func (ac *AnalysisController) AnalyzeJob(ctx *gin.Context) {
 		return
 	}
 
-	// Registrar notificação (a análise já foi feita, então logamos o erro mas retornamos o resultado)
-	if err := ac.notificationRepo.InsertNewNotification(job.ID, user.Id); err != nil {
-		logging.Logger.Error().Err(err).Int("job_id", job.ID).Int("user_id", user.Id).Msg("Erro ao registrar notificação de análise")
+	// Registrar notificação com resultado da análise
+	analysisJSON, _ := json.Marshal(analysis)
+	if err := ac.notificationRepo.InsertNotificationWithAnalysis(job.ID, user.Id, selectedCurriculum.Id, analysisJSON); err != nil {
+		logging.Logger.Error().Err(err).Int("job_id", job.ID).Int("user_id", user.Id).Msg("Erro ao registrar análise")
 	}
 
 	ctx.JSON(http.StatusOK, analysis)
@@ -210,4 +213,50 @@ func (ac *AnalysisController) SendAnalysisEmail(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "Email enviado com sucesso"})
+}
+
+func (ac *AnalysisController) GetAnalysisHistory(ctx *gin.Context) {
+	userInterface, exists := ctx.Get("user")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
+		return
+	}
+	user, ok := userInterface.(model.User)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Tipo de usuário inválido"})
+		return
+	}
+
+	jobIDStr := ctx.Query("job_id")
+	if jobIDStr == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "job_id é obrigatório"})
+		return
+	}
+	jobID, err := strconv.Atoi(jobIDStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "job_id inválido"})
+		return
+	}
+
+	result, cvID, err := ac.notificationRepo.GetAnalysisHistory(user.Id, jobID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar histórico"})
+		return
+	}
+	if result == nil {
+		ctx.JSON(http.StatusOK, gin.H{"has_analysis": false})
+		return
+	}
+
+	var analysis model.ResumeAnalysis
+	if err := json.Unmarshal(result, &analysis); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao processar análise"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"has_analysis":  true,
+		"analysis":      analysis,
+		"curriculum_id": cvID,
+	})
 }

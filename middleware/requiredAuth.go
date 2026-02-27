@@ -71,6 +71,11 @@ func (m *Middleware) RequireAuth(ctx *gin.Context) {
 		return
 	}
 
+	if user.DeletedAt != nil {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Conta desativada"})
+		return
+	}
+
 	ctx.Set("user", user)
 
 	ctx.Next()
