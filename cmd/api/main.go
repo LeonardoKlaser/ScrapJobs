@@ -220,7 +220,7 @@ func main() {
 	userSiteController := controller.NewUserSiteController(userSiteUsecase)
 	siteCareerController := controller.NewSiteCareerController(siteCareerUsecase, userSiteRepository)
 	healthController := controller.NewHealthController(dbConnection, asynqClient, redisClient)
-	checkAuthController := controller.NewCheckAuthController()
+	checkAuthController := controller.NewCheckAuthController(userSiteRepository)
 	dashboardController := controller.NewDashboardDataController(dashboardRepository)
 	planController := controller.NewPlanController(planUsecase)
 	requestedSiteController := controller.NewRequestedSiteController(requestedSiteUsecase)
@@ -269,35 +269,36 @@ func main() {
 
 	privateRateLimiter := rateLimiterFn(15, 60)
 
+	// Routes accessible even when subscription is expired
 	privateRoutes := server.Group("/")
-	privateRoutes.Use(logging.GinMiddleware())
-	privateRoutes.Use(metrics.GinPrometheus())
-	privateRoutes.Use(csrfMiddleware)
-	privateRoutes.Use(middlewareAuth.RequireAuth)
+	privateRoutes.Use(logging.GinMiddleware(), metrics.GinPrometheus(), csrfMiddleware, middlewareAuth.RequireAuth)
 	{
 		privateRoutes.GET("api/me", checkAuthController.CheckAuthUser)
-		privateRoutes.GET("api/dashboard", dashboardController.GetDashboardDataByUserId)
-		privateRoutes.GET("api/dashboard/jobs", dashboardController.GetLatestJobs)
-		privateRoutes.GET("api/getSites", siteCareerController.GetAllSites)
-		privateRoutes.GET("api/notifications", notificationController.GetNotificationsByUser)
-	}
-	privateRoutes.Use(privateRateLimiter)
-	{
-		privateRoutes.POST("/curriculum", curriculumController.CreateCurriculum)
-		privateRoutes.PUT("/curriculum/:id", curriculumController.UpdateCurriculum)
-		privateRoutes.DELETE("/curriculum/:id", curriculumController.DeleteCurriculum)
-		privateRoutes.POST("/userSite", userSiteController.InsertUserSite)
-		privateRoutes.DELETE("/userSite/:siteId", userSiteController.DeleteUserSite)
-		privateRoutes.PATCH("/userSite/:siteId", userSiteController.UpdateUserSiteFilters)
-		privateRoutes.GET("/curriculum", curriculumController.GetCurriculumByUserId)
 		privateRoutes.POST("/api/logout", userController.Logout)
 		privateRoutes.PATCH("/api/user/profile", userController.UpdateProfile)
 		privateRoutes.POST("/api/user/change-password", userController.ChangePassword)
-		privateRoutes.POST("api/request-site", requestedSiteController.Create)
+	}
+
+	// Routes that require active subscription
+	subscribedRoutes := server.Group("/")
+	subscribedRoutes.Use(logging.GinMiddleware(), metrics.GinPrometheus(), csrfMiddleware, middlewareAuth.RequireAuth, middleware.RequireActiveSubscription(), privateRateLimiter)
+	{
+		subscribedRoutes.GET("api/dashboard", dashboardController.GetDashboardDataByUserId)
+		subscribedRoutes.GET("api/dashboard/jobs", dashboardController.GetLatestJobs)
+		subscribedRoutes.GET("api/getSites", siteCareerController.GetAllSites)
+		subscribedRoutes.GET("api/notifications", notificationController.GetNotificationsByUser)
+		subscribedRoutes.POST("/curriculum", curriculumController.CreateCurriculum)
+		subscribedRoutes.PUT("/curriculum/:id", curriculumController.UpdateCurriculum)
+		subscribedRoutes.DELETE("/curriculum/:id", curriculumController.DeleteCurriculum)
+		subscribedRoutes.GET("/curriculum", curriculumController.GetCurriculumByUserId)
+		subscribedRoutes.POST("/userSite", userSiteController.InsertUserSite)
+		subscribedRoutes.DELETE("/userSite/:siteId", userSiteController.DeleteUserSite)
+		subscribedRoutes.PATCH("/userSite/:siteId", userSiteController.UpdateUserSiteFilters)
+		subscribedRoutes.POST("api/request-site", requestedSiteController.Create)
 		if analysisController != nil {
 			analyzeRateLimiter := rateLimiterFn(3, 60)
-			privateRoutes.POST("/api/analyze-job", analyzeRateLimiter, analysisController.AnalyzeJob)
-			privateRoutes.POST("/api/analyze-job/send-email", analyzeRateLimiter, analysisController.SendAnalysisEmail)
+			subscribedRoutes.POST("/api/analyze-job", analyzeRateLimiter, analysisController.AnalyzeJob)
+			subscribedRoutes.POST("/api/analyze-job/send-email", analyzeRateLimiter, analysisController.SendAnalysisEmail)
 		}
 	}
 

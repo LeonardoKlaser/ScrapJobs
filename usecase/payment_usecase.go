@@ -115,6 +115,7 @@ func (uc *PaymentUsecase) CompleteRegistration(ctx context.Context, pendingRegis
 	}
 
 	log.Info().Str("email", pendingData.Email).Msg("Tentando criar usuário no banco de dados")
+	expiresAt := time.Now().Add(30 * 24 * time.Hour)
 	userToCreate := model.User{
 		Name:      pendingData.Name,
 		Email:     pendingData.Email,
@@ -122,6 +123,7 @@ func (uc *PaymentUsecase) CompleteRegistration(ctx context.Context, pendingRegis
 		Tax:       &pendingData.Tax,
 		Cellphone: &pendingData.Cellphone,
 		PlanID:    &pendingData.PlanID,
+		ExpiresAt: &expiresAt,
 	}
 
 	newUser, err := uc.userUsecase.CreateUserWithHashedPassword(userToCreate)
@@ -132,6 +134,12 @@ func (uc *PaymentUsecase) CompleteRegistration(ctx context.Context, pendingRegis
 			if findErr != nil {
 				log.Error().Err(findErr).Str("email", pendingData.Email).Msg("Erro ao buscar usuário existente após erro de duplicidade.")
 				return nil, findErr
+			}
+
+			// Renew subscription for existing user
+			newExpiry := time.Now().Add(30 * 24 * time.Hour)
+			if updateErr := uc.userUsecase.UpdateExpiresAt(existingUser.Id, newExpiry); updateErr != nil {
+				log.Error().Err(updateErr).Int("user_id", existingUser.Id).Msg("Erro ao renovar assinatura do usuário")
 			}
 
 			if delErr := redisClient.Del(ctx, redisKey).Err(); delErr != nil {

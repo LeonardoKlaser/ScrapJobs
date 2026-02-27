@@ -2,17 +2,19 @@ package controller
 
 import (
 	"net/http"
+	"web-scrapper/interfaces"
 	"web-scrapper/model"
 
 	"github.com/gin-gonic/gin"
 )
 
 type CheckAuthController struct {
-	
+	userSiteRepo interfaces.UserSiteRepositoryInterface
 }
 
-func NewCheckAuthController () CheckAuthController {
+func NewCheckAuthController(userSiteRepo interfaces.UserSiteRepositoryInterface) CheckAuthController {
 	return CheckAuthController{
+		userSiteRepo: userSiteRepo,
 	}
 }
 
@@ -26,7 +28,7 @@ func NewCheckAuthController () CheckAuthController {
 // @Failure 500 {object} model.ErrorResponse
 // @Security CookieAuth
 // @Router /api/me [get]
-func (controller *CheckAuthController) CheckAuthUser( ctx *gin.Context){
+func (controller *CheckAuthController) CheckAuthUser(ctx *gin.Context) {
 	userInterface, exists := ctx.Get("user")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
@@ -39,5 +41,17 @@ func (controller *CheckAuthController) CheckAuthUser( ctx *gin.Context){
 		return
 	}
 
-	ctx.JSON(http.StatusOK, user)
+	siteCount, _ := controller.userSiteRepo.GetUserSiteCount(user.Id)
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"id":                    user.Id,
+		"user_name":             user.Name,
+		"email":                 user.Email,
+		"tax":                   user.Tax,
+		"cellphone":             user.Cellphone,
+		"is_admin":              user.IsAdmin,
+		"plan":                  user.Plan,
+		"expires_at":            user.ExpiresAt,
+		"monitored_sites_count": siteCount,
+	})
 }

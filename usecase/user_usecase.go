@@ -3,6 +3,7 @@ package usecase
 import (
 	"errors"
 	"fmt"
+	"time"
 	"web-scrapper/interfaces"
 	"web-scrapper/model"
 
@@ -82,6 +83,10 @@ func (usr *UserUsecase) UpdateUserProfile(userId int, name string, cellphone *st
 
 func (usr *UserUsecase) CheckUserExists(email, tax string) (bool, bool, error) {
 	return usr.repository.CheckUserExists(email, tax)
+}
+
+func (usr *UserUsecase) UpdateExpiresAt(userId int, expiresAt time.Time) error {
+	return usr.repository.UpdateExpiresAt(userId, expiresAt)
 }
 
 func (usr *UserUsecase) ChangePassword(userId int, currentHash, oldPassword, newPassword string) error {
