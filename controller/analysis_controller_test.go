@@ -203,9 +203,9 @@ func TestAnalysisController_AnalyzeJob(t *testing.T) {
 		mockNotification.On("GetMonthlyAnalysisCount", 1).Return(5, nil).Once()
 		mockJob.On("GetJobByID", 10).Return(job, nil).Once()
 		mockAnalysis.On("Analyze", mock.Anything, curriculum, *job).Return(analysis, nil).Once()
-		mockNotification.On("InsertNewNotification", 10, 1).Return(nil).Once()
+		mockNotification.On("InsertNotificationWithAnalysis", 10, 1, 1, mock.Anything).Return(nil).Once()
 
-		body, _ := json.Marshal(map[string]int{"job_id": 10})
+		body, _ := json.Marshal(map[string]int{"job_id": 10, "curriculum_id": 1})
 		w := httptest.NewRecorder()
 		_, router := gin.CreateTestContext(w)
 

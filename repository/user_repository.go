@@ -202,15 +202,15 @@ func (usr *UserRepository) UpdateUserProfile(userId int, name string, cellphone 
 
 func (usr *UserRepository) CheckUserExists(email string, tax string) (bool, bool, error) {
 	query := `SELECT
-		EXISTS(SELECT 1 FROM users WHERE email = $1),
-		EXISTS(SELECT 1 FROM users WHERE tax = $2 AND tax IS NOT NULL AND tax != '')`
+		EXISTS(SELECT 1 FROM users WHERE email = $1 AND deleted_at IS NULL),
+		EXISTS(SELECT 1 FROM users WHERE tax = $2 AND tax IS NOT NULL AND tax != '' AND deleted_at IS NULL)`
 	var emailExists, taxExists bool
 	err := usr.db.QueryRow(query, email, tax).Scan(&emailExists, &taxExists)
 	return emailExists, taxExists, err
 }
 
 func (usr *UserRepository) UpdateUserPassword(userId int, hashedPassword string) error {
-	query := `UPDATE users SET user_password = $1 WHERE id = $2`
+	query := `UPDATE users SET user_password = $1 WHERE id = $2 AND deleted_at IS NULL`
 	queryPrepare, err := usr.db.Prepare(query)
 	if err != nil {
 		return fmt.Errorf("error to prepare database query: %w", err)
@@ -226,7 +226,7 @@ func (usr *UserRepository) UpdateUserPassword(userId int, hashedPassword string)
 }
 
 func (usr *UserRepository) GetUserBasicInfo(userID int) (string, string, error) {
-	query := `SELECT user_name, email FROM users WHERE id = $1`
+	query := `SELECT user_name, email FROM users WHERE id = $1 AND deleted_at IS NULL`
 
 	var name, email string
 	err := usr.db.QueryRow(query, userID).Scan(&name, &email)

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"os"
 	"web-scrapper/interfaces"
 	"web-scrapper/model"
 
@@ -57,6 +58,7 @@ func (ac *AccountController) DeleteAccount(ctx *gin.Context) {
 	}
 
 	// Clear auth cookie
-	ctx.SetCookie("Authorization", "", -1, "/", "", false, true)
+	isSecure := os.Getenv("GIN_MODE") == "release"
+	ctx.SetCookie("Authorization", "", -1, "/", "", isSecure, true)
 	ctx.JSON(http.StatusOK, gin.H{"message": "Conta excluída com sucesso"})
 }
