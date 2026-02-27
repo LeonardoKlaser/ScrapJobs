@@ -138,9 +138,9 @@ func (c *CurriculumController) UpdateCurriculum(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, res)
 }
 
-// SetActiveCurriculum godoc
-// @Summary Ativar curriculo
-// @Description Define um curriculo como ativo para o usuario
+// DeleteCurriculum godoc
+// @Summary Excluir curriculo
+// @Description Exclui um curriculo do usuario (minimo 1 deve permanecer)
 // @Tags Curriculum
 // @Produce json
 // @Param id path int true "ID do curriculo"
@@ -149,31 +149,31 @@ func (c *CurriculumController) UpdateCurriculum(ctx *gin.Context) {
 // @Failure 401 {object} model.ErrorResponse
 // @Failure 500 {object} model.ErrorResponse
 // @Security CookieAuth
-// @Router /curriculum/{id}/active [patch]
-func (c *CurriculumController) SetActiveCurriculum(ctx *gin.Context) {
+// @Router /curriculum/{id} [delete]
+func (c *CurriculumController) DeleteCurriculum(ctx *gin.Context) {
 	userInterface, exists := ctx.Get("user")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
 		return
 	}
-
 	user, ok := userInterface.(model.User)
 	if !ok {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Tipo de usuário inválido no contexto"})
 		return
 	}
-
 	curriculumID, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "ID de currículo inválido"})
 		return
 	}
-
-	err = c.curriculumUsecase.SetActiveCurriculum(user.Id, curriculumID)
+	err = c.curriculumUsecase.DeleteCurriculum(user.Id, curriculumID)
 	if err != nil {
+		if err.Error() == "não é possível excluir o único currículo" {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	ctx.JSON(http.StatusOK, gin.H{"message": "Currículo ativado com sucesso"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "Currículo excluído com sucesso"})
 }

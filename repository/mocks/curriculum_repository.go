@@ -25,7 +25,12 @@ func (m *MockCurriculumRepository) UpdateCurriculum(curriculum model.Curriculum)
 	return args.Get(0).(model.Curriculum), args.Error(1)
 }
 
-func (m *MockCurriculumRepository) SetActiveCurriculum(userID int, curriculumID int) error {
-	args := m.Called(userID, curriculumID)
+func (m *MockCurriculumRepository) DeleteCurriculum(userId int, curriculumId int) error {
+	args := m.Called(userId, curriculumId)
 	return args.Error(0)
+}
+
+func (m *MockCurriculumRepository) CountCurriculumsByUserID(userId int) (int, error) {
+	args := m.Called(userId)
+	return args.Int(0), args.Error(1)
 }

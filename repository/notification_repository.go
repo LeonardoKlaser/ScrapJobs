@@ -223,3 +223,31 @@ func (db *NotificationRepository) BulkUpdateNotificationStatus(userID int, jobID
 	}
 	return nil
 }
+
+func (db *NotificationRepository) InsertNotificationWithAnalysis(jobId int, userId int, curriculumId int, analysisResult []byte) error {
+	query := `INSERT INTO job_notifications (user_id, job_id, curriculum_id, analysis_result, status) VALUES ($1, $2, $3, $4, 'SENT') ON CONFLICT (user_id, job_id) DO UPDATE SET analysis_result = $4, curriculum_id = $3, notified_at = NOW()`
+	_, err := db.connection.Exec(query, userId, jobId, curriculumId, analysisResult)
+	if err != nil {
+		return fmt.Errorf("error inserting notification with analysis: %w", err)
+	}
+	return nil
+}
+
+func (db *NotificationRepository) GetAnalysisHistory(userId int, jobId int) ([]byte, *int, error) {
+	query := `SELECT analysis_result, curriculum_id FROM job_notifications WHERE user_id = $1 AND job_id = $2 AND analysis_result IS NOT NULL ORDER BY notified_at DESC LIMIT 1`
+	var result []byte
+	var curriculumID sql.NullInt64
+	err := db.connection.QueryRow(query, userId, jobId).Scan(&result, &curriculumID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil, nil
+		}
+		return nil, nil, fmt.Errorf("error fetching analysis history: %w", err)
+	}
+	var cvID *int
+	if curriculumID.Valid {
+		id := int(curriculumID.Int64)
+		cvID = &id
+	}
+	return result, cvID, nil
+}

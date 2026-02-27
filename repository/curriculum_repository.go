@@ -73,7 +73,7 @@ func (cur *CurriculumRepository) CreateCurriculum(curriculum model.Curriculum) (
 func (cur *CurriculumRepository) FindCurriculumByUserID(userID int) ([]model.Curriculum, error) {
 	var curriculumList []model.Curriculum
 
-	query := `SELECT id, title, is_active, experience, education, skills, languages, summary FROM curriculum WHERE user_id = $1`
+	query := `SELECT id, title, experience, education, skills, languages, summary FROM curriculum WHERE user_id = $1`
 	rows, err := cur.connection.Query(query, userID)
 
 	if err != nil{
@@ -87,7 +87,6 @@ func (cur *CurriculumRepository) FindCurriculumByUserID(userID int) ([]model.Cur
 		err = rows.Scan(
 			&curriculum.Id,
 			&curriculum.Title,
-			&curriculum.IsActive,
 			&experienceJSON,
 			&educationJSON,
 			&curriculum.Skills,
@@ -143,26 +142,25 @@ func (cur *CurriculumRepository) UpdateCurriculum(curriculum model.Curriculum) (
 	return curriculum, nil
 }
 
-// SET A CURRICULUM AS ACTIVE
-func (cur *CurriculumRepository) SetActiveCurriculum(userID int, curriculumID int) error {
-	tx, err := cur.connection.Begin()
+func (cur *CurriculumRepository) DeleteCurriculum(userId int, curriculumId int) error {
+	query := `DELETE FROM curriculum WHERE id = $1 AND user_id = $2`
+	result, err := cur.connection.Exec(query, curriculumId, userId)
 	if err != nil {
-		return fmt.Errorf("error starting transaction: %w", err)
+		return fmt.Errorf("error deleting curriculum: %w", err)
 	}
-
-	_, err = tx.Exec("UPDATE curriculum SET is_active = FALSE WHERE user_id = $1", userID)
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("error deactivating other curriculums: %w", err)
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("curriculum not found or does not belong to user")
 	}
-
-	_, err = tx.Exec("UPDATE curriculum SET is_active = TRUE WHERE id = $1 AND user_id = $2", curriculumID, userID)
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("error activating curriculum: %w", err)
-	}
-
-	return tx.Commit()
+	return nil
 }
 
-
+func (cur *CurriculumRepository) CountCurriculumsByUserID(userId int) (int, error) {
+	query := `SELECT COUNT(*) FROM curriculum WHERE user_id = $1`
+	var count int
+	err := cur.connection.QueryRow(query, userId).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("error counting curriculums: %w", err)
+	}
+	return count, nil
+}

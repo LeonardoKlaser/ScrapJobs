@@ -12,4 +12,6 @@ type NotificationRepositoryInterface interface {
 	GetPendingJobsForUser(userID int) ([]model.NotificationWithJob, error)
 	BulkUpdateNotificationStatus(userID int, jobIDs []int, status string) error
 	GetUnnotifiedJobsForUser(userID int) ([]model.JobWithFilters, error)
+	InsertNotificationWithAnalysis(jobId int, userId int, curriculumId int, analysisResult []byte) error
+	GetAnalysisHistory(userId int, jobId int) ([]byte, *int, error)
 }

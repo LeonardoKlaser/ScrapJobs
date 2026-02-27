@@ -285,7 +285,7 @@ func main() {
 	{
 		privateRoutes.POST("/curriculum", curriculumController.CreateCurriculum)
 		privateRoutes.PUT("/curriculum/:id", curriculumController.UpdateCurriculum)
-		privateRoutes.PATCH("/curriculum/:id/active", curriculumController.SetActiveCurriculum)
+		privateRoutes.DELETE("/curriculum/:id", curriculumController.DeleteCurriculum)
 		privateRoutes.POST("/userSite", userSiteController.InsertUserSite)
 		privateRoutes.DELETE("/userSite/:siteId", userSiteController.DeleteUserSite)
 		privateRoutes.PATCH("/userSite/:siteId", userSiteController.UpdateUserSiteFilters)

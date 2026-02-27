@@ -54,3 +54,15 @@ func (m *MockNotificationRepository) GetUnnotifiedJobsForUser(userID int) ([]mod
 	args := m.Called(userID)
 	return args.Get(0).([]model.JobWithFilters), args.Error(1)
 }
+
+func (m *MockNotificationRepository) InsertNotificationWithAnalysis(jobId int, userId int, curriculumId int, analysisResult []byte) error {
+	args := m.Called(jobId, userId, curriculumId, analysisResult)
+	return args.Error(0)
+}
+
+func (m *MockNotificationRepository) GetAnalysisHistory(userId int, jobId int) ([]byte, *int, error) {
+	args := m.Called(userId, jobId)
+	result, _ := args.Get(0).([]byte)
+	cvID, _ := args.Get(1).(*int)
+	return result, cvID, args.Error(2)
+}

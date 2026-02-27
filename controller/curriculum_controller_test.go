@@ -133,25 +133,44 @@ func TestCurriculumController_UpdateCurriculum(t *testing.T) {
 	})
 }
 
-func TestCurriculumController_SetActiveCurriculum(t *testing.T) {
+func TestCurriculumController_DeleteCurriculum(t *testing.T) {
 	ctrl, mockRepo := setupCurriculumController()
 	user := model.User{Id: 1, Name: "Test", Email: "test@test.com"}
 
-	t.Run("should set active curriculum successfully", func(t *testing.T) {
-		mockRepo.On("SetActiveCurriculum", 1, 5).Return(nil).Once()
+	t.Run("should delete curriculum successfully", func(t *testing.T) {
+		mockRepo.On("CountCurriculumsByUserID", 1).Return(2, nil).Once()
+		mockRepo.On("DeleteCurriculum", 1, 5).Return(nil).Once()
 
 		w := httptest.NewRecorder()
 		_, router := gin.CreateTestContext(w)
 
-		router.PATCH("/curriculum/:id/active", func(c *gin.Context) {
+		router.DELETE("/curriculum/:id", func(c *gin.Context) {
 			setUserContext(c, user)
-			ctrl.SetActiveCurriculum(c)
+			ctrl.DeleteCurriculum(c)
 		})
 
-		req := httptest.NewRequest("PATCH", "/curriculum/5/active", nil)
+		req := httptest.NewRequest("DELETE", "/curriculum/5", nil)
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("should return 400 when only one curriculum", func(t *testing.T) {
+		mockRepo.On("CountCurriculumsByUserID", 1).Return(1, nil).Once()
+
+		w := httptest.NewRecorder()
+		_, router := gin.CreateTestContext(w)
+
+		router.DELETE("/curriculum/:id", func(c *gin.Context) {
+			setUserContext(c, user)
+			ctrl.DeleteCurriculum(c)
+		})
+
+		req := httptest.NewRequest("DELETE", "/curriculum/5", nil)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 		mockRepo.AssertExpectations(t)
 	})
 
@@ -159,12 +178,12 @@ func TestCurriculumController_SetActiveCurriculum(t *testing.T) {
 		w := httptest.NewRecorder()
 		_, router := gin.CreateTestContext(w)
 
-		router.PATCH("/curriculum/:id/active", func(c *gin.Context) {
+		router.DELETE("/curriculum/:id", func(c *gin.Context) {
 			setUserContext(c, user)
-			ctrl.SetActiveCurriculum(c)
+			ctrl.DeleteCurriculum(c)
 		})
 
-		req := httptest.NewRequest("PATCH", "/curriculum/abc/active", nil)
+		req := httptest.NewRequest("DELETE", "/curriculum/abc", nil)
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)

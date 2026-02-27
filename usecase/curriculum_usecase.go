@@ -1,8 +1,9 @@
 package usecase
 
 import (
-	"web-scrapper/model"
+	"fmt"
 	"web-scrapper/interfaces"
+	"web-scrapper/model"
 )
 
 
@@ -44,10 +45,13 @@ func (cur *CurriculumUsecase) UpdateCurriculum(curriculum model.Curriculum) (mod
 	return res, nil
 }
 
-func (cur *CurriculumUsecase) SetActiveCurriculum(userID int, curriculumID int) error {
-	err := cur.CurriculumRepository.SetActiveCurriculum(userID, curriculumID)
+func (cur *CurriculumUsecase) DeleteCurriculum(userId int, curriculumId int) error {
+	count, err := cur.CurriculumRepository.CountCurriculumsByUserID(userId)
 	if err != nil {
 		return err
 	}
-	return nil
+	if count <= 1 {
+		return fmt.Errorf("não é possível excluir o único currículo")
+	}
+	return cur.CurriculumRepository.DeleteCurriculum(userId, curriculumId)
 }

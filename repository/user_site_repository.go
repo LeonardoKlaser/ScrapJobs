@@ -24,18 +24,19 @@ func (dep *UserSiteRepository) GetUsersBySiteId(siteId int) ([]model.UserSiteCur
             I.id,
             I.user_name,
             I.email,
-			c.experience, 
-			c.education, 
-			c.skills, 
-			c.languages, 
+			c.experience,
+			c.education,
+			c.skills,
+			c.languages,
 			c.summary,
 			U.filters
         FROM
             users I
         INNER JOIN
             user_sites U ON I.id = U.user_id
-		LEFT JOIN
-			curriculum c ON I.id = c.user_id AND c.is_active = TRUE
+		LEFT JOIN LATERAL (
+			SELECT * FROM curriculum WHERE user_id = I.id ORDER BY id LIMIT 1
+		) c ON TRUE
         WHERE
             U.site_id = $1`
 	rows, err := dep.connection.Query(query, siteId)

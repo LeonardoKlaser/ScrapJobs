@@ -68,14 +68,12 @@ func TestAnalysisController_AnalyzeJob(t *testing.T) {
 		assert.Contains(t, resp["error"], "job_id")
 	})
 
-	t.Run("should return 400 when no active curriculum", func(t *testing.T) {
+	t.Run("should return 400 when no curriculum found", func(t *testing.T) {
 		ctrl, _, mockCurriculum, _, _, _, _ := setupAnalysisController()
 		user := model.User{Id: 1, Name: "Test", Email: "test@test.com"}
 
-		// Return curricula with none active
-		mockCurriculum.On("FindCurriculumByUserID", 1).Return([]model.Curriculum{
-			{Id: 1, Title: "CV 1", IsActive: false, UserID: 1},
-		}, nil).Once()
+		// Return empty curricula list
+		mockCurriculum.On("FindCurriculumByUserID", 1).Return([]model.Curriculum{}, nil).Once()
 
 		body, _ := json.Marshal(map[string]int{"job_id": 10})
 		w := httptest.NewRecorder()
@@ -94,7 +92,7 @@ func TestAnalysisController_AnalyzeJob(t *testing.T) {
 
 		var resp map[string]string
 		json.Unmarshal(w.Body.Bytes(), &resp)
-		assert.Contains(t, resp["error"], "currículo ativo")
+		assert.Contains(t, resp["error"], "currículo")
 		mockCurriculum.AssertExpectations(t)
 	})
 
@@ -103,7 +101,7 @@ func TestAnalysisController_AnalyzeJob(t *testing.T) {
 		user := model.User{Id: 1, Name: "Test", Email: "test@test.com"}
 
 		mockCurriculum.On("FindCurriculumByUserID", 1).Return([]model.Curriculum{
-			{Id: 1, Title: "CV 1", IsActive: true, UserID: 1},
+			{Id: 1, Title: "CV 1", UserID: 1},
 		}, nil).Once()
 		mockPlan.On("GetPlanByUserID", 1).Return(nil, nil).Once()
 
@@ -130,7 +128,7 @@ func TestAnalysisController_AnalyzeJob(t *testing.T) {
 		user := model.User{Id: 1, Name: "Test", Email: "test@test.com"}
 
 		mockCurriculum.On("FindCurriculumByUserID", 1).Return([]model.Curriculum{
-			{Id: 1, Title: "CV 1", IsActive: true, UserID: 1},
+			{Id: 1, Title: "CV 1", UserID: 1},
 		}, nil).Once()
 		mockPlan.On("GetPlanByUserID", 1).Return(&model.Plan{ID: 1, MaxAIAnalyses: 10}, nil).Once()
 		mockNotification.On("GetMonthlyAnalysisCount", 1).Return(10, nil).Once()
@@ -163,7 +161,7 @@ func TestAnalysisController_AnalyzeJob(t *testing.T) {
 		user := model.User{Id: 1, Name: "Test", Email: "test@test.com"}
 
 		mockCurriculum.On("FindCurriculumByUserID", 1).Return([]model.Curriculum{
-			{Id: 1, Title: "CV 1", IsActive: true, UserID: 1},
+			{Id: 1, Title: "CV 1", UserID: 1},
 		}, nil).Once()
 		mockPlan.On("GetPlanByUserID", 1).Return(&model.Plan{ID: 1, MaxAIAnalyses: 10}, nil).Once()
 		mockNotification.On("GetMonthlyAnalysisCount", 1).Return(5, nil).Once()
@@ -193,7 +191,7 @@ func TestAnalysisController_AnalyzeJob(t *testing.T) {
 		ctrl, mockAnalysis, mockCurriculum, mockJob, mockNotification, mockPlan, _ := setupAnalysisController()
 		user := model.User{Id: 1, Name: "Test", Email: "test@test.com"}
 
-		curriculum := model.Curriculum{Id: 1, Title: "CV 1", IsActive: true, UserID: 1, Skills: "Go, React"}
+		curriculum := model.Curriculum{Id: 1, Title: "CV 1", UserID: 1, Skills: "Go, React"}
 		job := &model.Job{ID: 10, Title: "Go Dev", Company: "TestCo"}
 		analysis := model.ResumeAnalysis{
 			MatchAnalysis:       model.MatchAnalysis{OverallScoreNumeric: 85},

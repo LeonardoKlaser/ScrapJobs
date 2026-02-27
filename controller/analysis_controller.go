@@ -37,7 +37,8 @@ func NewAnalysisController(
 }
 
 type analyzeJobRequest struct {
-	JobID int `json:"job_id" binding:"required"`
+	JobID        int `json:"job_id" binding:"required"`
+	CurriculumID int `json:"curriculum_id"`
 }
 
 // AnalyzeJob godoc
@@ -74,23 +75,32 @@ func (ac *AnalysisController) AnalyzeJob(ctx *gin.Context) {
 		return
 	}
 
-	// Buscar currículo ativo do usuário
+	// Buscar currículo do usuário
 	curricula, err := ac.curriculumRepo.FindCurriculumByUserID(user.Id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar currículo"})
 		return
 	}
 
-	var activeCurriculum *model.Curriculum
-	for i := range curricula {
-		if curricula[i].IsActive {
-			activeCurriculum = &curricula[i]
-			break
-		}
-	}
-	if activeCurriculum == nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Nenhum currículo ativo encontrado. Crie ou ative um currículo antes de analisar vagas."})
+	if len(curricula) == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Nenhum currículo encontrado. Crie um currículo antes de analisar vagas."})
 		return
+	}
+
+	var selectedCurriculum *model.Curriculum
+	if body.CurriculumID > 0 {
+		for i := range curricula {
+			if curricula[i].Id == body.CurriculumID {
+				selectedCurriculum = &curricula[i]
+				break
+			}
+		}
+		if selectedCurriculum == nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Currículo não encontrado"})
+			return
+		}
+	} else {
+		selectedCurriculum = &curricula[0]
 	}
 
 	// Verificar quota de análises do plano
@@ -129,7 +139,7 @@ func (ac *AnalysisController) AnalyzeJob(ctx *gin.Context) {
 	}
 
 	// Executar análise de IA
-	analysis, err := ac.analysisService.Analyze(ctx.Request.Context(), *activeCurriculum, *job)
+	analysis, err := ac.analysisService.Analyze(ctx.Request.Context(), *selectedCurriculum, *job)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao executar análise de IA"})
 		return
