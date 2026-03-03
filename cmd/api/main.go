@@ -345,8 +345,18 @@ func main() {
 		server.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 
-	// Prometheus metrics endpoint
-	server.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	// Prometheus metrics endpoint — protected by bearer token
+	metricsToken := os.Getenv("METRICS_TOKEN")
+	server.GET("/metrics", func(c *gin.Context) {
+		if metricsToken != "" {
+			auth := c.GetHeader("Authorization")
+			if auth != "Bearer "+metricsToken {
+				c.AbortWithStatus(http.StatusForbidden)
+				return
+			}
+		}
+		gin.WrapH(promhttp.Handler())(c)
+	})
 
 	srv := &http.Server{
 		Addr:    ":8080",
