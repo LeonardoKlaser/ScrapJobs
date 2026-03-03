@@ -4,9 +4,8 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "/app/migrate -path /app/migrations -database \"$DATABASE_URL\" up && /app/api",
     "healthcheckPath": "/health/live",
-    "healthcheckTimeout": 30,
+    "healthcheckTimeout": 60,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 5
   }
