@@ -30,11 +30,12 @@ COPY --from=builder /app/worker /app/worker
 COPY --from=builder /app/scheduler /app/scheduler
 COPY --from=builder /app/archive-monitor /app/archive-monitor
 COPY --from=builder /app/migrations /app/migrations
+COPY entrypoint.sh /app/entrypoint.sh
 
-RUN chown -R nonroot:nonroot /app
+RUN chmod +x /app/entrypoint.sh && chown -R nonroot:nonroot /app
 
 EXPOSE 8080
 USER nonroot
 
 ENV SERVICE_CMD=/app/api
-CMD sh -c "$SERVICE_CMD"
+ENTRYPOINT ["/app/entrypoint.sh"]
