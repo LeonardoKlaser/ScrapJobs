@@ -1,11 +1,11 @@
 .env
 .infra/terraform/.terraform/
 
-# Go binaries
-api
-worker
-scheduler
-archive-monitor
+# Go binaries (root level only)
+/api
+/worker
+/scheduler
+/archive-monitor
 *.exe
 *.exe~
 *.dll
