@@ -245,7 +245,7 @@ func main() {
 
 	// Rate limiters — distributed via Redis
 	rateLimiterFn := newRedisRateLimiterFactory(redisClient)
-	publicRateLimiter := rateLimiterFn(5, 60)
+	publicRateLimiter := rateLimiterFn(15, 60)
 
 	csrfMiddleware := middleware.CSRFProtection()
 
@@ -258,7 +258,15 @@ func main() {
 		publicRoutes.POST("/login", userController.SignIn)
 		publicRoutes.GET("/api/plans", planController.GetAllPlans)
 		publicRoutes.POST("/api/payments/create/:planId", paymentController.CreatePayment)
-		publicRoutes.POST("/api/webhooks/abacatepay", utils.WebhookAuthMiddleware(), paymentController.HandleWebhook)
+	}
+
+	// Webhook routes — NO CSRF (server-to-server calls don't send Origin header).
+	// Authentication handled by WebhookAuthMiddleware (secret + HMAC signature).
+	webhookRoutes := server.Group("/")
+	webhookRoutes.Use(logging.GinMiddleware())
+	webhookRoutes.Use(metrics.GinPrometheus())
+	{
+		webhookRoutes.POST("/api/webhooks/abacatepay", utils.WebhookAuthMiddleware(), paymentController.HandleWebhook)
 	}
 
 	// Forgot/reset password — rate limiter próprio, mais restritivo
