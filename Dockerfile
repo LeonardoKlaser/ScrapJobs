@@ -36,4 +36,5 @@ RUN chown -R nonroot:nonroot /app
 EXPOSE 8080
 USER nonroot
 
-CMD ["/app/api"]
+ENV SERVICE_CMD=/app/api
+CMD sh -c "$SERVICE_CMD"
