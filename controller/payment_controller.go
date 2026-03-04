@@ -135,26 +135,29 @@ func (p *PaymentController) HandleWebhook(ctx *gin.Context) {
 		return
 	}
 
-	// O ExternalId do billing é o nosso pendingRegistrationID
-	pendingRegistrationID := billing.ExternalId
-	if pendingRegistrationID == "" {
-		log.Error().Str("webhook_id", payload.ID).Str("billing_id", billing.ID).Msg("Webhook AbacatePay: ExternalId ausente no billing")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "ExternalId ausente no billing"})
+	// Extrai email do customer.metadata (chave Redis agora é baseada no email)
+	customerEmail := ""
+	if billing.Customer != nil {
+		customerEmail = billing.Customer.Metadata["email"]
+	}
+	if customerEmail == "" {
+		log.Error().Str("webhook_id", payload.ID).Str("billing_id", billing.ID).Msg("Webhook AbacatePay: email ausente no customer.metadata")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Email do cliente ausente no webhook"})
 		return
 	}
 
 	log.Info().
 		Str("webhook_id", payload.ID).
 		Str("billing_id", billing.ID).
-		Str("pending_reg_id", pendingRegistrationID).
+		Str("customer_email", customerEmail).
 		Msg("Enfileirando task para completar registro do usuário")
 
 	taskPayload, err := json.Marshal(tasks.CompleteRegistrationPayload{
-		PendingRegistrationID: pendingRegistrationID,
-		CustomerEmail:         billing.Customer.Metadata["email"],
+		PendingRegistrationID: customerEmail,
+		CustomerEmail:         customerEmail,
 	})
 	if err != nil {
-		log.Error().Err(err).Str("pending_reg_id", pendingRegistrationID).Msg("Falha ao serializar payload da task CompleteRegistration")
+		log.Error().Err(err).Str("customer_email", customerEmail).Msg("Falha ao serializar payload da task CompleteRegistration")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro interno ao preparar processamento"})
 		return
 	}
@@ -162,14 +165,14 @@ func (p *PaymentController) HandleWebhook(ctx *gin.Context) {
 	task := asynq.NewTask(tasks.TypeCompleteRegistration, taskPayload, asynq.MaxRetry(5))
 	info, err := p.asynqClient.Enqueue(task, asynq.Queue("critical"))
 	if err != nil {
-		log.Error().Err(err).Str("pending_reg_id", pendingRegistrationID).Msg("Falha ao enfileirar task CompleteRegistration")
+		log.Error().Err(err).Str("customer_email", customerEmail).Msg("Falha ao enfileirar task CompleteRegistration")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro interno ao agendar processamento"})
 		return
 	}
 
 	log.Info().
 		Str("task_id", info.ID).
-		Str("pending_reg_id", pendingRegistrationID).
+		Str("customer_email", customerEmail).
 		Msg("Task CompleteRegistration enfileirada com sucesso")
 
 	ctx.JSON(http.StatusOK, gin.H{"status": "received"})

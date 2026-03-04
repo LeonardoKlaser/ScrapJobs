@@ -47,7 +47,6 @@ type CreateBillingBody struct {
 	ReturnUrl     string            `json:"returnUrl"`
 	Products      []*BillingProduct `json:"products"`
 	Customer      *BillingCustomer  `json:"customer"`
-	ExternalId    string            `json:"externalId,omitempty"` // nosso pendingRegistrationID
 	Metadata      map[string]string `json:"metadata,omitempty"`
 }
 
@@ -87,7 +86,6 @@ type WebhookBilling struct {
 	Status     string                  `json:"status"` // "PAID"
 	Frequency  string                  `json:"frequency"`
 	Kind       []string                `json:"kind"`
-	ExternalId string                  `json:"externalId"` // nosso pendingRegistrationID
 	Customer   *WebhookBillingCustomer `json:"customer"`
 	Products   []WebhookBillingProduct `json:"products"`
 }

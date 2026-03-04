@@ -13,8 +13,6 @@ import (
 	"time"
 	"web-scrapper/logging"
 	"web-scrapper/model"
-
-	"github.com/google/uuid"
 )
 
 type AbacatePayGateway struct {
@@ -48,9 +46,6 @@ func (a *AbacatePayGateway) CreateBilling(ctx context.Context, plan *model.Plan,
 		return "", "", errors.New("ABACATEPAY_API_KEY não está definida")
 	}
 
-	// ID único que usamos para rastrear o registro pendente no Redis
-	pendingRegistrationID := uuid.New().String()
-
 	// Calcula preço final com base no período de cobrança
 	var finalPrice float64
 	var productName string
@@ -68,7 +63,6 @@ func (a *AbacatePayGateway) CreateBilling(ctx context.Context, plan *model.Plan,
 		Methods:       userData.Methods,
 		CompletionUrl: os.Getenv("FRONTEND_URL") + "/payment-confirmation",
 		ReturnUrl:     os.Getenv("FRONTEND_URL") + "/checkout/" + fmt.Sprintf("%d", plan.ID),
-		ExternalId:    pendingRegistrationID, // campo correto conforme doc AbacatePay
 		Products: []*BillingProduct{
 			{
 				ExternalId:  fmt.Sprintf("plan-%d", plan.ID),
@@ -138,5 +132,5 @@ func (a *AbacatePayGateway) CreateBilling(ctx context.Context, plan *model.Plan,
 		return "", "", fmt.Errorf("AbacatePay não retornou URL de pagamento")
 	}
 
-	return paymentURL, pendingRegistrationID, nil
+	return paymentURL, userData.Email, nil
 }
