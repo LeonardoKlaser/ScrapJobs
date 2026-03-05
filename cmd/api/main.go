@@ -14,6 +14,7 @@ import (
 	"web-scrapper/infra/openai"
 	"web-scrapper/infra/metrics"
 	redispkg "web-scrapper/infra/redis"
+	"web-scrapper/infra/resend"
 	"web-scrapper/infra/s3"
 	"web-scrapper/infra/ses"
 	"web-scrapper/interfaces"
@@ -158,19 +159,40 @@ func main() {
 		s3Uploader = &s3.NoOpUploader{}
 	}
 
-	// --- SES Email Sender ---
+	// --- Email Providers ---
 	senderEmail := os.Getenv("SES_SENDER_EMAIL")
 	if senderEmail == "" {
 		senderEmail = "noreply@scrapjobs.com.br"
 	}
 
+	emailSenders := make(map[string]interfaces.MailSender)
+
+	// SES sender
 	awsCfgSES, sesErr := ses.LoadAWSConfig(context.Background())
 	if sesErr != nil {
-		logging.Logger.Warn().Err(sesErr).Msg("Falha ao carregar configuração AWS para SES — envio de email pode não funcionar")
+		logging.Logger.Warn().Err(sesErr).Msg("Falha ao carregar configuração AWS para SES — SES indisponível")
+	} else {
+		clientSES := ses.LoadAWSClient(awsCfgSES)
+		emailSenders["ses"] = ses.NewSESMailSender(clientSES, senderEmail)
+		logging.Logger.Info().Msg("SES email sender configurado")
 	}
-	clientSES := ses.LoadAWSClient(awsCfgSES)
-	mailSender := ses.NewSESMailSender(clientSES, senderEmail)
-	emailService := usecase.NewSESSenderAdapter(mailSender)
+
+	// Resend sender
+	resendKey := os.Getenv("RESEND_API_KEY")
+	resendFrom := os.Getenv("RESEND_SENDER_EMAIL")
+	if resendFrom == "" {
+		resendFrom = senderEmail
+	}
+	if resendKey != "" {
+		emailSenders["resend"] = resend.NewResendMailSender(resendKey, resendFrom)
+		logging.Logger.Info().Msg("Resend email sender configurado")
+	} else {
+		logging.Logger.Warn().Msg("RESEND_API_KEY não definida — Resend indisponível")
+	}
+
+	emailConfigRepo := repository.NewEmailConfigRepo(dbConnection)
+	orchestrator := usecase.NewEmailOrchestrator(emailSenders, emailConfigRepo)
+	emailService := usecase.NewSESSenderAdapter(orchestrator)
 
 	// --- Gateway de Pagamento ---
 	abacatepayGateway := gateway.NewAbacatePayGateway()
@@ -233,6 +255,8 @@ func main() {
 	accountController := controller.NewAccountController(userRepository)
 
 	adminDashboardController := controller.NewAdminDashboardController(dashboardRepository)
+
+	emailConfigController := controller.NewEmailConfigController(emailConfigRepo, orchestrator)
 
 	// Analysis Controller (análise manual de IA)
 	var analysisController *controller.AnalysisController
@@ -338,6 +362,8 @@ func main() {
 	adminRoutes.Use(middleware.RequireAdmin())
 	{
 		adminRoutes.GET("/api/admin/dashboard", adminDashboardController.GetAdminDashboard)
+		adminRoutes.GET("/api/admin/email-config", emailConfigController.GetEmailConfig)
+		adminRoutes.PUT("/api/admin/email-config", emailConfigController.UpdateEmailConfig)
 		adminRoutes.POST("/siteCareer", siteCareerController.InsertNewSiteCareer)
 		adminRoutes.POST("/scrape-sandbox", siteCareerController.SandboxScrape)
 	}

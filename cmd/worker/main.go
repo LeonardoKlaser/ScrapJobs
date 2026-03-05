@@ -7,7 +7,9 @@ import (
 	"web-scrapper/gateway"
 	"web-scrapper/infra/db"
 	redispkg "web-scrapper/infra/redis"
+	"web-scrapper/infra/resend"
 	"web-scrapper/infra/ses"
+	"web-scrapper/interfaces"
 	"web-scrapper/logging"
 	"web-scrapper/model"
 	"web-scrapper/processor"
@@ -60,28 +62,42 @@ func main() {
 	}
 	defer dbConnection.Close()
 
-	// Carrega configuração AWS para SES (email)
-	awsCfg, err := ses.LoadAWSConfig(context.Background())
-	if err != nil {
-		logging.Logger.Warn().Err(err).Msg("could not load aws config — email via SES não estará disponível")
-	}
-
+	// --- Email Providers ---
 	senderEmail := os.Getenv("SES_SENDER_EMAIL")
 	if senderEmail == "" {
 		senderEmail = "noreply@scrapjobs.com.br"
 		logging.Logger.Warn().Msg("SES_SENDER_EMAIL nao definida — usando fallback noreply@scrapjobs.com.br")
 	}
 
-	clientSES := ses.LoadAWSClient(awsCfg)
-	mailSender := ses.NewSESMailSender(clientSES, senderEmail)
-	emailService := usecase.NewSESSenderAdapter(mailSender)
+	emailSenders := make(map[string]interfaces.MailSender)
 
-	if err == nil {
+	awsCfg, err := ses.LoadAWSConfig(context.Background())
+	if err != nil {
+		logging.Logger.Warn().Err(err).Msg("could not load aws config — SES indisponível")
+	} else {
+		clientSES := ses.LoadAWSClient(awsCfg)
+		emailSenders["ses"] = ses.NewSESMailSender(clientSES, senderEmail)
 		logging.Logger.Info().
 			Str("sender_email", senderEmail).
 			Str("aws_region", awsCfg.Region).
 			Msg("SES configurado com sucesso")
 	}
+
+	resendKey := os.Getenv("RESEND_API_KEY")
+	resendFrom := os.Getenv("RESEND_SENDER_EMAIL")
+	if resendFrom == "" {
+		resendFrom = senderEmail
+	}
+	if resendKey != "" {
+		emailSenders["resend"] = resend.NewResendMailSender(resendKey, resendFrom)
+		logging.Logger.Info().Msg("Resend email sender configurado")
+	} else {
+		logging.Logger.Warn().Msg("RESEND_API_KEY não definida — Resend indisponível")
+	}
+
+	emailConfigRepo := repository.NewEmailConfigRepo(dbConnection)
+	orchestrator := usecase.NewEmailOrchestrator(emailSenders, emailConfigRepo)
+	emailService := usecase.NewSESSenderAdapter(orchestrator)
 
 	redisAddr := secrets.RedisAddr
 	if redisAddr == "" {

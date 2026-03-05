@@ -2,6 +2,7 @@ package ses
 
 import (
     "context"
+    "web-scrapper/interfaces"
     "web-scrapper/logging"
     "github.com/aws/aws-sdk-go-v2/service/ses"
     "github.com/aws/aws-sdk-go-v2/service/ses/types"
@@ -13,6 +14,9 @@ type SESMailSender struct {
     client *ses.Client
     from   string
 }
+
+// compile-time check
+var _ interfaces.MailSender = (*SESMailSender)(nil)
 
 // NewSESMailSender cria uma instância do SESMailSender carregando a configuração AWS
 func NewSESMailSender(sesClient *ses.Client, from string) *SESMailSender {
