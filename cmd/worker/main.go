@@ -69,11 +69,19 @@ func main() {
 	senderEmail := os.Getenv("SES_SENDER_EMAIL")
 	if senderEmail == "" {
 		senderEmail = "noreply@scrapjobs.com.br"
+		logging.Logger.Warn().Msg("SES_SENDER_EMAIL nao definida — usando fallback noreply@scrapjobs.com.br")
 	}
 
 	clientSES := ses.LoadAWSClient(awsCfg)
 	mailSender := ses.NewSESMailSender(clientSES, senderEmail)
 	emailService := usecase.NewSESSenderAdapter(mailSender)
+
+	if err == nil {
+		logging.Logger.Info().
+			Str("sender_email", senderEmail).
+			Str("aws_region", awsCfg.Region).
+			Msg("SES configurado com sucesso")
+	}
 
 	redisAddr := secrets.RedisAddr
 	if redisAddr == "" {
