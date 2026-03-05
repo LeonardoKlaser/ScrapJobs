@@ -20,6 +20,15 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const (
+	scrapingInterval   = 120 * time.Minute
+	matchInterval      = 4 * time.Hour
+	matchUniqueTTL     = matchInterval - 10*time.Minute // 3h50m — expires before next tick
+	digestInterval     = 8 * time.Hour
+	digestUniqueTTL    = digestInterval - 10*time.Minute // 7h50m — expires before next tick
+	deleteJobsInterval = 24 * time.Hour
+)
+
 func main() {
     if os.Getenv("GIN_MODE") != "release"{
 		godotenv.Load()	
@@ -85,16 +94,16 @@ func main() {
     resetRepo := repository.NewPasswordResetRepository(dbConnection)
 
     // Ticker to run every 120 minutes
-    ticker := time.NewTicker(120 * time.Minute)
+    ticker := time.NewTicker(scrapingInterval)
     defer ticker.Stop()
 
-    tickerDeleteJobs := time.NewTicker(24 * time.Hour)
+    tickerDeleteJobs := time.NewTicker(deleteJobsInterval)
     defer tickerDeleteJobs.Stop()
 
-    tickerMatch := time.NewTicker(4 * time.Hour)
+    tickerMatch := time.NewTicker(matchInterval)
     defer tickerMatch.Stop()
 
-    tickerDigest := time.NewTicker(8 * time.Hour)
+    tickerDigest := time.NewTicker(digestInterval)
     defer tickerDigest.Stop()
 
     // Graceful shutdown: cancellable context + WaitGroup for all goroutines
@@ -209,7 +218,7 @@ func enqueueMatchTasks(ctx context.Context, userSiteRepo *repository.UserSiteRep
 				return
 			}
 
-			task := asynq.NewTask(tasks.TypeMatchUser, payload, asynq.MaxRetry(3), asynq.Unique(4*time.Hour))
+			task := asynq.NewTask(tasks.TypeMatchUser, payload, asynq.MaxRetry(3), asynq.Unique(matchUniqueTTL))
 			info, err := client.EnqueueContext(ctx, task)
 			if err != nil {
 				logging.Logger.Error().Err(err).Int("user_id", uid).Msg("Could not enqueue match task")
@@ -247,7 +256,7 @@ func enqueueDigestTasks(ctx context.Context, notificationRepo *repository.Notifi
 				return
 			}
 
-			task := asynq.NewTask(tasks.TypeSendDigest, payload, asynq.MaxRetry(3), asynq.Unique(8*time.Hour))
+			task := asynq.NewTask(tasks.TypeSendDigest, payload, asynq.MaxRetry(3), asynq.Unique(digestUniqueTTL))
 			info, err := client.EnqueueContext(ctx, task)
 			if err != nil {
 				logging.Logger.Error().Err(err).Int("user_id", uid).Msg("Could not enqueue digest task")
