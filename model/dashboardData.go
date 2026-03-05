@@ -14,11 +14,16 @@ type MonitoredURL struct {
 	BaseURL  string `json:"base_url"`
 }
 
+type JobWithMatch struct {
+	Job
+	Matched bool `json:"matched"`
+}
+
 type PaginatedJobs struct {
-	Jobs       []Job `json:"jobs"`
-	TotalCount int   `json:"total_count"`
-	Page       int   `json:"page"`
-	Limit      int   `json:"limit"`
+	Jobs       []JobWithMatch `json:"jobs"`
+	TotalCount int            `json:"total_count"`
+	Page       int            `json:"page"`
+	Limit      int            `json:"limit"`
 }
 
 type AdminDashboardData struct {
