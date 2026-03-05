@@ -103,7 +103,7 @@ func (dr *DashboardRepository) GetLatestJobsPaginated(userID, page, limit, days 
 	matchedExpr := `
 		CASE WHEN us.filters IS NULL OR us.filters::text = '[]' THEN TRUE
 		ELSE EXISTS (
-			SELECT 1 FROM json_array_elements_text(us.filters) AS f
+			SELECT 1 FROM jsonb_array_elements_text(us.filters) AS f
 			WHERE LOWER(j.title) LIKE '%%' || LOWER(f.value) || '%%'
 		) END`
 
