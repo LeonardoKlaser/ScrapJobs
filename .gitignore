@@ -32,3 +32,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Email templates
+email-templates/node_modules/

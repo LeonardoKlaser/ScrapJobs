@@ -1,0 +1,20 @@
+{
+  "name": "scrapjobs-email-templates",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "email dev",
+    "build": "tsx scripts/build.ts"
+  },
+  "dependencies": {
+    "@react-email/components": "^0.0.36",
+    "@react-email/render": "^1.0.5",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0",
+    "react-email": "^3.0.0"
+  }
+}

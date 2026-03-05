@@ -5,37 +5,30 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"web-scrapper/infra/ses"
+	"text/template"
+	"web-scrapper/interfaces"
 	"web-scrapper/model"
-	"html/template"
+	"web-scrapper/templates"
 )
 
-func generateWelcomeEmailBodyHTML(userName, dashboardLink string) (string, error) {
-	const templateStr = `
-    <!DOCTYPE html><html><head><meta charset="UTF-8"><style>/* Estilos aqui */
-        .button { background-color: #28a745; color: white; padding: 12px 25px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; font-weight: bold; }
-    </style></head>
-    <body><h2>Bem-vindo(a) ao ScrapJobs, {{.UserName}}!</h2>
-    <p>Sua conta foi criada com sucesso!</p>
-    <p>Agora você pode começar a automatizar sua busca por vagas e receber análises personalizadas diretamente no seu e-mail.</p>
-    <p>Acesse seu painel para configurar os sites que deseja monitorar e fazer upload do seu currículo:</p>
-    <p style="text-align: center; margin-top: 25px; margin-bottom: 25px;">
-        <a href="{{.DashboardLink}}" class="button">Acessar meu Dashboard</a>
-    </p>
-    <p>Se tiver alguma dúvida, responda a este e-mail ou contate nosso suporte.</p>
-    <p>Atenciosamente,<br/>Equipe ScrapJobs</p></body></html>`
+var emailTemplates *template.Template
 
+func init() {
+	var err error
+	emailTemplates, err = template.ParseFS(templates.EmailTemplates, "emails/*.html")
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse email templates: %v", err))
+	}
+}
+
+func generateWelcomeEmailBodyHTML(userName, dashboardLink string) (string, error) {
 	data := struct {
 		UserName      string
 		DashboardLink string
 	}{UserName: userName, DashboardLink: dashboardLink}
 
-	tmpl, err := template.New("welcomeEmail").Parse(templateStr)
-	if err != nil {
-		return "", err
-	}
 	var body bytes.Buffer
-	if err := tmpl.Execute(&body, data); err != nil {
+	if err := emailTemplates.ExecuteTemplate(&body, "welcome.html", data); err != nil {
 		return "", err
 	}
 	return body.String(), nil
@@ -54,101 +47,25 @@ func generateWelcomeEmailBodyText(userName, dashboardLink string) string {
 }
 
 func generateEmailBodyHTML(analysis model.ResumeAnalysis, job model.Job) (string, error) {
-    const emailTemplate = `
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            body { font-family: sans-serif; line-height: 1.6; color: #333; }
-            h2 { color: #0056b3; }
-            h3 { border-bottom: 1px solid #eee; padding-bottom: 5px; }
-            .card { border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 20px; background-color: #f9f9f9; }
-            .score { font-size: 1.2em; font-weight: bold; }
-            ul { list-style-type: none; padding-left: 0; }
-            li { margin-bottom: 10px; }
-        </style>
-    </head>
-    <body>
-        <h2>Análise de Vaga Encontrada: {{.Job.Title}}</h2>
-        <p>Prezados(as),</p>
-        <p>Segue abaixo a análise detalhada da compatibilidade do seu currículo com a vaga encontrada.</p>
+	data := struct {
+		Analysis      model.ResumeAnalysis
+		Job           model.Job
+		DashboardLink string
+	}{
+		Analysis:      analysis,
+		Job:           job,
+		DashboardLink: "",
+	}
 
-        <div class="card">
-            <h3>Análise de Compatibilidade</h3>
-            <ul>
-                <li><strong>Pontuação Geral:</strong> <span class="score">{{.Analysis.MatchAnalysis.OverallScoreNumeric}}</span></li>
-                <li><strong>Avaliação Qualitativa:</strong> {{.Analysis.MatchAnalysis.OverallScoreQualitative}}</li>
-                <li><strong>Resumo:</strong> {{.Analysis.MatchAnalysis.Summary}}</li>
-            </ul>
-        </div>
-
-        <div class="card">
-            <h3>Pontos Fortes para esta Vaga</h3>
-            <ul>
-                {{range .Analysis.StrengthsForThisJob}}
-                    <li><strong>Ponto:</strong> {{.Point}}<br/><em>Relevância:</em> {{.RelevanceToJob}}</li>
-                {{else}}
-                    <li>Nenhum ponto forte específico identificado.</li>
-                {{end}}
-            </ul>
-        </div>
-
-        <div class="card">
-            <h3>Lacunas e Áreas de Melhoria</h3>
-            <ul>
-                {{range .Analysis.GapsAndImprovementAreas}}
-                    <li><strong>Área:</strong> {{.AreaDescription}}<br/><em>Impacto:</em> {{.JobRequirementImpacted}}</li>
-                {{else}}
-                    <li>Nenhuma lacuna específica identificada.</li>
-                {{end}}
-            </ul>
-        </div>
-
-        <div class="card">
-            <h3>Sugestões para o Currículo</h3>
-            <ul>
-                {{range .Analysis.ActionableResumeSuggestions}}
-                    <li><strong>Sugestão:</strong> {{.Suggestion}}<br/><em>Seção:</em> {{.CurriculumSectionToApply}}<br/><em>Exemplo:</em> "{{.ExampleWording}}"<br/><em>Justificativa:</em> {{.ReasoningForThisJob}}</li>
-                {{else}}
-                    <li>Nenhuma sugestão específica identificada.</li>
-                {{end}}
-            </ul>
-        </div>
-        
-        <h3>Considerações Finais</h3>
-        <p>{{.Analysis.FinalConsiderations}}</p>
-        <br/>
-        <p>Atenciosamente,<br/>Equipe ScrapJobs</p>
-    </body>
-    </html>
-    `
-
-    data := struct {
-        Analysis model.ResumeAnalysis
-        Job      model.Job
-    }{
-        Analysis: analysis,
-        Job:      job,
-    }
-
-    tmpl, err := template.New("email").Parse(emailTemplate)
-    if err != nil {
-        return "", fmt.Errorf("ERROR to analyse email template: %w", err)
-    }
-
-    var body bytes.Buffer
-    if err := tmpl.Execute(&body, data); err != nil {
-        return "", fmt.Errorf("ERROR to execute email template: %w", err)
-    }
-
-    return body.String(), nil
+	var body bytes.Buffer
+	if err := emailTemplates.ExecuteTemplate(&body, "job-analysis.html", data); err != nil {
+		return "", fmt.Errorf("ERROR to execute email template: %w", err)
+	}
+	return body.String(), nil
 }
-
 
 func generateEmailBodyText(analysis model.ResumeAnalysis, job model.Job) string {
 	var sb strings.Builder
-
 
 	sb.WriteString("Prezados(as),\n\n")
 	sb.WriteString(fmt.Sprintf("Segue abaixo a análise detalhada do currículo para a posição de %s:\n\n", job.Title))
@@ -198,7 +115,6 @@ func generateEmailBodyText(analysis model.ResumeAnalysis, job model.Job) string 
 	sb.WriteString(analysis.FinalConsiderations)
 	sb.WriteString("\n\n---\n")
 
-
 	sb.WriteString("Atenciosamente,\n\n")
 	sb.WriteString("Equipe ScrapJobs\n")
 
@@ -206,10 +122,10 @@ func generateEmailBodyText(analysis model.ResumeAnalysis, job model.Job) string 
 }
 
 type SESSenderAdapter struct {
-	mailSender *ses.SESMailSender
+	mailSender interfaces.MailSender
 }
 
-func NewSESSenderAdapter(mailSender *ses.SESMailSender) *SESSenderAdapter {
+func NewSESSenderAdapter(mailSender interfaces.MailSender) *SESSenderAdapter {
 	return &SESSenderAdapter{
 		mailSender: mailSender,
 	}
@@ -219,71 +135,24 @@ func (adapter *SESSenderAdapter) SendAnalysisEmail(ctx context.Context, userEmai
 	subject := fmt.Sprintf("Análise de Vaga Encontrada: %s", job.Title)
 
 	bodyHtml, err := generateEmailBodyHTML(analysis, job)
-    if err != nil {
-        return fmt.Errorf("ERROR to generate html body: %w", err)
-    }
+	if err != nil {
+		return fmt.Errorf("ERROR to generate html body: %w", err)
+	}
 
-    bodyText := generateEmailBodyText(analysis, job)
+	bodyText := generateEmailBodyText(analysis, job)
 
-    
-    return adapter.mailSender.SendEmail(ctx, userEmail, subject, bodyText, bodyHtml)
+	return adapter.mailSender.SendEmail(ctx, userEmail, subject, bodyText, bodyHtml)
 }
 
 func generateNewJobsEmailBodyHTML(userName string, jobs []*model.Job) (string, error) {
-	const templateStr = `
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            body { font-family: sans-serif; line-height: 1.6; color: #333; }
-            h2 { color: #0056b3; }
-            table { width: 100%%; border-collapse: collapse; margin-top: 15px; }
-            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-            th { background-color: #f2f2f2; }
-            a { color: #0056b3; text-decoration: none; }
-            a:hover { text-decoration: underline; }
-        </style>
-    </head>
-    <body>
-        <h2>Novas vagas encontradas para você, {{.UserName}}!</h2>
-        <p>Encontramos <strong>{{len .Jobs}}</strong> nova(s) vaga(s) nos sites que você está monitorando:</p>
-        <table>
-            <thead>
-                <tr>
-                    <th>Título</th>
-                    <th>Empresa</th>
-                    <th>Localização</th>
-                    <th>Link</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{range .Jobs}}
-                <tr>
-                    <td>{{.Title}}</td>
-                    <td>{{.Company}}</td>
-                    <td>{{.Location}}</td>
-                    <td><a href="{{.JobLink}}" target="_blank">Ver vaga</a></td>
-                </tr>
-                {{end}}
-            </tbody>
-        </table>
-        <p style="margin-top: 20px;">Acesse seu painel no ScrapJobs para analisar essas vagas com IA e receber sugestões personalizadas para o seu currículo.</p>
-        <p>Atenciosamente,<br/>Equipe ScrapJobs</p>
-    </body>
-    </html>`
-
 	data := struct {
-		UserName string
-		Jobs     []*model.Job
-	}{UserName: userName, Jobs: jobs}
+		UserName      string
+		Jobs          []*model.Job
+		DashboardLink string
+	}{UserName: userName, Jobs: jobs, DashboardLink: ""}
 
-	tmpl, err := template.New("newJobsEmail").Parse(templateStr)
-	if err != nil {
-		return "", err
-	}
 	var body bytes.Buffer
-	if err := tmpl.Execute(&body, data); err != nil {
+	if err := emailTemplates.ExecuteTemplate(&body, "new-jobs-alert.html", data); err != nil {
 		return "", err
 	}
 	return body.String(), nil
@@ -328,30 +197,13 @@ func (adapter *SESSenderAdapter) SendWelcomeEmail(ctx context.Context, userEmail
 }
 
 func generatePasswordResetEmailHTML(userName, resetLink string) (string, error) {
-	const templateStr = `
-    <!DOCTYPE html><html><head><meta charset="UTF-8"><style>/* Estilos aqui */
-        .button { background-color: #28a745; color: white; padding: 12px 25px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; font-weight: bold; }
-    </style></head>
-    <body><h2>Olá {{.UserName}},</h2>
-    <p>Recebemos uma solicitação para redefinir sua senha.</p>
-    <p>Clique no botão abaixo para criar uma nova senha:</p>
-    <p style="text-align: center; margin-top: 25px; margin-bottom: 25px;">
-        <a href="{{.ResetLink}}" class="button">Redefinir Senha</a>
-    </p>
-    <p>Este link é válido por 1 hora. Se você não solicitou esta redefinição, ignore este e-mail.</p>
-    <p>Atenciosamente,<br/>Equipe ScrapJobs</p></body></html>`
-
 	data := struct {
 		UserName  string
 		ResetLink string
 	}{UserName: userName, ResetLink: resetLink}
 
-	tmpl, err := template.New("passwordResetEmail").Parse(templateStr)
-	if err != nil {
-		return "", err
-	}
 	var body bytes.Buffer
-	if err := tmpl.Execute(&body, data); err != nil {
+	if err := emailTemplates.ExecuteTemplate(&body, "password-reset.html", data); err != nil {
 		return "", err
 	}
 	return body.String(), nil
