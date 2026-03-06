@@ -140,7 +140,14 @@ func (dr *DashboardRepository) GetLatestJobsPaginated(userID, page, limit, days 
 
 	// Data query
 	dataQuery := fmt.Sprintf(
-		`SELECT DISTINCT j.id, j.site_id, j.title, j.location, j.company, j.job_link, j.requisition_id, COALESCE(j.description, ''), (%s) AS matched %s ORDER BY j.created_at DESC LIMIT $%d OFFSET $%d`,
+		`WITH CTE AS (
+			SELECT DISTINCT j.id, j.site_id, j.title, j.location, j.company, j.job_link, j.requisition_id, COALESCE(j.description, '') AS description, (%s) AS matched, j.created_at
+			%s
+		)
+		SELECT id, site_id, title, location, company, job_link, requisition_id, description, matched 
+		FROM CTE 
+		ORDER BY created_at DESC 
+		LIMIT $%d OFFSET $%d`,
 		matchedExpr, baseFrom, argIdx, argIdx+1,
 	)
 	args = append(args, limit, offset)
