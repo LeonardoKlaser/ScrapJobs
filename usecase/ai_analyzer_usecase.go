@@ -38,7 +38,7 @@ DIRETRIZES DE SAÍDA (Obrigatório seguir o JSON abaixo):
 FORMATO JSON ESPERADO:
 {
   "matchAnalysis": {
-    "overallScoreNumeric": 0,
+    "overallScoreNumeric": 0 (0-100%),
     "overallScoreQualitative": "Baixo, Médio, Alto ou Excelente",
     "summary": "2-3 linhas focado no porquê dessa nota baseada nos requisitos obrigatórios."
   },
