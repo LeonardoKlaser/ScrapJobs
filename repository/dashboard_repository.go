@@ -231,7 +231,7 @@ type PublicStats struct {
 func (dr *DashboardRepository) GetPublicStats() (PublicStats, error) {
 	var stats PublicStats
 
-	err := dr.connection.QueryRow("SELECT COUNT(*) FROM site_scraping_config WHERE deleted_at IS NULL").Scan(&stats.MonitoredSites)
+	err := dr.connection.QueryRow("SELECT COUNT(*) FROM site_scraping_config WHERE is_active = TRUE").Scan(&stats.MonitoredSites)
 	if err != nil {
 		return stats, fmt.Errorf("failed to count sites: %w", err)
 	}
