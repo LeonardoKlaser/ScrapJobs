@@ -45,7 +45,7 @@ func (usr *UserRepository) CreateUser(user model.User) (model.User, error) {
 func (usr *UserRepository) GetUserByEmail(userEmail string) (model.User, error) {
 	query := `
         SELECT u.id, u.user_name, u.email, u.user_password, u.tax, u.cellphone, u.is_admin, u.curriculum_id,
-               u.expires_at, u.deleted_at,
+               u.expires_at, u.deleted_at, u.weekdays_only,
                p.id, p.name, p.price, p.max_sites, p.max_ai_analyses, p.features
         FROM users u
         LEFT JOIN plans p ON u.plan_id = p.id
@@ -78,6 +78,7 @@ func (usr *UserRepository) GetUserByEmail(userEmail string) (model.User, error) 
 		&userToReturn.CurriculumId,
 		&expiresAt,
 		&deletedAt,
+		&userToReturn.WeekdaysOnly,
 		&planID,
 		&planName,
 		&planPrice,
@@ -117,7 +118,7 @@ func (usr *UserRepository) GetUserByEmail(userEmail string) (model.User, error) 
 func (usr *UserRepository) GetUserById(Id int) (model.User, error) {
 	query := `
         SELECT u.id, u.user_name, u.email, u.user_password, u.tax, u.cellphone, u.is_admin, u.curriculum_id,
-               u.expires_at, u.deleted_at,
+               u.expires_at, u.deleted_at, u.weekdays_only,
                p.id, p.name, p.price, p.max_sites, p.max_ai_analyses, p.features
         FROM users u
         LEFT JOIN plans p ON u.plan_id = p.id
@@ -151,6 +152,7 @@ func (usr *UserRepository) GetUserById(Id int) (model.User, error) {
 		&userToReturn.CurriculumId,
 		&expiresAt,
 		&deletedAt,
+		&userToReturn.WeekdaysOnly,
 		&planID,
 		&planName,
 		&planPrice,
@@ -256,4 +258,9 @@ func (usr *UserRepository) UpdateExpiresAt(userId int, expiresAt time.Time) erro
 		return fmt.Errorf("error updating expires_at for user %d: %w", userId, err)
 	}
 	return nil
+}
+
+func (usr *UserRepository) UpdateWeekdaysOnly(userID int, value bool) error {
+	_, err := usr.db.Exec("UPDATE users SET weekdays_only = $1 WHERE id = $2", value, userID)
+	return err
 }

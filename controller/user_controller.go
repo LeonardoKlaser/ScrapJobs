@@ -274,6 +274,37 @@ func (usr *UserController) ValidateCheckout(ctx *gin.Context) {
 	})
 }
 
+func (usr *UserController) UpdatePreferences(ctx *gin.Context) {
+	userInterface, exists := ctx.Get("user")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
+		return
+	}
+
+	user, ok := userInterface.(model.User)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Tipo de usuário inválido no contexto"})
+		return
+	}
+
+	var req struct {
+		WeekdaysOnly *bool `json:"weekdays_only"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Payload inválido"})
+		return
+	}
+
+	if req.WeekdaysOnly != nil {
+		if err := usr.usecase.UpdateWeekdaysOnly(user.Id, *req.WeekdaysOnly); err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar preferências"})
+			return
+		}
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
 func cleanTax(s string) string {
 	var b strings.Builder
 	for _, r := range s {

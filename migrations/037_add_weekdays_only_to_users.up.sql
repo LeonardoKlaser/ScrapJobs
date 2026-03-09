@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN weekdays_only BOOLEAN NOT NULL DEFAULT false;

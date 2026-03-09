@@ -9,7 +9,7 @@ type InitiatePaymentRequest struct {
 	Cellphone string `json:"cellphone" binding:"required"`
 
 	Methods       []string `json:"methods" binding:"required"`
-	BillingPeriod string   `json:"billing_period" binding:"required,oneof=monthly annual"`
+	BillingPeriod string   `json:"billing_period" binding:"required,oneof=monthly quarterly"`
 }
 
 // PendingRegistrationData: Dados armazenados temporariamente no Redis até o pagamento ser confirmado
@@ -109,4 +109,51 @@ type WebhookPayload struct {
 	Event   string      `json:"event"` // "billing.paid", "withdraw.done", etc.
 	Data    WebhookData `json:"data"`
 	DevMode bool        `json:"devMode"`
+}
+
+// --- PIX QR Code Payloads (POST /v1/pixQrCode/create) ---
+
+// PixCustomer: dados do cliente para criação do QR Code PIX
+type PixCustomer struct {
+	Name      string `json:"name"`
+	Cellphone string `json:"cellphone"`
+	Email     string `json:"email"`
+	TaxId     string `json:"taxId"`
+}
+
+// CreatePixQRCodeBody: corpo da requisição POST /v1/pixQrCode/create
+type CreatePixQRCodeBody struct {
+	Amount      int                    `json:"amount"`
+	ExpiresIn   int                    `json:"expiresIn"`
+	Description string                 `json:"description,omitempty"`
+	Customer    *PixCustomer           `json:"customer,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// PixQRCodeData: dados do QR Code retornados pela AbacatePay
+type PixQRCodeData struct {
+	ID           string `json:"id"`
+	Amount       int    `json:"amount"`
+	Status       string `json:"status"`
+	BrCode       string `json:"brCode"`
+	BrCodeBase64 string `json:"brCodeBase64"`
+	ExpiresAt    string `json:"expiresAt"`
+}
+
+// CreatePixQRCodeResponse: resposta completa da AbacatePay ao criar QR Code PIX
+type CreatePixQRCodeResponse struct {
+	Data  *PixQRCodeData `json:"data"`
+	Error interface{}    `json:"error"`
+}
+
+// CheckPixStatusResponseData: dados retornados pela AbacatePay ao checar status do QR Code
+type CheckPixStatusResponseData struct {
+	Status    string `json:"status"`
+	ExpiresAt string `json:"expiresAt"`
+}
+
+// CheckPixStatusResponse: resposta completa da AbacatePay ao checar status
+type CheckPixStatusResponse struct {
+	Data  *CheckPixStatusResponseData `json:"data"`
+	Error interface{}                 `json:"error"`
 }

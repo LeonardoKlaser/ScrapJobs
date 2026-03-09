@@ -102,3 +102,7 @@ func (usr *UserUsecase) ChangePassword(userId int, currentHash, oldPassword, new
 
 	return usr.repository.UpdateUserPassword(userId, string(hashedPassword))
 }
+
+func (usr *UserUsecase) UpdateWeekdaysOnly(userID int, value bool) error {
+	return usr.repository.UpdateWeekdaysOnly(userID, value)
+}

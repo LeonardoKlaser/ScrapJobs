@@ -18,20 +18,17 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
+	"github.com/robfig/cron/v3"
 )
 
 const (
-	scrapingInterval   = 120 * time.Minute
-	matchInterval      = 4 * time.Hour
-	matchUniqueTTL     = matchInterval - 10*time.Minute // 3h50m — expires before next tick
-	digestInterval     = 8 * time.Hour
-	digestUniqueTTL    = digestInterval - 10*time.Minute // 7h50m — expires before next tick
-	deleteJobsInterval = 24 * time.Hour
+	matchUniqueTTL  = 3*time.Hour + 50*time.Minute
+	digestUniqueTTL = 7*time.Hour + 50*time.Minute
 )
 
 func main() {
     if os.Getenv("GIN_MODE") != "release"{
-		godotenv.Load()	
+		godotenv.Load()
 	}
 
 	var err error
@@ -93,71 +90,65 @@ func main() {
     notificationRepo := repository.NewNotificationRepository(dbConnection)
     resetRepo := repository.NewPasswordResetRepository(dbConnection)
 
-    // Ticker to run every 120 minutes
-    ticker := time.NewTicker(scrapingInterval)
-    defer ticker.Stop()
-
-    tickerDeleteJobs := time.NewTicker(deleteJobsInterval)
-    defer tickerDeleteJobs.Stop()
-
-    tickerMatch := time.NewTicker(matchInterval)
-    defer tickerMatch.Stop()
-
-    tickerDigest := time.NewTicker(digestInterval)
-    defer tickerDigest.Stop()
-
-    // Graceful shutdown: cancellable context + WaitGroup for all goroutines
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
 
     sigCh := make(chan os.Signal, 1)
     signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-    var wg sync.WaitGroup
+	loc, err := time.LoadLocation("America/Sao_Paulo")
+	if err != nil {
+		logging.Logger.Fatal().Err(err).Msg("Failed to load timezone America/Sao_Paulo")
+	}
 
-    // Run all processes on startup. Match/digest may find no new data if scraping
-    // hasn't finished yet — this is fine, the next ticker cycle (4h/8h) will catch up.
-    wg.Add(3)
-    go func() { defer wg.Done(); enqueueScrapingTasks(ctx, siteRepo, client) }()
-    go func() { defer wg.Done(); enqueueMatchTasks(ctx, userSiteRepo, client) }()
-    go func() { defer wg.Done(); enqueueDigestTasks(ctx, notificationRepo, client) }()
+	c := cron.New(cron.WithLocation(loc))
 
-    for {
-        select {
-        case <-ticker.C:
-            wg.Add(1)
-            go func() { defer wg.Done(); enqueueScrapingTasks(ctx, siteRepo, client) }()
-        case <-tickerDeleteJobs.C:
-            wg.Add(2)
-            go func() {
-                defer wg.Done()
-                if err := jobRepo.DeleteOldJobs(); err != nil {
-                    logging.Logger.Error().Err(err).Msg("ERROR: failed to delete old jobs")
-                }
-            }()
-            go func() {
-                defer wg.Done()
-                deleted, err := resetRepo.DeleteExpiredTokens()
-                if err != nil {
-                    logging.Logger.Error().Err(err).Msg("ERROR: failed to delete expired reset tokens")
-                } else if deleted > 0 {
-                    logging.Logger.Info().Int64("count", deleted).Msg("Expired reset tokens cleaned up")
-                }
-            }()
-        case <-tickerMatch.C:
-            wg.Add(1)
-            go func() { defer wg.Done(); enqueueMatchTasks(ctx, userSiteRepo, client) }()
-        case <-tickerDigest.C:
-            wg.Add(1)
-            go func() { defer wg.Done(); enqueueDigestTasks(ctx, notificationRepo, client) }()
-        case sig := <-sigCh:
-            logging.Logger.Info().Str("signal", sig.String()).Msg("Scheduler shutting down, waiting for in-flight tasks...")
-            cancel()
-            wg.Wait()
-            logging.Logger.Info().Msg("Scheduler shut down gracefully")
-            return
-        }
-    }
+	// Scraping: 7h, 9h, 11h, 13h, 15h, 17h (every 2h from 7-17)
+	c.AddFunc("0 7,9,11,13,15,17 * * *", func() {
+		enqueueScrapingTasks(ctx, siteRepo, client)
+	})
+
+	// Match: 8h and 16h
+	c.AddFunc("0 8,16 * * *", func() {
+		enqueueMatchTasks(ctx, userSiteRepo, client)
+	})
+
+	// Digest/Email: 9h and 17h
+	c.AddFunc("0 9,17 * * *", func() {
+		enqueueDigestTasks(ctx, notificationRepo, client)
+	})
+
+	// Cleanup: 3h daily
+	c.AddFunc("0 3 * * *", func() {
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			if err := jobRepo.DeleteOldJobs(); err != nil {
+				logging.Logger.Error().Err(err).Msg("ERROR: failed to delete old jobs")
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			deleted, err := resetRepo.DeleteExpiredTokens()
+			if err != nil {
+				logging.Logger.Error().Err(err).Msg("ERROR: failed to delete expired reset tokens")
+			} else if deleted > 0 {
+				logging.Logger.Info().Int64("count", deleted).Msg("Expired reset tokens cleaned up")
+			}
+		}()
+		wg.Wait()
+	})
+
+	c.Start()
+	defer c.Stop()
+
+	logging.Logger.Info().Msg("Scheduler started with cron expressions (America/Sao_Paulo)")
+
+	// Block until signal
+	<-sigCh
+	logging.Logger.Info().Str("signal", "received").Msg("Scheduler shutting down...")
+	cancel()
 }
 
 func enqueueScrapingTasks(ctx context.Context, siteRepo *repository.SiteCareerRepository, client *asynq.Client) {

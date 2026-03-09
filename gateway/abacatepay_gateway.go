@@ -49,9 +49,9 @@ func (a *AbacatePayGateway) CreateBilling(ctx context.Context, plan *model.Plan,
 	// Calcula preço final com base no período de cobrança
 	var finalPrice float64
 	var productName string
-	if userData.BillingPeriod == "annual" {
-		finalPrice = plan.Price * 12 * 0.80 // 20% de desconto no plano anual
-		productName = plan.Name + " (Anual)"
+	if userData.BillingPeriod == "quarterly" {
+		finalPrice = plan.Price * 3 * 0.85 // 15% discount
+		productName = plan.Name + " (Trimestral)"
 	} else {
 		finalPrice = plan.Price
 		productName = plan.Name + " (Mensal)"
@@ -133,4 +133,108 @@ func (a *AbacatePayGateway) CreateBilling(ctx context.Context, plan *model.Plan,
 	}
 
 	return paymentURL, userData.Email, nil
+}
+
+// CreatePixQRCode cria um QR Code PIX na AbacatePay.
+func (a *AbacatePayGateway) CreatePixQRCode(ctx context.Context, amountCents int, expiresInSeconds int, description string, customer *PixCustomer) (*PixQRCodeData, error) {
+	if a.apiKey == "" {
+		return nil, errors.New("ABACATEPAY_API_KEY não está definida")
+	}
+
+	body := &CreatePixQRCodeBody{
+		Amount:      amountCents,
+		ExpiresIn:   expiresInSeconds,
+		Description: description,
+		Customer:    customer,
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao converter payload para JSON: %w", err)
+	}
+
+	url := a.baseURL + "/v1/pixQrCode/create"
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("erro ao criar requisição HTTP: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+a.apiKey)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao executar requisição para AbacatePay: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBodyBytes, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return nil, fmt.Errorf("erro ao ler corpo da resposta da AbacatePay: %w", readErr)
+	}
+
+	logging.Logger.Debug().Int("status_code", resp.StatusCode).RawJSON("abacatepay_pix_response", respBodyBytes).Msg("Resposta PIX QR Code da AbacatePay")
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		var errResp map[string]interface{}
+		if json.Unmarshal(respBodyBytes, &errResp) == nil {
+			return nil, fmt.Errorf("API da AbacatePay retornou status %d: %v", resp.StatusCode, errResp)
+		}
+		return nil, fmt.Errorf("API da AbacatePay retornou status %d", resp.StatusCode)
+	}
+
+	var pixResponse CreatePixQRCodeResponse
+	if err := json.Unmarshal(respBodyBytes, &pixResponse); err != nil {
+		return nil, fmt.Errorf("erro ao decodificar resposta PIX da AbacatePay: %w", err)
+	}
+
+	if pixResponse.Data == nil {
+		return nil, fmt.Errorf("resposta da AbacatePay não contém dados do QR Code")
+	}
+
+	return pixResponse.Data, nil
+}
+
+// CheckPixQRCodeStatus consulta o status de um QR Code PIX na AbacatePay.
+// Retorna o status: PENDING, PAID, EXPIRED, CANCELLED, REFUNDED.
+func (a *AbacatePayGateway) CheckPixQRCodeStatus(ctx context.Context, pixId string) (string, error) {
+	if a.apiKey == "" {
+		return "", errors.New("ABACATEPAY_API_KEY não está definida")
+	}
+
+	url := fmt.Sprintf("%s/v1/pixQrCode/check?id=%s", a.baseURL, pixId)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("erro ao criar requisição HTTP: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+a.apiKey)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("erro ao executar requisição para AbacatePay: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBodyBytes, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return "", fmt.Errorf("erro ao ler corpo da resposta: %w", readErr)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("API da AbacatePay retornou status %d ao checar PIX", resp.StatusCode)
+	}
+
+	var statusResponse CheckPixStatusResponse
+	if err := json.Unmarshal(respBodyBytes, &statusResponse); err != nil {
+		return "", fmt.Errorf("erro ao decodificar resposta de status PIX: %w", err)
+	}
+
+	if statusResponse.Data == nil {
+		return "", fmt.Errorf("resposta da AbacatePay não contém dados de status")
+	}
+
+	return statusResponse.Data.Status, nil
 }

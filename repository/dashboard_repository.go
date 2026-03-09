@@ -222,3 +222,24 @@ func (dr *DashboardRepository) RecordScrapingError(siteID int, siteName string, 
 	}
 	return nil
 }
+
+type PublicStats struct {
+	MonitoredSites int `json:"monitored_sites"`
+	TotalJobs      int `json:"total_jobs"`
+}
+
+func (dr *DashboardRepository) GetPublicStats() (PublicStats, error) {
+	var stats PublicStats
+
+	err := dr.connection.QueryRow("SELECT COUNT(*) FROM site_scraping_config WHERE deleted_at IS NULL").Scan(&stats.MonitoredSites)
+	if err != nil {
+		return stats, fmt.Errorf("failed to count sites: %w", err)
+	}
+
+	err = dr.connection.QueryRow("SELECT COUNT(*) FROM jobs").Scan(&stats.TotalJobs)
+	if err != nil {
+		return stats, fmt.Errorf("failed to count jobs: %w", err)
+	}
+
+	return stats, nil
+}

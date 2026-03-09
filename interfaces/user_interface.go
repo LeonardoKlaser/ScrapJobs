@@ -15,4 +15,5 @@ type UserRepositoryInterface interface {
 	GetUserBasicInfo(userID int) (string, string, error)
 	SoftDeleteUser(userId int) error
 	UpdateExpiresAt(userId int, expiresAt time.Time) error
+	UpdateWeekdaysOnly(userID int, value bool) error
 }

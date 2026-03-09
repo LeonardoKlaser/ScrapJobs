@@ -1,17 +1,23 @@
 package model
 
 type ResumeAnalysis struct {
-	MatchAnalysis             MatchAnalysis   `json:"matchAnalysis"`
-	StrengthsForThisJob       []Strength      `json:"strengthsForThisJob"`
-	GapsAndImprovementAreas   []Gap           `json:"gapsAndImprovementAreas"`
-	ActionableResumeSuggestions []Suggestion    `json:"actionableResumeSuggestions"`
-	FinalConsiderations       string          `json:"finalConsiderations"`
+	MatchAnalysis               MatchAnalysis `json:"matchAnalysis"`
+	AtsKeywords                 AtsKeywords   `json:"atsKeywords"`
+	StrengthsForThisJob         []Strength    `json:"strengthsForThisJob"`
+	GapsAndImprovementAreas     []Gap         `json:"gapsAndImprovementAreas"`
+	ActionableResumeSuggestions []Suggestion  `json:"actionableResumeSuggestions"`
+	FinalConsiderations         string        `json:"finalConsiderations"`
 }
 
 type MatchAnalysis struct {
 	OverallScoreNumeric     int    `json:"overallScoreNumeric"`
 	OverallScoreQualitative string `json:"overallScoreQualitative"`
 	Summary                 string `json:"summary"`
+}
+
+type AtsKeywords struct {
+	Matched []string `json:"matched"`
+	Missing []string `json:"missing"`
 }
 
 type Strength struct {

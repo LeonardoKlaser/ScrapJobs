@@ -55,3 +55,8 @@ func (m *MockUserRepository) UpdateExpiresAt(userId int, expiresAt time.Time) er
 	args := m.Called(userId, expiresAt)
 	return args.Error(0)
 }
+
+func (m *MockUserRepository) UpdateWeekdaysOnly(userID int, value bool) error {
+	args := m.Called(userID, value)
+	return args.Error(0)
+}

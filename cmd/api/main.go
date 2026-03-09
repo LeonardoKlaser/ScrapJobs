@@ -256,6 +256,8 @@ func main() {
 
 	adminDashboardController := controller.NewAdminDashboardController(dashboardRepository)
 
+	statsController := controller.NewStatsController(dashboardRepository, redisClient)
+
 	emailConfigController := controller.NewEmailConfigController(emailConfigRepo, orchestrator)
 
 	// Analysis Controller (análise manual de IA)
@@ -282,6 +284,8 @@ func main() {
 		publicRoutes.POST("/login", userController.SignIn)
 		publicRoutes.GET("/api/plans", planController.GetAllPlans)
 		publicRoutes.POST("/api/payments/create/:planId", paymentController.CreatePayment)
+		publicRoutes.GET("/api/payments/pix/status/:pixId", paymentController.CheckPixStatus)
+		publicRoutes.GET("/api/public/stats", statsController.GetPublicStats)
 	}
 
 	// Webhook routes — NO CSRF (server-to-server calls don't send Origin header).
@@ -327,6 +331,7 @@ func main() {
 		privateRoutes.PATCH("/api/user/profile", userController.UpdateProfile)
 		privateRoutes.POST("/api/user/change-password", userController.ChangePassword)
 		privateRoutes.DELETE("/api/user/account", accountController.DeleteAccount)
+		privateRoutes.PATCH("/api/user/preferences", userController.UpdatePreferences)
 	}
 
 	// Routes that require active subscription

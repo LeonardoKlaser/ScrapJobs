@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 	"web-scrapper/interfaces"
 	"web-scrapper/logging"
 	"web-scrapper/repository"
@@ -20,6 +21,7 @@ type TaskProcessor struct {
 	paymentUsecase *usecase.PaymentUsecase
 	emailService   interfaces.EmailService
 	dashboardRepo  *repository.DashboardRepository
+	userRepo       *repository.UserRepository
 }
 
 func NewTaskProcessor(
@@ -28,6 +30,7 @@ func NewTaskProcessor(
 	paymentUC *usecase.PaymentUsecase,
 	emailSvc interfaces.EmailService,
 	dashboardRepo *repository.DashboardRepository,
+	userRepo *repository.UserRepository,
 ) *TaskProcessor {
 	return &TaskProcessor{
 		_scraper:       scraper,
@@ -35,6 +38,7 @@ func NewTaskProcessor(
 		paymentUsecase: paymentUC,
 		emailService:   emailSvc,
 		dashboardRepo:  dashboardRepo,
+		userRepo:       userRepo,
 	}
 }
 
@@ -89,6 +93,21 @@ func (p *TaskProcessor) HandleSendDigestTask(ctx context.Context, t *asynq.Task)
 	}
 
 	logging.Logger.Info().Int("user_id", payload.UserID).Msg("Processing digest email for user")
+
+	// Check weekday preference
+	if p.userRepo != nil {
+		user, err := p.userRepo.GetUserById(payload.UserID)
+		if err != nil {
+			logging.Logger.Error().Err(err).Int("user_id", payload.UserID).Msg("Failed to get user for weekday check")
+		} else if user.WeekdaysOnly {
+			loc, _ := time.LoadLocation("America/Sao_Paulo")
+			weekday := time.Now().In(loc).Weekday()
+			if weekday == time.Saturday || weekday == time.Sunday {
+				logging.Logger.Info().Int("user_id", payload.UserID).Msg("Skipping digest for weekdays-only user on weekend")
+				return nil
+			}
+		}
+	}
 
 	if err := p._notifier.SendDigestForUser(ctx, payload.UserID); err != nil {
 		logging.Logger.Error().Err(err).Int("user_id", payload.UserID).Msg("SendDigestForUser failed")

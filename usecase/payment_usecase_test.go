@@ -36,8 +36,17 @@ func TestCreatePayment_Success(t *testing.T) {
 
 	plan := &model.Plan{ID: 1, Name: "Pro", Price: 29.90}
 	mockPlanRepo.On("GetPlanByID", 1).Return(plan, nil)
-	mockGW.On("CreateBilling", ctx, plan, mock.AnythingOfType("*gateway.InitiatePaymentRequest")).
-		Return("https://pay.example.com", "pending-123", nil)
+
+	pixData := &gateway.PixQRCodeData{
+		ID:           "pix-123",
+		Amount:       2990,
+		Status:       "PENDING",
+		BrCode:       "00020126...",
+		BrCodeBase64: "iVBORw0KGgo...",
+		ExpiresAt:    "2026-03-08T23:00:00Z",
+	}
+	mockGW.On("CreatePixQRCode", ctx, 2990, 900, "ScrapJobs - Pro (Mensal)", mock.AnythingOfType("*gateway.PixCustomer")).
+		Return(pixData, nil)
 
 	userData := gateway.InitiatePaymentRequest{
 		Name:          "John",
@@ -49,9 +58,12 @@ func TestCreatePayment_Success(t *testing.T) {
 		BillingPeriod: "monthly",
 	}
 
-	url, err := uc.CreatePayment(ctx, 1, userData)
+	result, err := uc.CreatePayment(ctx, 1, userData)
 	assert.NoError(t, err)
-	assert.Equal(t, "https://pay.example.com", url)
+	assert.NotNil(t, result)
+	assert.Equal(t, "pix-123", result.PixID)
+	assert.Equal(t, "00020126...", result.BrCode)
+	assert.Equal(t, "iVBORw0KGgo...", result.BrCodeBase64)
 	mockPlanRepo.AssertExpectations(t)
 	mockGW.AssertExpectations(t)
 }
@@ -74,8 +86,8 @@ func TestCreatePayment_GatewayError(t *testing.T) {
 
 	plan := &model.Plan{ID: 1, Name: "Pro", Price: 29.90}
 	mockPlanRepo.On("GetPlanByID", 1).Return(plan, nil)
-	mockGW.On("CreateBilling", ctx, plan, mock.AnythingOfType("*gateway.InitiatePaymentRequest")).
-		Return("", "", fmt.Errorf("gateway timeout"))
+	mockGW.On("CreatePixQRCode", ctx, 2990, 900, "ScrapJobs - Pro (Mensal)", mock.AnythingOfType("*gateway.PixCustomer")).
+		Return((*gateway.PixQRCodeData)(nil), fmt.Errorf("gateway timeout"))
 
 	userData := gateway.InitiatePaymentRequest{
 		Name:          "John",
@@ -89,7 +101,7 @@ func TestCreatePayment_GatewayError(t *testing.T) {
 
 	_, err := uc.CreatePayment(ctx, 1, userData)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "gateway")
+	assert.Contains(t, err.Error(), "PIX")
 }
 
 func TestCompleteRegistration_Success(t *testing.T) {

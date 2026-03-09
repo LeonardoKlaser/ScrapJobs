@@ -70,7 +70,7 @@ func (p *PaymentController) CreatePayment(ctx *gin.Context) {
 	reqBody.Cellphone = cleanString(reqBody.Cellphone)
 
 	log.Info().Str("email", reqBody.Email).Int("plan_id", planID).Msg("Iniciando processo de pagamento")
-	paymentURL, err := p.paymentUsecase.CreatePayment(ctx.Request.Context(), planID, reqBody)
+	pixResult, err := p.paymentUsecase.CreatePayment(ctx.Request.Context(), planID, reqBody)
 	if err != nil {
 		log.Error().Err(err).Str("email", reqBody.Email).Int("plan_id", planID).Msg("Erro ao iniciar pagamento no usecase")
 		friendlyMsg, statusCode := parsePaymentError(err.Error())
@@ -78,8 +78,39 @@ func (p *PaymentController) CreatePayment(ctx *gin.Context) {
 		return
 	}
 
-	log.Info().Str("email", reqBody.Email).Int("plan_id", planID).Msg("URL de pagamento gerada com sucesso")
-	ctx.JSON(http.StatusOK, gin.H{"url": paymentURL})
+	log.Info().Str("email", reqBody.Email).Int("plan_id", planID).Str("pix_id", pixResult.PixID).Msg("QR Code PIX gerado com sucesso")
+	ctx.JSON(http.StatusOK, pixResult)
+}
+
+// CheckPixStatus godoc
+// @Summary Checar status do PIX
+// @Description Consulta o status de pagamento de um QR Code PIX
+// @Tags Payment
+// @Produce json
+// @Param pixId path string true "ID do QR Code PIX"
+// @Success 200 {object} map[string]string
+// @Failure 404 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/payments/pix/status/{pixId} [get]
+func (p *PaymentController) CheckPixStatus(ctx *gin.Context) {
+	pixId := ctx.Param("pixId")
+	if pixId == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "pixId é obrigatório"})
+		return
+	}
+
+	status, err := p.paymentUsecase.CheckPixStatus(ctx.Request.Context(), pixId, p.asynqClient)
+	if err != nil {
+		if strings.Contains(err.Error(), "não encontrado") {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "PIX não encontrado"})
+			return
+		}
+		logging.Logger.Error().Err(err).Str("pix_id", pixId).Msg("Erro ao checar status do PIX")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao consultar status do pagamento"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"status": status})
 }
 
 // HandleWebhook godoc

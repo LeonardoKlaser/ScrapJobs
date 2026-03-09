@@ -154,6 +154,7 @@ func main() {
 		paymentUsecase,
 		emailService,
 		dashboardRepository,
+		userRepository,
 	)
 
 	// Mapeamento das Tarefas para os Handlers

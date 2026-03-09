@@ -15,4 +15,5 @@ type User struct {
 	Plan         *Plan      `json:"plan,omitempty"`
 	ExpiresAt    *time.Time `json:"expires_at,omitempty"`
 	DeletedAt    *time.Time `json:"-"`
+	WeekdaysOnly bool       `json:"weekdays_only"`
 }

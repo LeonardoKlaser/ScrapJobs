@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"text/template"
 	"web-scrapper/interfaces"
@@ -54,7 +55,7 @@ func generateEmailBodyHTML(analysis model.ResumeAnalysis, job model.Job) (string
 	}{
 		Analysis:      analysis,
 		Job:           job,
-		DashboardLink: "",
+		DashboardLink: os.Getenv("FRONTEND_URL") + "/app",
 	}
 
 	var body bytes.Buffer
@@ -149,7 +150,7 @@ func generateNewJobsEmailBodyHTML(userName string, jobs []*model.Job) (string, e
 		UserName      string
 		Jobs          []*model.Job
 		DashboardLink string
-	}{UserName: userName, Jobs: jobs, DashboardLink: ""}
+	}{UserName: userName, Jobs: jobs, DashboardLink: os.Getenv("FRONTEND_URL") + "/app"}
 
 	var body bytes.Buffer
 	if err := emailTemplates.ExecuteTemplate(&body, "new-jobs-alert.html", data); err != nil {
