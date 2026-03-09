@@ -27,14 +27,15 @@ return 1
 
 // RedisRateLimiter creates a distributed rate-limiting middleware backed by Redis.
 // It uses a fixed-window counter with an atomic Lua script.
+// limiterName namespaces the Redis key so different limiters don't share counters.
 // limit is the max number of requests per window, windowSeconds is the window duration.
-func RedisRateLimiter(redisClient *redis.Client, limit int, windowSeconds int) gin.HandlerFunc {
+func RedisRateLimiter(redisClient *redis.Client, limiterName string, limit int, windowSeconds int) gin.HandlerFunc {
 	limitStr := strconv.Itoa(limit)
 	windowStr := strconv.Itoa(windowSeconds)
 
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
-		key := "rate_limit:" + ip
+		key := "rate_limit:" + limiterName + ":" + ip
 
 		result, err := luaRateLimit.Run(c.Request.Context(), redisClient, []string{key}, limitStr, windowStr).Int()
 		if err != nil {

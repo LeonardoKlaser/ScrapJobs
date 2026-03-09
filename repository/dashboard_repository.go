@@ -243,3 +243,31 @@ func (dr *DashboardRepository) GetPublicStats() (PublicStats, error) {
 
 	return stats, nil
 }
+
+type PublicSiteLogo struct {
+	SiteName string `json:"site_name"`
+	LogoURL  string `json:"logo_url"`
+}
+
+func (dr *DashboardRepository) GetPublicSiteLogos() ([]PublicSiteLogo, error) {
+	rows, err := dr.connection.Query("SELECT site_name, logo_url FROM site_scraping_config WHERE is_active = TRUE AND logo_url IS NOT NULL")
+	if err != nil {
+		return nil, fmt.Errorf("failed to query site logos: %w", err)
+	}
+	defer rows.Close()
+
+	var logos []PublicSiteLogo
+	for rows.Next() {
+		var logo PublicSiteLogo
+		if err := rows.Scan(&logo.SiteName, &logo.LogoURL); err != nil {
+			return nil, fmt.Errorf("failed to scan site logo: %w", err)
+		}
+		logos = append(logos, logo)
+	}
+
+	if logos == nil {
+		logos = []PublicSiteLogo{}
+	}
+
+	return logos, rows.Err()
+}

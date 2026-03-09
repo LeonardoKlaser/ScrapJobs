@@ -52,3 +52,36 @@ func (sc *StatsController) GetPublicStats(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, stats)
 }
+
+func (sc *StatsController) GetPublicSiteLogos(ctx *gin.Context) {
+	const cacheKey = "public:site_logos"
+	const cacheTTL = 5 * time.Minute
+
+	// Try cache first
+	if sc.redisClient != nil {
+		cached, err := sc.redisClient.Get(ctx.Request.Context(), cacheKey).Result()
+		if err == nil {
+			var logos []repository.PublicSiteLogo
+			if json.Unmarshal([]byte(cached), &logos) == nil {
+				ctx.JSON(http.StatusOK, logos)
+				return
+			}
+		}
+	}
+
+	logos, err := sc.dashboardRepo.GetPublicSiteLogos()
+	if err != nil {
+		logging.Logger.Error().Err(err).Msg("Failed to get public site logos")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar logos"})
+		return
+	}
+
+	// Cache result
+	if sc.redisClient != nil {
+		if data, err := json.Marshal(logos); err == nil {
+			sc.redisClient.Set(ctx.Request.Context(), cacheKey, data, cacheTTL)
+		}
+	}
+
+	ctx.JSON(http.StatusOK, logos)
+}

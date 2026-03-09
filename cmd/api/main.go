@@ -271,7 +271,7 @@ func main() {
 
 	// Rate limiters — distributed via Redis
 	rateLimiterFn := newRedisRateLimiterFactory(redisClient)
-	publicRateLimiter := rateLimiterFn(15, 60)
+	publicRateLimiter := rateLimiterFn("public", 15, 60)
 
 	csrfMiddleware := middleware.CSRFProtection()
 
@@ -286,6 +286,7 @@ func main() {
 		publicRoutes.POST("/api/payments/create/:planId", paymentController.CreatePayment)
 		publicRoutes.GET("/api/payments/pix/status/:pixId", paymentController.CheckPixStatus)
 		publicRoutes.GET("/api/public/stats", statsController.GetPublicStats)
+		publicRoutes.GET("/api/public/sites/logos", statsController.GetPublicSiteLogos)
 	}
 
 	// Webhook routes — NO CSRF (server-to-server calls don't send Origin header).
@@ -298,7 +299,7 @@ func main() {
 	}
 
 	// Forgot/reset password — rate limiter próprio, mais restritivo
-	forgotPasswordLimiter := rateLimiterFn(3, 60)
+	forgotPasswordLimiter := rateLimiterFn("forgot_pwd", 3, 60)
 	forgotPasswordRoutes := server.Group("/")
 	forgotPasswordRoutes.Use(logging.GinMiddleware())
 	forgotPasswordRoutes.Use(metrics.GinPrometheus())
@@ -310,7 +311,7 @@ func main() {
 	}
 
 	// Checkout validation — rate limiter próprio, separado do publicRoutes para não herdar o 5/min
-	checkoutValidationLimiter := rateLimiterFn(10, 60)
+	checkoutValidationLimiter := rateLimiterFn("checkout", 10, 60)
 	checkoutRoutes := server.Group("/")
 	checkoutRoutes.Use(logging.GinMiddleware())
 	checkoutRoutes.Use(metrics.GinPrometheus())
@@ -320,7 +321,7 @@ func main() {
 		checkoutRoutes.POST("/api/users/validate-checkout", userController.ValidateCheckout)
 	}
 
-	privateRateLimiter := rateLimiterFn(15, 60)
+	privateRateLimiter := rateLimiterFn("private", 15, 60)
 
 	// Routes accessible even when subscription is expired
 	privateRoutes := server.Group("/")
@@ -351,7 +352,7 @@ func main() {
 		subscribedRoutes.PATCH("/userSite/:siteId", userSiteController.UpdateUserSiteFilters)
 		subscribedRoutes.POST("api/request-site", requestedSiteController.Create)
 		if analysisController != nil {
-			analyzeRateLimiter := rateLimiterFn(3, 60)
+			analyzeRateLimiter := rateLimiterFn("analyze", 3, 60)
 			subscribedRoutes.POST("/api/analyze-job", analyzeRateLimiter, analysisController.AnalyzeJob)
 			subscribedRoutes.POST("/api/analyze-job/send-email", analyzeRateLimiter, analysisController.SendAnalysisEmail)
 			subscribedRoutes.GET("/api/analyze-job/history", analysisController.GetAnalysisHistory)
@@ -423,15 +424,16 @@ func main() {
 
 // newRedisRateLimiterFactory returns a function that creates rate-limiting
 // middleware backed by Redis. If redisClient is nil, it falls back to in-memory.
-func newRedisRateLimiterFactory(redisClient *redis.Client) func(limit, windowSeconds int) gin.HandlerFunc {
+// The name parameter namespaces the Redis key so different limiters don't share counters.
+func newRedisRateLimiterFactory(redisClient *redis.Client) func(name string, limit, windowSeconds int) gin.HandlerFunc {
 	if redisClient == nil {
-		return func(limit, windowSeconds int) gin.HandlerFunc {
+		return func(name string, limit, windowSeconds int) gin.HandlerFunc {
 			// Convert to rate.Limit: limit requests per windowSeconds
 			r := rate.Limit(float64(limit) / float64(windowSeconds))
 			return middleware.RateLimiter(r, limit)
 		}
 	}
-	return func(limit, windowSeconds int) gin.HandlerFunc {
-		return middleware.RedisRateLimiter(redisClient, limit, windowSeconds)
+	return func(name string, limit, windowSeconds int) gin.HandlerFunc {
+		return middleware.RedisRateLimiter(redisClient, name, limit, windowSeconds)
 	}
 }
