@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 	"database/sql"
+	_ "time/tzdata"
 	"web-scrapper/infra/db"
 	"web-scrapper/logging"
 	"web-scrapper/model"
