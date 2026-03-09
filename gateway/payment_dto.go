@@ -20,6 +20,7 @@ type PendingRegistrationData struct {
 	Tax       string `json:"tax"`
 	Cellphone string `json:"cellphone"`
 	PlanID    int    `json:"plan_id"`
+	PixID     string `json:"pix_id,omitempty"` // ID do QR Code PIX para cleanup de chaves Redis
 }
 
 // BillingProduct: produto enviado para a AbacatePay

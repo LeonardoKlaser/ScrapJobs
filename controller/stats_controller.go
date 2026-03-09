@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -27,7 +26,7 @@ func (sc *StatsController) GetPublicStats(ctx *gin.Context) {
 
 	// Try cache first
 	if sc.redisClient != nil {
-		cached, err := sc.redisClient.Get(context.Background(), cacheKey).Result()
+		cached, err := sc.redisClient.Get(ctx.Request.Context(), cacheKey).Result()
 		if err == nil {
 			var stats repository.PublicStats
 			if json.Unmarshal([]byte(cached), &stats) == nil {
@@ -47,7 +46,7 @@ func (sc *StatsController) GetPublicStats(ctx *gin.Context) {
 	// Cache result
 	if sc.redisClient != nil {
 		if data, err := json.Marshal(stats); err == nil {
-			sc.redisClient.Set(context.Background(), cacheKey, data, cacheTTL)
+			sc.redisClient.Set(ctx.Request.Context(), cacheKey, data, cacheTTL)
 		}
 	}
 

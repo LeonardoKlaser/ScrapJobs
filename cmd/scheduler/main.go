@@ -140,6 +140,16 @@ func main() {
 		wg.Wait()
 	})
 
+	// Run all tasks on startup to avoid delays after deploy/restart
+	logging.Logger.Info().Msg("Running initial tasks on startup...")
+	var startupWg sync.WaitGroup
+	startupWg.Add(3)
+	go func() { defer startupWg.Done(); enqueueScrapingTasks(ctx, siteRepo, client) }()
+	go func() { defer startupWg.Done(); enqueueMatchTasks(ctx, userSiteRepo, client) }()
+	go func() { defer startupWg.Done(); enqueueDigestTasks(ctx, notificationRepo, client) }()
+	startupWg.Wait()
+	logging.Logger.Info().Msg("Initial tasks completed")
+
 	c.Start()
 	defer c.Stop()
 

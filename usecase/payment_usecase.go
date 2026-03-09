@@ -98,7 +98,7 @@ func (uc *PaymentUsecase) CreatePayment(ctx context.Context, planID int, userDat
 	}
 	log.Info().Str("pix_id", pixData.ID).Msg("QR Code PIX criado com sucesso")
 
-	// Salva dados pendentes no Redis com chave baseada no pixId
+	// Salva dados pendentes no Redis sob chave pixId e email (para webhook)
 	pendingData := gateway.PendingRegistrationData{
 		Name:      userData.Name,
 		Email:     userData.Email,
@@ -106,6 +106,7 @@ func (uc *PaymentUsecase) CreatePayment(ctx context.Context, planID int, userDat
 		Tax:       userData.Tax,
 		Cellphone: userData.Cellphone,
 		PlanID:    plan.ID,
+		PixID:     pixData.ID,
 	}
 	jsonData, err := json.Marshal(pendingData)
 	if err != nil {
@@ -114,13 +115,18 @@ func (uc *PaymentUsecase) CreatePayment(ctx context.Context, planID int, userDat
 	}
 
 	redisKey := "pending_reg:" + pixData.ID
+	emailKey := "pending_reg:" + userData.Email
 	ttl := 1 * time.Hour
 	err = uc.redisClient.Set(ctx, redisKey, jsonData, ttl).Err()
 	if err != nil {
 		log.Error().Err(err).Str("redis_key", redisKey).Msg("Erro ao salvar dados pendentes no Redis")
 		return nil, fmt.Errorf("erro ao salvar dados pendentes no Redis: %w", err)
 	}
-	log.Info().Str("redis_key", redisKey).Dur("ttl", ttl).Msg("Dados de registro pendente salvos no Redis")
+	// Armazena também sob a chave de email para compatibilidade com webhook
+	if setErr := uc.redisClient.Set(ctx, emailKey, jsonData, ttl).Err(); setErr != nil {
+		log.Warn().Err(setErr).Str("redis_key", emailKey).Msg("Falha ao salvar chave Redis de email (webhook fallback)")
+	}
+	log.Info().Str("redis_key", redisKey).Str("email_key", emailKey).Dur("ttl", ttl).Msg("Dados de registro pendente salvos no Redis")
 
 	return &PixQRCodeResult{
 		PixID:        pixData.ID,
@@ -169,7 +175,7 @@ func (uc *PaymentUsecase) CheckPixStatus(ctx context.Context, pixId string, asyn
 
 			taskPayload, err := json.Marshal(tasks.CompleteRegistrationPayload{
 				PendingRegistrationID: pixId,
-				CustomerEmail:         pixId, // será resolvido no CompleteRegistration
+				CustomerEmail:         "", // resolvido via Redis no CompleteRegistration
 			})
 			if err != nil {
 				log.Error().Err(err).Msg("Erro ao serializar payload da task")
@@ -215,6 +221,21 @@ func (uc *PaymentUsecase) CompleteRegistration(ctx context.Context, pendingRegis
 		return nil, fmt.Errorf("erro ao decodificar dados pendentes: %w", err)
 	}
 
+	// Idempotência: previne duplo registro/renovação se polling e webhook disparam juntos
+	regFlag := "reg_completed:" + pendingData.Email
+	wasSet, flagErr := redisClient.SetNX(ctx, regFlag, "1", 24*time.Hour).Result()
+	if flagErr != nil {
+		log.Error().Err(flagErr).Msg("Erro ao setar flag de registro completo no Redis")
+	} else if !wasSet {
+		log.Info().Str("email", pendingData.Email).Msg("Registro já completado anteriormente (flag existente)")
+		uc.cleanupPendingKeys(ctx, redisKey, pendingData)
+		existingUser, findErr := uc.userUsecase.GetUserByEmail(pendingData.Email)
+		if findErr != nil {
+			return nil, fmt.Errorf("registro já processado para email: %s", pendingData.Email)
+		}
+		return &existingUser, nil
+	}
+
 	log.Info().Str("email", pendingData.Email).Msg("Tentando criar usuário no banco de dados")
 	expiresAt := time.Now().Add(30 * 24 * time.Hour)
 	userToCreate := model.User{
@@ -243,9 +264,7 @@ func (uc *PaymentUsecase) CompleteRegistration(ctx context.Context, pendingRegis
 				log.Error().Err(updateErr).Int("user_id", existingUser.Id).Msg("Erro ao renovar assinatura do usuário")
 			}
 
-			if delErr := redisClient.Del(ctx, redisKey).Err(); delErr != nil {
-				log.Error().Err(delErr).Str("redis_key", redisKey).Msg("Falha ao deletar chave do Redis após detectar usuário duplicado")
-			}
+			uc.cleanupPendingKeys(ctx, redisKey, pendingData)
 			log.Info().Int("user_id", existingUser.Id).Msg("Registro considerado completo (usuário já existia)")
 			return &existingUser, nil
 		}
@@ -254,13 +273,41 @@ func (uc *PaymentUsecase) CompleteRegistration(ctx context.Context, pendingRegis
 	}
 	log.Info().Int("user_id", newUser.Id).Msg("Usuário criado com sucesso no banco de dados")
 
-	if err := redisClient.Del(ctx, redisKey).Err(); err != nil {
-		log.Warn().Err(err).Str("redis_key", redisKey).Msg("Falha ao deletar chave do Redis após registro bem-sucedido")
-	} else {
-		log.Info().Str("redis_key", redisKey).Msg("Chave Redis de registro pendente deletada")
-	}
+	uc.cleanupPendingKeys(ctx, redisKey, pendingData)
 
 	return &newUser, nil
+}
+
+// cleanupPendingKeys deleta ambas as chaves Redis (pixId e email) do registro pendente.
+func (uc *PaymentUsecase) cleanupPendingKeys(ctx context.Context, primaryKey string, data gateway.PendingRegistrationData) {
+	log := logging.Logger
+	keysToDelete := []string{primaryKey}
+
+	// Calcula a chave irmã (sibling) para deletar também
+	if data.PixID != "" {
+		siblingKey := "pending_reg:" + data.PixID
+		if siblingKey != primaryKey {
+			keysToDelete = append(keysToDelete, siblingKey)
+		}
+	}
+	if data.Email != "" {
+		siblingKey := "pending_reg:" + data.Email
+		if siblingKey != primaryKey {
+			keysToDelete = append(keysToDelete, siblingKey)
+		}
+	}
+
+	if err := uc.redisClient.Del(ctx, keysToDelete...).Err(); err != nil {
+		log.Warn().Err(err).Strs("redis_keys", keysToDelete).Msg("Falha ao deletar chaves do Redis após registro")
+	} else {
+		log.Info().Strs("redis_keys", keysToDelete).Msg("Chaves Redis de registro pendente deletadas")
+	}
+}
+
+// SetIdempotencyFlag tenta setar uma flag de idempotência no Redis.
+// Retorna true se a flag foi setada (primeira vez), false se já existia.
+func (uc *PaymentUsecase) SetIdempotencyFlag(ctx context.Context, key string) (bool, error) {
+	return uc.redisClient.SetNX(ctx, key, "1", 1*time.Hour).Result()
 }
 
 // cleanNumericString remove todos os caracteres não numéricos de uma string (CPF, celular, etc.)

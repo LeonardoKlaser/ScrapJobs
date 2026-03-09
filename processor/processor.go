@@ -100,7 +100,11 @@ func (p *TaskProcessor) HandleSendDigestTask(ctx context.Context, t *asynq.Task)
 		if err != nil {
 			logging.Logger.Error().Err(err).Int("user_id", payload.UserID).Msg("Failed to get user for weekday check")
 		} else if user.WeekdaysOnly {
-			loc, _ := time.LoadLocation("America/Sao_Paulo")
+			loc, locErr := time.LoadLocation("America/Sao_Paulo")
+			if locErr != nil {
+				logging.Logger.Warn().Err(locErr).Msg("Failed to load timezone, using UTC-3 fallback")
+				loc = time.FixedZone("BRT", -3*3600)
+			}
 			weekday := time.Now().In(loc).Weekday()
 			if weekday == time.Saturday || weekday == time.Sunday {
 				logging.Logger.Info().Int("user_id", payload.UserID).Msg("Skipping digest for weekdays-only user on weekend")

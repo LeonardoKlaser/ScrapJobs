@@ -31,7 +31,7 @@ func setupPaymentTest(t *testing.T) (*PaymentUsecase, *mocks.MockPaymentGateway,
 }
 
 func TestCreatePayment_Success(t *testing.T) {
-	uc, mockGW, mockPlanRepo, _, _ := setupPaymentTest(t)
+	uc, mockGW, mockPlanRepo, _, mr := setupPaymentTest(t)
 	ctx := context.Background()
 
 	plan := &model.Plan{ID: 1, Name: "Pro", Price: 29.90}
@@ -64,6 +64,18 @@ func TestCreatePayment_Success(t *testing.T) {
 	assert.Equal(t, "pix-123", result.PixID)
 	assert.Equal(t, "00020126...", result.BrCode)
 	assert.Equal(t, "iVBORw0KGgo...", result.BrCodeBase64)
+
+	// Verifica que ambas as chaves Redis foram criadas (pixId e email)
+	assert.True(t, mr.Exists("pending_reg:pix-123"), "chave pending_reg:<pixId> deve existir")
+	assert.True(t, mr.Exists("pending_reg:john@test.com"), "chave pending_reg:<email> deve existir")
+
+	// Verifica que o PixID foi armazenado nos dados pendentes
+	raw, _ := mr.Get("pending_reg:pix-123")
+	var stored gateway.PendingRegistrationData
+	json.Unmarshal([]byte(raw), &stored)
+	assert.Equal(t, "pix-123", stored.PixID)
+	assert.Equal(t, "john@test.com", stored.Email)
+
 	mockPlanRepo.AssertExpectations(t)
 	mockGW.AssertExpectations(t)
 }
@@ -115,9 +127,12 @@ func TestCompleteRegistration_Success(t *testing.T) {
 		Tax:       "12345678900",
 		Cellphone: "11999999999",
 		PlanID:    1,
+		PixID:     "abc-123",
 	}
 	jsonData, _ := json.Marshal(pendingData)
+	// Simula ambas as chaves (como CreatePayment faz)
 	mr.Set("pending_reg:abc-123", string(jsonData))
+	mr.Set("pending_reg:john@test.com", string(jsonData))
 
 	// CreateUserWithHashedPassword first calls GetUserByEmail.
 	// Return empty user with no error to indicate user does not exist yet.
@@ -127,13 +142,13 @@ func TestCompleteRegistration_Success(t *testing.T) {
 	tax := "12345678900"
 	cellphone := "11999999999"
 	expectedUser := model.User{
-		Id:       1,
-		Name:     "John",
-		Email:    "john@test.com",
-		Password: "$2a$10$hashedpassword",
-		Tax:      &tax,
+		Id:        1,
+		Name:      "John",
+		Email:     "john@test.com",
+		Password:  "$2a$10$hashedpassword",
+		Tax:       &tax,
 		Cellphone: &cellphone,
-		PlanID:   &planID,
+		PlanID:    &planID,
 	}
 	mockUserRepo.On("CreateUser", mock.AnythingOfType("model.User")).Return(expectedUser, nil)
 
@@ -142,7 +157,47 @@ func TestCompleteRegistration_Success(t *testing.T) {
 	assert.NotNil(t, user)
 	assert.Equal(t, "John", user.Name)
 	assert.Equal(t, 1, user.Id)
+
+	// Verifica que ambas as chaves Redis foram deletadas
+	assert.False(t, mr.Exists("pending_reg:abc-123"), "chave pixId deve ser deletada após registro")
+	assert.False(t, mr.Exists("pending_reg:john@test.com"), "chave email deve ser deletada após registro")
+
+	// Verifica que a flag de idempotência foi setada
+	assert.True(t, mr.Exists("reg_completed:john@test.com"), "flag de idempotência deve existir")
+
 	mockUserRepo.AssertExpectations(t)
+}
+
+func TestCompleteRegistration_Idempotent(t *testing.T) {
+	uc, _, _, mockUserRepo, mr := setupPaymentTest(t)
+	ctx := context.Background()
+
+	pendingData := gateway.PendingRegistrationData{
+		Name:      "John",
+		Email:     "john@test.com",
+		Password:  "$2a$10$hashedpassword",
+		Tax:       "12345678900",
+		Cellphone: "11999999999",
+		PlanID:    1,
+		PixID:     "pix-dup",
+	}
+	jsonData, _ := json.Marshal(pendingData)
+	mr.Set("pending_reg:pix-dup", string(jsonData))
+
+	// Simula que o registro já foi completado anteriormente
+	mr.Set("reg_completed:john@test.com", "1")
+
+	// GetUserByEmail deve retornar o usuário existente
+	existingUser := model.User{Id: 5, Name: "John", Email: "john@test.com"}
+	mockUserRepo.On("GetUserByEmail", "john@test.com").Return(existingUser, nil)
+
+	user, err := uc.CompleteRegistration(ctx, "pix-dup")
+	assert.NoError(t, err)
+	assert.NotNil(t, user)
+	assert.Equal(t, 5, user.Id)
+
+	// CreateUser NÃO deve ter sido chamado (idempotência impediu)
+	mockUserRepo.AssertNotCalled(t, "CreateUser", mock.Anything)
 }
 
 func TestCompleteRegistration_NotFound(t *testing.T) {
@@ -153,4 +208,24 @@ func TestCompleteRegistration_NotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, user)
 	assert.Contains(t, err.Error(), "não encontrado")
+}
+
+func TestSetIdempotencyFlag(t *testing.T) {
+	uc, _, _, _, _ := setupPaymentTest(t)
+	ctx := context.Background()
+
+	// Primeira chamada: deve setar a flag
+	wasSet, err := uc.SetIdempotencyFlag(ctx, "test_flag:123")
+	assert.NoError(t, err)
+	assert.True(t, wasSet)
+
+	// Segunda chamada: flag já existe
+	wasSet, err = uc.SetIdempotencyFlag(ctx, "test_flag:123")
+	assert.NoError(t, err)
+	assert.False(t, wasSet)
+
+	// Flag diferente: deve funcionar
+	wasSet, err = uc.SetIdempotencyFlag(ctx, "test_flag:456")
+	assert.NoError(t, err)
+	assert.True(t, wasSet)
 }

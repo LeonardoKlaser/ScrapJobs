@@ -9,6 +9,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	neturl "net/url"
 	"os"
 	"time"
 	"web-scrapper/logging"
@@ -203,7 +204,7 @@ func (a *AbacatePayGateway) CheckPixQRCodeStatus(ctx context.Context, pixId stri
 		return "", errors.New("ABACATEPAY_API_KEY não está definida")
 	}
 
-	url := fmt.Sprintf("%s/v1/pixQrCode/check?id=%s", a.baseURL, pixId)
+	url := fmt.Sprintf("%s/v1/pixQrCode/check?id=%s", a.baseURL, neturl.QueryEscape(pixId))
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("erro ao criar requisição HTTP: %w", err)

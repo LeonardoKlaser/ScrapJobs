@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"web-scrapper/gateway"
@@ -61,7 +62,7 @@ func (p *PaymentController) CreatePayment(ctx *gin.Context) {
 	var reqBody gateway.InitiatePaymentRequest
 	if err := ctx.ShouldBindJSON(&reqBody); err != nil {
 		log.Warn().Err(err).Msg("Payload de iniciação de pagamento inválido")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Payload inválido: " + err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Dados de pagamento inválidos. Verifique os campos e tente novamente."})
 		return
 	}
 
@@ -92,10 +93,16 @@ func (p *PaymentController) CreatePayment(ctx *gin.Context) {
 // @Failure 404 {object} model.ErrorResponse
 // @Failure 500 {object} model.ErrorResponse
 // @Router /api/payments/pix/status/{pixId} [get]
+var validPixIdRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,128}$`)
+
 func (p *PaymentController) CheckPixStatus(ctx *gin.Context) {
 	pixId := ctx.Param("pixId")
 	if pixId == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "pixId é obrigatório"})
+		return
+	}
+	if !validPixIdRegex.MatchString(pixId) {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "pixId inválido"})
 		return
 	}
 
@@ -166,7 +173,7 @@ func (p *PaymentController) HandleWebhook(ctx *gin.Context) {
 		return
 	}
 
-	// Extrai email do customer.metadata (chave Redis agora é baseada no email)
+	// Extrai email do customer.metadata (chave Redis: pending_reg:<email>)
 	customerEmail := ""
 	if billing.Customer != nil {
 		customerEmail = billing.Customer.Metadata["email"]
@@ -174,6 +181,18 @@ func (p *PaymentController) HandleWebhook(ctx *gin.Context) {
 	if customerEmail == "" {
 		log.Error().Str("webhook_id", payload.ID).Str("billing_id", billing.ID).Msg("Webhook AbacatePay: email ausente no customer.metadata")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Email do cliente ausente no webhook"})
+		return
+	}
+
+	// Idempotência: evita enfileirar task duplicada para o mesmo billing.
+	// Em caso de erro no Redis, prossegue — CompleteRegistration trata duplicatas.
+	paidFlag := "billing_paid:" + billing.ID
+	wasSet, flagErr := p.paymentUsecase.SetIdempotencyFlag(ctx.Request.Context(), paidFlag)
+	if flagErr != nil {
+		log.Error().Err(flagErr).Str("billing_id", billing.ID).Msg("Erro ao setar flag de idempotência no webhook")
+	} else if !wasSet {
+		log.Info().Str("billing_id", billing.ID).Msg("Webhook já processado anteriormente (flag existente)")
+		ctx.JSON(http.StatusOK, gin.H{"status": "received"})
 		return
 	}
 
