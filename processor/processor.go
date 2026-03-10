@@ -141,7 +141,7 @@ func (p *TaskProcessor) HandleCompleteRegistrationTask(ctx context.Context, t *a
 
 	logging.Logger.Info().Int("user_id", newUser.Id).Str("email", newUser.Email).Msg("Usuário criado com sucesso via task")
 
-	dashboardLink := os.Getenv("FRONTEND_URL") + "/dashboard"
+	dashboardLink := os.Getenv("FRONTEND_URL") + "/app"
 	err = p.emailService.SendWelcomeEmail(ctx, newUser.Email, newUser.Name, dashboardLink)
 	if err != nil {
 		logging.Logger.Error().Err(err).Int("user_id", newUser.Id).Msg("Falha ao enviar e-mail de boas-vindas após registro")

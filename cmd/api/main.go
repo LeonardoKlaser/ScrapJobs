@@ -321,7 +321,7 @@ func main() {
 		checkoutRoutes.POST("/api/users/validate-checkout", userController.ValidateCheckout)
 	}
 
-	privateRateLimiter := rateLimiterFn("private", 15, 60)
+	privateRateLimiter := rateLimiterFn("private", 30, 60)
 
 	// Routes accessible even when subscription is expired
 	privateRoutes := server.Group("/")
