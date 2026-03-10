@@ -49,8 +49,8 @@ func TestSiteCareerUsecase_InsertNewSiteCareer(t *testing.T) {
 		mockUploader := new(mocks.MockS3Uploader)
 		uc := NewSiteCareerUsecase(mockRepo, mockUploader)
 
-		site := model.SiteScrapingConfig{SiteName: "Acme", BaseURL: "https://acme.com", ScrapingType: "HTML"}
-		expected := model.SiteScrapingConfig{ID: 1, SiteName: "Acme", BaseURL: "https://acme.com", ScrapingType: "HTML"}
+		site := model.SiteScrapingConfig{SiteName: "Acme", BaseURL: "https://acme.com", ScrapingType: "CSS"}
+		expected := model.SiteScrapingConfig{ID: 1, SiteName: "Acme", BaseURL: "https://acme.com", ScrapingType: "CSS"}
 
 		mockRepo.On("InsertNewSiteCareer", site).Return(expected, nil).Once()
 
