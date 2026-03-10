@@ -1,0 +1,1 @@
+ALTER TYPE scraping_strategy ADD VALUE 'CSS';
