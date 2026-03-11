@@ -6,11 +6,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
+	"unicode"
 	"web-scrapper/model"
 
 	"github.com/tidwall/gjson"
+	"golang.org/x/text/runes"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 )
 
 type APIScrapper struct {
@@ -94,13 +99,21 @@ func (s *APIScrapper) parseAPIResponse(body []byte, mappingsJSON string, baseURL
 	}
 
 	result.ForEach(func(key, value gjson.Result) bool {
+		title := value.Get(mappings.TitlePath).String()
 		jobLink := value.Get(mappings.LinkPath).String()
 		if jobLink != "" && !strings.HasPrefix(jobLink, "http") {
-			jobLink = strings.TrimRight(baseURL, "/") + "/" + strings.TrimLeft(jobLink, "/")
+			slug := generateSlug(title)
+			base := strings.TrimRight(baseURL, "/")
+			id := strings.TrimLeft(jobLink, "/")
+			if slug != "" {
+				jobLink = base + "/" + id + "/" + slug
+			} else {
+				jobLink = base + "/" + id
+			}
 		}
 
 		job := &model.Job{
-			Title:       value.Get(mappings.TitlePath).String(),
+			Title:       title,
 			JobLink:     jobLink,
 			Location:    value.Get(mappings.LocationPath).String(),
 			Description: value.Get(mappings.DescriptionPath).String(),
@@ -116,4 +129,18 @@ func (s *APIScrapper) parseAPIResponse(body []byte, mappingsJSON string, baseURL
 	})
 
 	return jobs, nil
+}
+
+var nonAlphanumeric = regexp.MustCompile(`[^a-z0-9]+`)
+
+func generateSlug(title string) string {
+	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+	result, _, err := transform.String(t, title)
+	if err != nil {
+		result = title
+	}
+	result = strings.ToLower(result)
+	result = nonAlphanumeric.ReplaceAllString(result, "-")
+	result = strings.Trim(result, "-")
+	return result
 }
