@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 	"web-scrapper/model"
 
@@ -67,7 +68,7 @@ func (s *APIScrapper) Scrape(ctx context.Context, config model.SiteScrapingConfi
 		return nil, fmt.Errorf("falha ao ler corpo da resposta de %s: %w", config.SiteName, err)
 	}
 
-	return s.parseAPIResponse(body, *config.JSONDataMappings)
+	return s.parseAPIResponse(body, *config.JSONDataMappings, config.BaseURL)
 }
 
 type Mapeamentos struct {
@@ -79,7 +80,7 @@ type Mapeamentos struct {
 	RequisitionIDPath string `json:"requisition_id_path"`
 }
 
-func (s *APIScrapper) parseAPIResponse(body []byte, mappingsJSON string) ([]*model.Job, error) {
+func (s *APIScrapper) parseAPIResponse(body []byte, mappingsJSON string, baseURL string) ([]*model.Job, error) {
 	var mappings Mapeamentos
 	if err := json.Unmarshal([]byte(mappingsJSON), &mappings); err != nil {
 		return nil, fmt.Errorf("ERROR to parse json maps: %w", err)
@@ -93,9 +94,14 @@ func (s *APIScrapper) parseAPIResponse(body []byte, mappingsJSON string) ([]*mod
 	}
 
 	result.ForEach(func(key, value gjson.Result) bool {
+		jobLink := value.Get(mappings.LinkPath).String()
+		if jobLink != "" && !strings.HasPrefix(jobLink, "http") {
+			jobLink = strings.TrimRight(baseURL, "/") + "/" + strings.TrimLeft(jobLink, "/")
+		}
+
 		job := &model.Job{
 			Title:       value.Get(mappings.TitlePath).String(),
-			JobLink:    value.Get(mappings.LinkPath).String(),
+			JobLink:     jobLink,
 			Location:    value.Get(mappings.LocationPath).String(),
 			Description: value.Get(mappings.DescriptionPath).String(),
 		}
