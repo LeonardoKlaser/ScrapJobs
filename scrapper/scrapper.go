@@ -3,7 +3,6 @@ package scrapper
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"web-scrapper/logging"
@@ -38,13 +37,12 @@ func (s *JobScrapper) configureCollyCallbacks(c *colly.Collector, detailCollecto
 		}
 
 		if selectors.JobRequisitionIdSelector != nil {
-			jobIDstr := e.ChildText(*selectors.JobRequisitionIdSelector)
-			jobID, err := strconv.Atoi(jobIDstr)
-			if err != nil {
-				logging.Logger.Warn().Err(err).Str("job_title", jobPtr.Title).Msg("Failed to convert requisition ID")
+			jobIDstr := strings.TrimSpace(e.ChildText(*selectors.JobRequisitionIdSelector))
+			if jobIDstr == "" {
+				logging.Logger.Warn().Str("job_title", jobPtr.Title).Msg("Failed to extract requisition ID")
 			} else {
-				logging.Logger.Debug().Str("job_title", jobPtr.Title).Int("requisition_id", jobID).Msg("Parsed requisition ID")
-				jobPtr.RequisitionID = int64(jobID)
+				logging.Logger.Debug().Str("job_title", jobPtr.Title).Str("requisition_id", jobIDstr).Msg("Parsed requisition ID")
+				jobPtr.RequisitionID = jobIDstr
 			}
 		}
 	})

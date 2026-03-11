@@ -20,7 +20,7 @@ func TestJobUseCase_CreateJob(t *testing.T) {
 			Location:      "Remote",
 			Company:       "Acme",
 			JobLink:       "https://acme.com/jobs/1",
-			RequisitionID: 12345,
+			RequisitionID: "12345",
 		}
 
 		mockRepo.On("CreateJob", job).Return(1, nil).Once()
@@ -50,9 +50,9 @@ func TestJobUseCase_FindJobByRequisitionID(t *testing.T) {
 	uc := NewJobUseCase(mockRepo)
 
 	t.Run("should return true when job exists", func(t *testing.T) {
-		mockRepo.On("FindJobByRequisitionID", 12345).Return(true, nil).Once()
+		mockRepo.On("FindJobByRequisitionID", "12345").Return(true, nil).Once()
 
-		found, err := uc.FindJobByRequisitionID(12345)
+		found, err := uc.FindJobByRequisitionID("12345")
 
 		assert.NoError(t, err)
 		assert.True(t, found)
@@ -60,9 +60,9 @@ func TestJobUseCase_FindJobByRequisitionID(t *testing.T) {
 	})
 
 	t.Run("should return false when job not found", func(t *testing.T) {
-		mockRepo.On("FindJobByRequisitionID", 99999).Return(false, nil).Once()
+		mockRepo.On("FindJobByRequisitionID", "99999").Return(false, nil).Once()
 
-		found, err := uc.FindJobByRequisitionID(99999)
+		found, err := uc.FindJobByRequisitionID("99999")
 
 		assert.NoError(t, err)
 		assert.False(t, found)

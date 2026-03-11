@@ -3,6 +3,7 @@ package scrapper
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 	"web-scrapper/logging"
@@ -60,12 +61,25 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, 3) // max 3 concurrent detail page fetches
 
+	parsedBaseURL, err := url.Parse(config.BaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing base URL %s: %w", config.BaseURL, err)
+	}
+
 	doc.Find(*config.JobListItemSelector).Each(func(_ int, sel *goquery.Selection) {
 		title := strings.TrimSpace(sel.Find(*config.TitleSelector).Text())
 
 		var jobLink string
 		if config.LinkSelector != nil && config.LinkAttribute != nil {
-			jobLink, _ = sel.Find(*config.LinkSelector).Attr(*config.LinkAttribute)
+			rawLink, _ := sel.Find(*config.LinkSelector).Attr(*config.LinkAttribute)
+			if rawLink != "" {
+				parsedLink, err := url.Parse(rawLink)
+				if err == nil {
+					jobLink = parsedBaseURL.ResolveReference(parsedLink).String()
+				} else {
+					jobLink = rawLink
+				}
+			}
 		}
 
 		var location string
@@ -79,7 +93,7 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 			JobLink:  jobLink,
 		}
 
-		if jobLink != "" && config.JobDescriptionSelector != nil {
+		if jobLink != "" && (config.JobDescriptionSelector != nil || config.JobRequisitionIdSelector != nil) {
 			wg.Add(1)
 			sem <- struct{}{}
 			go func(j *model.Job, link string) {
@@ -102,10 +116,18 @@ func (s *HeadlessScraper) fetchJobDetails(allocCtx context.Context, config model
 	taskCtx, cancel := chromedp.NewContext(allocCtx) // reuses existing Chrome allocator
 	defer cancel()
 
+	// Use smarter wait: prefer the description selector if available, otherwise just wait for body
+	var waitAction chromedp.Action
+	if config.JobDescriptionSelector != nil {
+		waitAction = chromedp.WaitVisible(*config.JobDescriptionSelector, chromedp.ByQuery)
+	} else {
+		waitAction = chromedp.WaitReady("body")
+	}
+
 	var detailHTML string
 	err := chromedp.Run(taskCtx,
 		chromedp.Navigate(jobURL),
-		chromedp.WaitReady("body"),
+		waitAction,
 		chromedp.OuterHTML("body", &detailHTML),
 	)
 	if err != nil {
@@ -122,5 +144,15 @@ func (s *HeadlessScraper) fetchJobDetails(allocCtx context.Context, config model
 	if config.JobDescriptionSelector != nil {
 		description := strings.TrimSpace(detailDoc.Find(*config.JobDescriptionSelector).Text())
 		job.Description = description
+	}
+
+	if config.JobRequisitionIdSelector != nil {
+		reqID := strings.TrimSpace(detailDoc.Find(*config.JobRequisitionIdSelector).Text())
+		if reqID == "" {
+			logging.Logger.Warn().Str("job_title", job.Title).Msg("Failed to extract requisition ID")
+		} else {
+			logging.Logger.Debug().Str("job_title", job.Title).Str("requisition_id", reqID).Msg("Parsed requisition ID")
+			job.RequisitionID = reqID
+		}
 	}
 }

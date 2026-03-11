@@ -28,7 +28,7 @@ func (job JobUseCase) CreateJob(jobData model.Job) (int, error){
 	return jobID, nil
 }
 
-func (job JobUseCase) FindJobByRequisitionID(requisition_ID int) (bool, error){
+func (job JobUseCase) FindJobByRequisitionID(requisition_ID string) (bool, error){
 	hasJob, err := job.Repository.FindJobByRequisitionID(requisition_ID);
 	if(err != nil){
 		return false, err
@@ -77,7 +77,7 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
         }else{
 			jobID, err := uc.Repository.UpdateLastSeen(job.RequisitionID)
 			if err != nil {
-				logging.Logger.Error().Err(err).Int64("requisition_id", job.RequisitionID).Msg("Failed to update last seen")
+				logging.Logger.Error().Err(err).Str("requisition_id", job.RequisitionID).Msg("Failed to update last seen")
 			}
 			job.ID = jobID
 			newJobsToDatabase = append(newJobsToDatabase, job)
@@ -86,8 +86,8 @@ func (uc *JobUseCase) ScrapeAndStoreJobs(ctx context.Context, selectors model.Si
     return newJobsToDatabase, nil
 }
 
-func takeIDs(jobs []*model.Job) []int64{
-	var ids []int64
+func takeIDs(jobs []*model.Job) []string{
+	var ids []string
 	for _, job := range(jobs){
 		ids = append(ids, job.RequisitionID)
 	}

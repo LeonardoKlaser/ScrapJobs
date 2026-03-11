@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"time"
 	"web-scrapper/model"
 
@@ -102,8 +101,8 @@ func (s *APIScrapper) parseAPIResponse(body []byte, mappingsJSON string) ([]*mod
 		}
 
 		reqIDStr := value.Get(mappings.RequisitionIDPath).String()
-		if reqID, err := strconv.Atoi(reqIDStr); err == nil {
-			job.RequisitionID = int64(reqID)
+		if reqIDStr != "" {
+			job.RequisitionID = reqIDStr
 		}
 
 		jobs = append(jobs, job)

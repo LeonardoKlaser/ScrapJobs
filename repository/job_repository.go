@@ -35,7 +35,7 @@ func (usr *JobRepository) CreateJob(job model.Job) (int, error) {
 	return job.ID, nil
 }
 
-func (usr *JobRepository) FindJobByRequisitionID(requisition_ID int) (bool, error) {
+func (usr *JobRepository) FindJobByRequisitionID(requisition_ID string) (bool, error) {
 	query := `SELECT COUNT(*) FROM jobs WHERE requisition_ID = $1`
 	queryPrepare, err := usr.connection.Prepare(query)
 	if err != nil {
@@ -52,23 +52,23 @@ func (usr *JobRepository) FindJobByRequisitionID(requisition_ID int) (bool, erro
 	return count > 0, nil
 }
 
-func (usr *JobRepository) FindJobsByRequisitionIDs(requisition_IDs []int64) (map[int64]bool, error){
+func (usr *JobRepository) FindJobsByRequisitionIDs(requisition_IDs []string) (map[string]bool, error){
 	query := `SELECT requisition_ID FROM jobs WHERE requisition_ID = ANY($1)`
-	
-	Exists := make(map[int64]bool)
+
+	Exists := make(map[string]bool)
     if len(requisition_IDs) == 0 {
         return Exists, nil
     }
 
 	rows, err := usr.connection.Query(query, pq.Array(requisition_IDs) )
 	if err != nil {
-		return Exists, fmt.Errorf("error fetching jobs %d: %w", requisition_IDs, err)
+		return Exists, fmt.Errorf("error fetching jobs %v: %w", requisition_IDs, err)
     }
-	
+
 	defer rows.Close()
 
 	for rows.Next(){
-		var requisitionID int64
+		var requisitionID string
 		if err := rows.Scan(&requisitionID); err != nil {
 			return nil, fmt.Errorf("error scanning notified job requisition ID: %w", err)
 		}
@@ -78,23 +78,23 @@ func (usr *JobRepository) FindJobsByRequisitionIDs(requisition_IDs []int64) (map
 	return Exists, rows.Err()
 }
 
-func (usr *JobRepository) UpdateLastSeen(requisition_ID int64) (int, error) {
+func (usr *JobRepository) UpdateLastSeen(requisition_ID string) (int, error) {
 	var id int
 	query := `UPDATE jobs SET last_seen_at = CURRENT_TIMESTAMP WHERE requisition_ID = $1 RETURNING id`
 	queryPrepare, err := usr.connection.Prepare(query)
 	if err != nil {
-		logging.Logger.Error().Err(err).Int64("requisition_id", requisition_ID).Msg("error preparing query to update last seen")
+		logging.Logger.Error().Err(err).Str("requisition_id", requisition_ID).Msg("error preparing query to update last seen")
 		return id, err
 	}
 	defer queryPrepare.Close()
 
 	err = queryPrepare.QueryRow(requisition_ID).Scan(&id)
 	if err != nil {
-		logging.Logger.Error().Err(err).Int64("requisition_id", requisition_ID).Msg("error updating last seen")
+		logging.Logger.Error().Err(err).Str("requisition_id", requisition_ID).Msg("error updating last seen")
 		return id, err
 	}
 
-	logging.Logger.Info().Int64("requisition_id", requisition_ID).Msg("last seen updated")
+	logging.Logger.Info().Str("requisition_id", requisition_ID).Msg("last seen updated")
 	return id, nil
 }
 
