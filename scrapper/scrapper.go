@@ -56,6 +56,12 @@ func (s *JobScrapper) configureCollyCallbacks(c *colly.Collector, detailCollecto
 			Location = e.ChildText(*selectors.LocationSelector)
 		}
 
+		if JobLink != "" && !strings.HasPrefix(JobLink, "http://") && !strings.HasPrefix(JobLink, "https://") {
+			if selectors.APIEndpointTemplate != nil && *selectors.APIEndpointTemplate != "" {
+				JobLink = *selectors.APIEndpointTemplate + JobLink
+			}
+		}
+
 		job := &model.Job{
 			Title:    Title,
 			Location: Location,

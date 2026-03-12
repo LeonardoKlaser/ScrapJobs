@@ -84,12 +84,6 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 			}
 		}
 
-		if jobLink != "" && !strings.HasPrefix(jobLink, "http://") && !strings.HasPrefix(jobLink, "https://") {
-			if config.APIEndpointTemplate != nil && *config.APIEndpointTemplate != "" {
-				jobLink = *config.APIEndpointTemplate + jobLink
-			}
-		}
-
 		var location string
 		if config.LocationSelector != nil {
 			location = strings.TrimSpace(sel.Find(*config.LocationSelector).Text())
