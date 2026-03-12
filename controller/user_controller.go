@@ -107,8 +107,11 @@ func (usr *UserController) SignIn(ctx *gin.Context) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": res.Id,
-		"exp": time.Now().Add(time.Hour * 24).Unix(),
+		"sub":       res.Id,
+		"email":     res.Email,
+		"user_name": res.Name,
+		"cellphone": res.Cellphone,
+		"exp":       time.Now().Add(time.Hour * 24).Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(os.Getenv("JWTTOKEN")))
@@ -123,7 +126,13 @@ func (usr *UserController) SignIn(ctx *gin.Context) {
 	ctx.SetSameSite(http.SameSiteLaxMode)
 	ctx.SetCookie("Authorization", tokenString, 3600*24, "", "", isSecure, true)
 
-	ctx.JSON(http.StatusOK, gin.H{})
+	ctx.JSON(http.StatusOK, gin.H{
+		"id":        res.Id,
+		"user_name": res.Name,
+		"email":     res.Email,
+		"cellphone": res.Cellphone,
+		"is_admin":  res.IsAdmin,
+	})
 }
 
 // Logout godoc

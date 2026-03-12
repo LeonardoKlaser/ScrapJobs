@@ -54,7 +54,7 @@ func (dr *DashboardRepository) GetDashboardData(userID int) (model.DashboardData
             (
                 SELECT json_agg(s)
                 FROM (
-                    SELECT sc.site_name, sc.base_url
+                    SELECT sc.id AS site_id, sc.site_name, sc.base_url
                     FROM user_sites us
                     JOIN site_scraping_config sc ON us.site_id = sc.id
                     WHERE us.user_id = $1
@@ -93,12 +93,8 @@ func (dr *DashboardRepository) GetDashboardData(userID int) (model.DashboardData
 	return dashboardData, nil
 }
 
-func (dr *DashboardRepository) GetLatestJobsPaginated(userID, page, limit, days int, search string, matchedOnly bool) (model.PaginatedJobs, error) {
-	var result model.PaginatedJobs
-	result.Page = page
-	result.Limit = limit
-
-	offset := (page - 1) * limit
+func (dr *DashboardRepository) GetAllJobs(userID, days int, search string, matchedOnly bool) (model.JobsResponse, error) {
+	var result model.JobsResponse
 
 	matchedExpr := `
 		CASE WHEN us.filters IS NULL OR us.filters::text = '[]' THEN TRUE
@@ -131,36 +127,23 @@ func (dr *DashboardRepository) GetLatestJobsPaginated(userID, page, limit, days 
 		baseFrom += fmt.Sprintf(` AND (%s)`, matchedExpr)
 	}
 
-	// Count query
-	countQuery := "SELECT COUNT(DISTINCT j.id) " + baseFrom
-	err := dr.connection.QueryRow(countQuery, args...).Scan(&result.TotalCount)
-	if err != nil {
-		return result, fmt.Errorf("erro ao contar vagas: %w", err)
-	}
-
-	// Data query
 	dataQuery := fmt.Sprintf(
-		`WITH CTE AS (
-			SELECT DISTINCT j.id, j.site_id, j.title, j.location, j.company, j.job_link, j.requisition_id, COALESCE(j.description, '') AS description, (%s) AS matched, j.created_at
-			%s
-		)
-		SELECT id, site_id, title, location, company, job_link, requisition_id, description, matched 
-		FROM CTE 
-		ORDER BY created_at DESC 
-		LIMIT $%d OFFSET $%d`,
-		matchedExpr, baseFrom, argIdx, argIdx+1,
+		`SELECT DISTINCT j.id, j.site_id, j.title, j.location, j.company, j.job_link, j.requisition_id, COALESCE(j.description, '') AS description, (%s) AS matched, j.created_at
+		%s
+		ORDER BY j.created_at DESC
+		LIMIT 2000`,
+		matchedExpr, baseFrom,
 	)
-	args = append(args, limit, offset)
 
 	rows, err := dr.connection.Query(dataQuery, args...)
 	if err != nil {
-		return result, fmt.Errorf("erro ao buscar vagas paginadas: %w", err)
+		return result, fmt.Errorf("erro ao buscar vagas: %w", err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var job model.JobWithMatch
-		if err := rows.Scan(&job.ID, &job.SiteID, &job.Title, &job.Location, &job.Company, &job.JobLink, &job.RequisitionID, &job.Description, &job.Matched); err != nil {
+		if err := rows.Scan(&job.ID, &job.SiteID, &job.Title, &job.Location, &job.Company, &job.JobLink, &job.RequisitionID, &job.Description, &job.Matched, &job.CreatedAt); err != nil {
 			return result, fmt.Errorf("erro ao ler vaga: %w", err)
 		}
 		result.Jobs = append(result.Jobs, job)
@@ -169,6 +152,8 @@ func (dr *DashboardRepository) GetLatestJobsPaginated(userID, page, limit, days 
 	if result.Jobs == nil {
 		result.Jobs = []model.JobWithMatch{}
 	}
+
+	result.TotalCount = len(result.Jobs)
 
 	return result, rows.Err()
 }

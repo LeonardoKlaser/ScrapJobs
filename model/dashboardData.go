@@ -10,13 +10,15 @@ type DashboardData struct {
 }
 
 type MonitoredURL struct {
+	SiteID   int    `json:"site_id"`
 	SiteName string `json:"site_name"`
 	BaseURL  string `json:"base_url"`
 }
 
 type JobWithMatch struct {
 	Job
-	Matched bool `json:"matched"`
+	Matched   bool   `json:"matched"`
+	CreatedAt string `json:"created_at"`
 }
 
 type PaginatedJobs struct {
@@ -24,6 +26,11 @@ type PaginatedJobs struct {
 	TotalCount int            `json:"total_count"`
 	Page       int            `json:"page"`
 	Limit      int            `json:"limit"`
+}
+
+type JobsResponse struct {
+	Jobs       []JobWithMatch `json:"jobs"`
+	TotalCount int            `json:"total_count"`
 }
 
 type AdminDashboardData struct {

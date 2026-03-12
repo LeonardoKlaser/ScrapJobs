@@ -59,7 +59,7 @@ func (s *JobScrapper) configureCollyCallbacks(c *colly.Collector, detailCollecto
 		job := &model.Job{
 			Title:    Title,
 			Location: Location,
-			JobLink: JobLink,
+			JobLink:  JobLink,
 		}
 
 		if JobLink != "" {

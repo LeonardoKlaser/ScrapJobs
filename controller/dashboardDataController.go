@@ -78,20 +78,11 @@ func (repo *DashboardDataController) GetLatestJobs(ctx *gin.Context) {
 		return
 	}
 
-	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
 	days, _ := strconv.Atoi(ctx.DefaultQuery("days", "0"))
 	search := ctx.Query("search")
 	matchedOnly := ctx.DefaultQuery("matched_only", "true") != "false"
 
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 || limit > 50 {
-		limit = 10
-	}
-
-	data, err := repo.repo.GetLatestJobsPaginated(user.Id, page, limit, days, search, matchedOnly)
+	data, err := repo.repo.GetAllJobs(user.Id, days, search, matchedOnly)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
