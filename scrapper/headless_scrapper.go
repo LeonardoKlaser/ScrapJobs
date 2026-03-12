@@ -10,6 +10,7 @@ import (
 	"web-scrapper/model"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 )
 
@@ -25,11 +26,14 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 		chromedp.Flag("disable-gpu", true),
 		chromedp.Flag("no-sandbox", true),
 		chromedp.Flag("disable-dev-shm-usage", true),
+		chromedp.Flag("disable-crash-reporter", true),
+		chromedp.Flag("disable-extensions", true),
+		chromedp.Flag("disable-software-rasterizer", true),
 	)
 	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
 	defer cancel()
 
-	taskCtx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(func(format string, args ...interface{}) {
+	taskCtx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(func(format string, args ...any) {
 		logging.Logger.Debug().Msgf(format, args...)
 	}))
 	defer cancel()
@@ -40,6 +44,12 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 
 	var htmlContent string
 	err := chromedp.Run(taskCtx,
+		network.Enable(),
+		network.SetBlockedURLs([]string{
+			"*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg", "*.webp", "*.ico",
+			"*.css", "*.woff", "*.woff2", "*.ttf",
+			"*google-analytics.com*", "*googletagmanager.com*", "*facebook.net*", "*tiktok.com*", "*youtube.com*",
+		}),
 		chromedp.Navigate(config.BaseURL),
 		chromedp.WaitVisible(*config.JobListItemSelector, chromedp.ByQuery),
 		chromedp.OuterHTML("html", &htmlContent),
@@ -128,6 +138,12 @@ func (s *HeadlessScraper) fetchJobDetails(allocCtx context.Context, config model
 
 	var detailHTML string
 	err := chromedp.Run(taskCtx,
+		network.Enable(),
+		network.SetBlockedURLs([]string{
+			"*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg", "*.webp", "*.ico",
+			"*.css", "*.woff", "*.woff2", "*.ttf",
+			"*google-analytics.com*", "*googletagmanager.com*", "*facebook.net*", "*tiktok.com*", "*youtube.com*",
+		}),
 		chromedp.Navigate(jobURL),
 		waitAction,
 		chromedp.OuterHTML("body", &detailHTML),
