@@ -76,7 +76,6 @@ func TestCheckAuthUser_ValidJWT(t *testing.T) {
 	assert.Contains(t, w.Body.String(), `"user_name":"Test User"`)
 	assert.Contains(t, w.Body.String(), `"email":"test@test.com"`)
 	assert.Contains(t, w.Body.String(), `"monthly_analysis_count":5`)
-	assert.Contains(t, w.Body.String(), `"id":1`)
 	mockUserRepo.AssertExpectations(t)
 }
 

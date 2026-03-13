@@ -75,7 +75,6 @@ func (controller *CheckAuthController) CheckAuthUser(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"id":                     userID,
 		"user_name":              meData.UserName,
 		"email":                  email,
 		"tax":                    meData.Tax,
