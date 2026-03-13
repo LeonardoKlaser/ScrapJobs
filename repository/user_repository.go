@@ -189,7 +189,7 @@ func (usr *UserRepository) GetUserById(Id int) (model.User, error) {
 func (usr *UserRepository) GetUserMeData(userID int) (model.UserMeData, error) {
 	query := `
 		SELECT
-			u.user_name, u.cellphone, u.tax, u.expires_at, u.weekdays_only,
+			u.user_name, u.cellphone, u.tax, u.is_admin, u.expires_at, u.weekdays_only,
 			p.id, p.name, p.price, p.max_sites, p.max_ai_analyses, p.features,
 			(SELECT COUNT(*) FROM user_sites us
 			 JOIN site_scraping_config sc ON us.site_id = sc.id
@@ -215,6 +215,7 @@ func (usr *UserRepository) GetUserMeData(userID int) (model.UserMeData, error) {
 		&data.UserName,
 		&data.Cellphone,
 		&data.Tax,
+		&data.IsAdmin,
 		&expiresAt,
 		&data.WeekdaysOnly,
 		&planID,

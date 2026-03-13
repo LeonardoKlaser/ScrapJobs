@@ -9,11 +9,12 @@ import (
 var ErrUserNotFound = errors.New("user not found")
 
 // UserMeData holds data fetched from the database for /api/me.
-// Only id, email, and is_admin come from JWT claims; everything else is fresh from DB.
+// Only id and email come from JWT claims; everything else is fresh from DB.
 type UserMeData struct {
 	UserName             string     `json:"user_name"`
 	Cellphone            *string    `json:"cellphone,omitempty"`
 	Tax                  *string    `json:"tax,omitempty"`
+	IsAdmin              bool       `json:"is_admin"`
 	ExpiresAt            *time.Time `json:"expires_at,omitempty"`
 	WeekdaysOnly         bool       `json:"weekdays_only"`
 	Plan                 *Plan      `json:"plan,omitempty"`

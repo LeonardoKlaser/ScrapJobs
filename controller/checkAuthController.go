@@ -58,10 +58,9 @@ func (controller *CheckAuthController) CheckAuthUser(ctx *gin.Context) {
 		return
 	}
 
-	// Only id, email, and is_admin come from JWT (immutable data).
-	// user_name, cellphone, tax, etc. come from the DB to stay fresh after profile updates.
+	// Only id and email come from JWT (immutable data).
+	// Everything else (including is_admin) comes from the DB to stay fresh.
 	email, _ := claims["email"].(string)
-	isAdmin, _ := claims["is_admin"].(bool)
 
 	// Fetch dynamic + editable data from DB (single lightweight query)
 	meData, err := controller.userRepo.GetUserMeData(userID)
@@ -79,7 +78,7 @@ func (controller *CheckAuthController) CheckAuthUser(ctx *gin.Context) {
 		"email":                  email,
 		"tax":                    meData.Tax,
 		"cellphone":              meData.Cellphone,
-		"is_admin":               isAdmin,
+		"is_admin":               meData.IsAdmin,
 		"plan":                   meData.Plan,
 		"expires_at":             meData.ExpiresAt,
 		"monitored_sites_count":  meData.MonitoredSitesCount,

@@ -52,6 +52,7 @@ func TestCheckAuthUser_ValidJWT(t *testing.T) {
 	plan := model.Plan{ID: 1, Name: "Profissional", MaxSites: 8, MaxAIAnalyses: 40}
 	meData := model.UserMeData{
 		UserName:             "Test User",
+		IsAdmin:              true, // DB says admin — JWT claim says false → DB must win
 		Tax:                  nil,
 		WeekdaysOnly:         false,
 		Plan:                 &plan,
@@ -65,7 +66,7 @@ func TestCheckAuthUser_ValidJWT(t *testing.T) {
 	_ = ctx
 
 	router.GET("/me", func(c *gin.Context) {
-		c.Set("claims", validClaims(1))
+		c.Set("claims", validClaims(1)) // JWT has is_admin: false
 		ctrl.CheckAuthUser(c)
 	})
 
@@ -75,6 +76,7 @@ func TestCheckAuthUser_ValidJWT(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), `"user_name":"Test User"`)
 	assert.Contains(t, w.Body.String(), `"email":"test@test.com"`)
+	assert.Contains(t, w.Body.String(), `"is_admin":true`) // DB value, not JWT
 	assert.Contains(t, w.Body.String(), `"monthly_analysis_count":5`)
 	mockUserRepo.AssertExpectations(t)
 }
