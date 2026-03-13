@@ -243,7 +243,7 @@ func main() {
 	userSiteController := controller.NewUserSiteController(userSiteUsecase)
 	siteCareerController := controller.NewSiteCareerController(siteCareerUsecase, userSiteRepository)
 	healthController := controller.NewHealthController(dbConnection, asynqClient, redisClient)
-	checkAuthController := controller.NewCheckAuthController(userSiteRepository)
+	checkAuthController := controller.NewCheckAuthController(userRepository)
 	dashboardController := controller.NewDashboardDataController(dashboardRepository)
 	planController := controller.NewPlanController(planUsecase)
 	requestedSiteController := controller.NewRequestedSiteController(requestedSiteUsecase)
@@ -323,11 +323,17 @@ func main() {
 
 	privateRateLimiter := rateLimiterFn("private", 30, 60)
 
+	// /api/me — lightweight auth: reads identity from JWT claims, fetches only dynamic data from DB
+	meRoutes := server.Group("/")
+	meRoutes.Use(logging.GinMiddleware(), metrics.GinPrometheus(), csrfMiddleware, privateRateLimiter, middlewareAuth.RequireAuthLight)
+	{
+		meRoutes.GET("api/me", checkAuthController.CheckAuthUser)
+	}
+
 	// Routes accessible even when subscription is expired
 	privateRoutes := server.Group("/")
 	privateRoutes.Use(logging.GinMiddleware(), metrics.GinPrometheus(), csrfMiddleware, middlewareAuth.RequireAuth)
 	{
-		privateRoutes.GET("api/me", checkAuthController.CheckAuthUser)
 		privateRoutes.POST("/api/logout", userController.Logout)
 		privateRoutes.PATCH("/api/user/profile", userController.UpdateProfile)
 		privateRoutes.POST("/api/user/change-password", userController.ChangePassword)

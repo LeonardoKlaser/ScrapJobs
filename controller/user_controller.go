@@ -106,14 +106,17 @@ func (usr *UserController) SignIn(ctx *gin.Context) {
 		return
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	claims := jwt.MapClaims{
 		"sub":       res.Id,
 		"email":     res.Email,
 		"user_name": res.Name,
-		"cellphone": res.Cellphone,
 		"is_admin":  res.IsAdmin,
 		"exp":       time.Now().Add(time.Hour * 24).Unix(),
-	})
+	}
+	if res.Cellphone != nil {
+		claims["cellphone"] = *res.Cellphone
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	tokenString, err := token.SignedString([]byte(os.Getenv("JWTTOKEN")))
 	if err != nil {

@@ -186,6 +186,70 @@ func (usr *UserRepository) GetUserById(Id int) (model.User, error) {
 	return userToReturn, nil
 }
 
+func (usr *UserRepository) GetUserMeData(userID int) (model.UserMeData, error) {
+	query := `
+		SELECT
+			u.user_name, u.cellphone, u.tax, u.expires_at, u.weekdays_only,
+			p.id, p.name, p.price, p.max_sites, p.max_ai_analyses, p.features,
+			(SELECT COUNT(*) FROM user_sites us
+			 JOIN site_scraping_config sc ON us.site_id = sc.id
+			 WHERE us.user_id = $1 AND sc.is_active = TRUE) AS monitored_sites_count,
+			(SELECT COUNT(*) FROM job_notifications
+			 WHERE user_id = $1 AND analysis_result IS NOT NULL
+			   AND notified_at >= date_trunc('month', CURRENT_DATE)) AS monthly_analysis_count
+		FROM users u
+		LEFT JOIN plans p ON u.plan_id = p.id
+		WHERE u.id = $1 AND u.deleted_at IS NULL`
+
+	var data model.UserMeData
+	var plan model.Plan
+	var planID sql.NullInt64
+	var planName sql.NullString
+	var planPrice sql.NullFloat64
+	var planMaxSites sql.NullInt64
+	var planMaxAI sql.NullInt64
+	var features pq.StringArray
+	var expiresAt sql.NullTime
+
+	err := usr.db.QueryRow(query, userID).Scan(
+		&data.UserName,
+		&data.Cellphone,
+		&data.Tax,
+		&expiresAt,
+		&data.WeekdaysOnly,
+		&planID,
+		&planName,
+		&planPrice,
+		&planMaxSites,
+		&planMaxAI,
+		&features,
+		&data.MonitoredSitesCount,
+		&data.MonthlyAnalysisCount,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return model.UserMeData{}, fmt.Errorf("user %d: %w", userID, model.ErrUserNotFound)
+		}
+		return model.UserMeData{}, fmt.Errorf("error fetching user me data: %w", err)
+	}
+
+	if expiresAt.Valid {
+		data.ExpiresAt = &expiresAt.Time
+	}
+
+	if planID.Valid {
+		plan.ID = int(planID.Int64)
+		plan.Name = planName.String
+		plan.Price = planPrice.Float64
+		plan.MaxSites = int(planMaxSites.Int64)
+		plan.MaxAIAnalyses = int(planMaxAI.Int64)
+		plan.Features = features
+		data.Plan = &plan
+	}
+
+	return data, nil
+}
+
 func (usr *UserRepository) UpdateUserProfile(userId int, name string, cellphone *string, tax *string) error {
 	query := `UPDATE users SET user_name = $1, cellphone = $2, tax = $3 WHERE id = $4 AND deleted_at IS NULL`
 	queryPrepare, err := usr.db.Prepare(query)

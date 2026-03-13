@@ -23,7 +23,7 @@ func TestRedisRateLimiter_WithinLimit(t *testing.T) {
 	defer client.Close()
 
 	router := gin.New()
-	router.GET("/api", RedisRateLimiter(client, 5, 60), func(c *gin.Context) {
+	router.GET("/api", RedisRateLimiter(client, "test", 5, 60), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
@@ -41,7 +41,7 @@ func TestRedisRateLimiter_ExceedsLimit(t *testing.T) {
 	defer client.Close()
 
 	router := gin.New()
-	router.GET("/api", RedisRateLimiter(client, 2, 60), func(c *gin.Context) {
+	router.GET("/api", RedisRateLimiter(client, "test", 2, 60), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
@@ -66,7 +66,7 @@ func TestRedisRateLimiter_DifferentIPs(t *testing.T) {
 	defer client.Close()
 
 	router := gin.New()
-	router.GET("/api", RedisRateLimiter(client, 1, 60), func(c *gin.Context) {
+	router.GET("/api", RedisRateLimiter(client, "test", 1, 60), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
@@ -97,7 +97,7 @@ func TestRedisRateLimiter_WindowExpires(t *testing.T) {
 	defer client.Close()
 
 	router := gin.New()
-	router.GET("/api", RedisRateLimiter(client, 1, 60), func(c *gin.Context) {
+	router.GET("/api", RedisRateLimiter(client, "test", 1, 60), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
@@ -132,12 +132,12 @@ func TestRedisRateLimiter_SharedCounterAcrossInstances(t *testing.T) {
 
 	// Two middleware instances sharing the same Redis client (simulates 2 API instances)
 	router1 := gin.New()
-	router1.GET("/api", RedisRateLimiter(client, 2, 60), func(c *gin.Context) {
+	router1.GET("/api", RedisRateLimiter(client, "test", 2, 60), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
 	router2 := gin.New()
-	router2.GET("/api", RedisRateLimiter(client, 2, 60), func(c *gin.Context) {
+	router2.GET("/api", RedisRateLimiter(client, "test", 2, 60), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 

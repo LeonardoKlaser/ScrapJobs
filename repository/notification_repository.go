@@ -60,7 +60,7 @@ func (db *NotificationRepository) GetNotifiedJobIDsForUser(userId int, jobs []in
 
 // GetMonthlyAnalysisCount retorna a quantidade de análises de IA feitas no mês corrente para o usuário
 func (db *NotificationRepository) GetMonthlyAnalysisCount(userID int) (int, error) {
-	query := `SELECT COUNT(*) FROM job_notifications WHERE user_id = $1 AND status = 'SENT' AND notified_at >= date_trunc('month', CURRENT_DATE)`
+	query := `SELECT COUNT(*) FROM job_notifications WHERE user_id = $1 AND analysis_result IS NOT NULL AND notified_at >= date_trunc('month', CURRENT_DATE)`
 
 	var count int
 	err := db.connection.QueryRow(query, userID).Scan(&count)

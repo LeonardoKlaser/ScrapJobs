@@ -26,6 +26,11 @@ func (m *MockUserRepository) GetUserById(Id int) (model.User, error) {
 	return args.Get(0).(model.User), args.Error(1)
 }
 
+func (m *MockUserRepository) GetUserMeData(userID int) (model.UserMeData, error) {
+	args := m.Called(userID)
+	return args.Get(0).(model.UserMeData), args.Error(1)
+}
+
 func (m *MockUserRepository) UpdateUserProfile(userId int, name string, cellphone *string, tax *string) error {
 	args := m.Called(userId, name, cellphone, tax)
 	return args.Error(0)

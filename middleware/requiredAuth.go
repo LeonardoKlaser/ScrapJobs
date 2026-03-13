@@ -20,6 +20,40 @@ func NewMiddleware(user *usecase.UserUsecase) *Middleware {
 	}
 }
 
+// RequireAuthLight validates the JWT and sets claims in context without fetching
+// the full user from the database. Used by /api/me which only needs static data
+// from the token and fetches dynamic data with its own lightweight query.
+func (m *Middleware) RequireAuthLight(ctx *gin.Context) {
+	tokenString, err := ctx.Cookie("Authorization")
+
+	if err != nil {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signin method: %v", token.Header["alg"])
+		}
+
+		return []byte(os.Getenv("JWTTOKEN")), nil
+	})
+
+	if err != nil || token == nil {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	ctx.Set("claims", claims)
+	ctx.Next()
+}
+
 func (m *Middleware) RequireAuth(ctx *gin.Context) {
 	tokenString, err := ctx.Cookie("Authorization")
 
