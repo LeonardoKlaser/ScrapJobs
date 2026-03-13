@@ -156,6 +156,85 @@ func TestAnalysisController_AnalyzeJob(t *testing.T) {
 		mockNotification.AssertExpectations(t)
 	})
 
+	t.Run("should skip quota check when MaxAIAnalyses is zero", func(t *testing.T) {
+		ctrl, mockAnalysis, mockCurriculum, mockJob, mockNotification, mockPlan, _ := setupAnalysisController()
+		user := model.User{Id: 1, Name: "Test", Email: "test@test.com"}
+
+		curriculum := model.Curriculum{Id: 1, Title: "CV 1", UserID: 1, Skills: "Go"}
+		job := &model.Job{ID: 10, Title: "Go Dev", Company: "TestCo"}
+		analysis := model.ResumeAnalysis{
+			MatchAnalysis:       model.MatchAnalysis{OverallScoreNumeric: 80},
+			FinalConsiderations: "OK",
+		}
+
+		mockCurriculum.On("FindCurriculumByUserID", 1).Return([]model.Curriculum{curriculum}, nil).Once()
+		// MaxAIAnalyses = 0 means the guard (> 0) skips quota check entirely
+		mockPlan.On("GetPlanByUserID", 1).Return(&model.Plan{ID: 1, MaxAIAnalyses: 0}, nil).Once()
+		// GetMonthlyAnalysisCount should NOT be called because guard skips it
+		mockJob.On("GetJobByID", 10).Return(job, nil).Once()
+		mockAnalysis.On("Analyze", mock.Anything, curriculum, *job).Return(analysis, nil).Once()
+		mockNotification.On("InsertNotificationWithAnalysis", 10, 1, 1, mock.Anything).Return(nil).Once()
+
+		body, _ := json.Marshal(map[string]int{"job_id": 10, "curriculum_id": 1})
+		w := httptest.NewRecorder()
+		_, router := gin.CreateTestContext(w)
+
+		router.POST("/analyze", func(c *gin.Context) {
+			setUserContext(c, user)
+			ctrl.AnalyzeJob(c)
+		})
+
+		req := httptest.NewRequest("POST", "/analyze", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		mockNotification.AssertNotCalled(t, "GetMonthlyAnalysisCount", mock.Anything)
+		mockCurriculum.AssertExpectations(t)
+		mockPlan.AssertExpectations(t)
+		mockJob.AssertExpectations(t)
+		mockAnalysis.AssertExpectations(t)
+	})
+
+	t.Run("should skip quota check when MaxAIAnalyses is negative (legacy unlimited)", func(t *testing.T) {
+		ctrl, mockAnalysis, mockCurriculum, mockJob, mockNotification, mockPlan, _ := setupAnalysisController()
+		user := model.User{Id: 1, Name: "Test", Email: "test@test.com"}
+
+		curriculum := model.Curriculum{Id: 1, Title: "CV 1", UserID: 1, Skills: "Go"}
+		job := &model.Job{ID: 10, Title: "Go Dev", Company: "TestCo"}
+		analysis := model.ResumeAnalysis{
+			MatchAnalysis:       model.MatchAnalysis{OverallScoreNumeric: 90},
+			FinalConsiderations: "Great",
+		}
+
+		mockCurriculum.On("FindCurriculumByUserID", 1).Return([]model.Curriculum{curriculum}, nil).Once()
+		// MaxAIAnalyses = -1 (legacy unlimited) — guard (> 0) skips quota check
+		mockPlan.On("GetPlanByUserID", 1).Return(&model.Plan{ID: 1, MaxAIAnalyses: -1}, nil).Once()
+		mockJob.On("GetJobByID", 10).Return(job, nil).Once()
+		mockAnalysis.On("Analyze", mock.Anything, curriculum, *job).Return(analysis, nil).Once()
+		mockNotification.On("InsertNotificationWithAnalysis", 10, 1, 1, mock.Anything).Return(nil).Once()
+
+		body, _ := json.Marshal(map[string]int{"job_id": 10, "curriculum_id": 1})
+		w := httptest.NewRecorder()
+		_, router := gin.CreateTestContext(w)
+
+		router.POST("/analyze", func(c *gin.Context) {
+			setUserContext(c, user)
+			ctrl.AnalyzeJob(c)
+		})
+
+		req := httptest.NewRequest("POST", "/analyze", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		mockNotification.AssertNotCalled(t, "GetMonthlyAnalysisCount", mock.Anything)
+		mockCurriculum.AssertExpectations(t)
+		mockPlan.AssertExpectations(t)
+		mockJob.AssertExpectations(t)
+		mockAnalysis.AssertExpectations(t)
+	})
+
 	t.Run("should return 404 when job not found", func(t *testing.T) {
 		ctrl, _, mockCurriculum, mockJob, mockNotification, mockPlan, _ := setupAnalysisController()
 		user := model.User{Id: 1, Name: "Test", Email: "test@test.com"}

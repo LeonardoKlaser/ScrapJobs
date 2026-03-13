@@ -111,6 +111,7 @@ func (usr *UserController) SignIn(ctx *gin.Context) {
 		"email":     res.Email,
 		"user_name": res.Name,
 		"cellphone": res.Cellphone,
+		"is_admin":  res.IsAdmin,
 		"exp":       time.Now().Add(time.Hour * 24).Unix(),
 	})
 

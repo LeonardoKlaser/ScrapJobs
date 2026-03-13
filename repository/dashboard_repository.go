@@ -127,12 +127,18 @@ func (dr *DashboardRepository) GetAllJobs(userID, days int, search string, match
 		baseFrom += fmt.Sprintf(` AND (%s)`, matchedExpr)
 	}
 
+	hasAnalysisExpr := fmt.Sprintf(
+		`EXISTS (SELECT 1 FROM job_notifications jn WHERE jn.job_id = j.id AND jn.user_id = $%d AND jn.analysis_result IS NOT NULL)`,
+		argIdx,
+	)
+	args = append(args, userID)
+
 	dataQuery := fmt.Sprintf(
-		`SELECT DISTINCT j.id, j.site_id, j.title, j.location, j.company, j.job_link, j.requisition_id, COALESCE(j.description, '') AS description, (%s) AS matched, j.created_at
+		`SELECT DISTINCT j.id, j.site_id, j.title, j.location, j.company, j.job_link, j.requisition_id, COALESCE(j.description, '') AS description, (%s) AS matched, (%s) AS has_analysis, j.created_at
 		%s
 		ORDER BY j.created_at DESC
 		LIMIT 2000`,
-		matchedExpr, baseFrom,
+		matchedExpr, hasAnalysisExpr, baseFrom,
 	)
 
 	rows, err := dr.connection.Query(dataQuery, args...)
@@ -143,7 +149,7 @@ func (dr *DashboardRepository) GetAllJobs(userID, days int, search string, match
 
 	for rows.Next() {
 		var job model.JobWithMatch
-		if err := rows.Scan(&job.ID, &job.SiteID, &job.Title, &job.Location, &job.Company, &job.JobLink, &job.RequisitionID, &job.Description, &job.Matched, &job.CreatedAt); err != nil {
+		if err := rows.Scan(&job.ID, &job.SiteID, &job.Title, &job.Location, &job.Company, &job.JobLink, &job.RequisitionID, &job.Description, &job.Matched, &job.HasAnalysis, &job.CreatedAt); err != nil {
 			return result, fmt.Errorf("erro ao ler vaga: %w", err)
 		}
 		result.Jobs = append(result.Jobs, job)

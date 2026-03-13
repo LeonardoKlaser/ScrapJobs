@@ -6,12 +6,18 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 	"web-scrapper/logging"
 	"web-scrapper/model"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
+)
+
+const (
+	pageLoadTimeout  = 45 * time.Second
+	detailPageTimeout = 30 * time.Second
 )
 
 type HeadlessScraper struct{}
@@ -38,6 +44,10 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 	}))
 	defer cancel()
 
+	// Apply a strict timeout so WaitVisible cannot hang indefinitely
+	taskCtx, timeoutCancel := context.WithTimeout(taskCtx, pageLoadTimeout)
+	defer timeoutCancel()
+
 	if config.JobListItemSelector == nil || config.TitleSelector == nil || config.LinkSelector == nil || config.LinkAttribute == nil {
 		return nil, fmt.Errorf("required selectors (JobListItemSelector, TitleSelector, LinkSelector, LinkAttribute) must not be nil for headless scraping of %s", config.SiteName)
 	}
@@ -56,7 +66,7 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("ERROR chrome automation fail to %s: %w", config.SiteName, err)
+		return nil, fmt.Errorf("chrome automation failed for %s: %w", config.SiteName, err)
 	}
 
 	if htmlContent == "" {
@@ -127,6 +137,10 @@ func (s *HeadlessScraper) Scrape(ctx context.Context, config model.SiteScrapingC
 func (s *HeadlessScraper) fetchJobDetails(allocCtx context.Context, config model.SiteScrapingConfig, job *model.Job, jobURL string) {
 	taskCtx, cancel := chromedp.NewContext(allocCtx) // reuses existing Chrome allocator
 	defer cancel()
+
+	// Apply a strict timeout so detail page fetches cannot hang indefinitely
+	taskCtx, timeoutCancel := context.WithTimeout(taskCtx, detailPageTimeout)
+	defer timeoutCancel()
 
 	// Use smarter wait: prefer the description selector if available, otherwise just wait for body
 	var waitAction chromedp.Action

@@ -18,7 +18,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/archive-monitor .
 
 FROM alpine:3.21
 
-RUN apk --no-cache add ca-certificates curl procps chromium nss freetype harfbuzz ttf-freefont
+RUN apk --no-cache add ca-certificates curl procps \
+    chromium nss freetype harfbuzz ttf-freefont \
+    font-noto font-noto-emoji ttf-dejavu fontconfig \
+    && fc-cache -f
 
 WORKDIR /app
 

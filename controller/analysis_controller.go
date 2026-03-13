@@ -117,6 +117,8 @@ func (ac *AnalysisController) AnalyzeJob(ctx *gin.Context) {
 		return
 	}
 
+	// max_ai_analyses must always be > 0 after migration 041.
+	// Guard against stale data (e.g. migration not yet applied) where -1 would block everyone.
 	if plan.MaxAIAnalyses > 0 {
 		monthlyCount, countErr := ac.notificationRepo.GetMonthlyAnalysisCount(user.Id)
 		if countErr != nil {
