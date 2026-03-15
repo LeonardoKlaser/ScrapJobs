@@ -103,32 +103,33 @@ func (dr *DashboardRepository) GetAllJobs(userID, days int, search string, match
 			WHERE LOWER(j.title) LIKE '%%' || LOWER(f.value) || '%%'
 		) END`
 
-	baseFrom := `
+	// WARNING: argIdx tracks positional parameters ($1, $2, ...) for this query.
+	// Adding new filter conditions shifts all subsequent parameter indices.
+	// When modifying filters, verify that argIdx values for hasAnalysisExpr
+	// and applicationJoin still reference the correct args slice positions.
+	fromClause := `
 		FROM jobs j
-		JOIN user_sites us ON j.site_id = us.site_id AND us.user_id = $1
-		WHERE 1=1`
+		JOIN user_sites us ON j.site_id = us.site_id AND us.user_id = $1`
+
+	whereClause := ` WHERE 1=1`
 
 	args := []interface{}{userID}
-	// WARNING: argIdx tracks positional parameters ($1, $2, ...) for this query.
-	// Adding new filter conditions above this point shifts all subsequent parameter
-	// indices. When modifying filters, verify that argIdx values for hasAnalysisExpr
-	// and applicationJoin still reference the correct args slice positions.
 	argIdx := 2
 
 	if days > 0 {
-		baseFrom += fmt.Sprintf(" AND j.created_at >= NOW() - INTERVAL '1 day' * $%d", argIdx)
+		whereClause += fmt.Sprintf(" AND j.created_at >= NOW() - INTERVAL '1 day' * $%d", argIdx)
 		args = append(args, days)
 		argIdx++
 	}
 
 	if search != "" {
-		baseFrom += fmt.Sprintf(" AND LOWER(j.title) LIKE '%%' || LOWER($%d) || '%%'", argIdx)
+		whereClause += fmt.Sprintf(" AND LOWER(j.title) LIKE '%%' || LOWER($%d) || '%%'", argIdx)
 		args = append(args, search)
 		argIdx++
 	}
 
 	if matchedOnly {
-		baseFrom += fmt.Sprintf(` AND (%s)`, matchedExpr)
+		whereClause += fmt.Sprintf(` AND (%s)`, matchedExpr)
 	}
 
 	hasAnalysisExpr := fmt.Sprintf(
@@ -146,10 +147,10 @@ func (dr *DashboardRepository) GetAllJobs(userID, days int, search string, match
 
 	dataQuery := fmt.Sprintf(
 		`SELECT DISTINCT j.id, j.site_id, j.title, j.location, j.company, j.job_link, j.requisition_id, COALESCE(j.description, '') AS description, (%s) AS matched, (%s) AS has_analysis, j.created_at, ja.id, ja.status, ja.interview_round
-		%s%s
+		%s%s%s
 		ORDER BY j.created_at DESC
 		LIMIT 2000`,
-		matchedExpr, hasAnalysisExpr, baseFrom, applicationJoin,
+		matchedExpr, hasAnalysisExpr, fromClause, applicationJoin, whereClause,
 	)
 
 	rows, err := dr.connection.Query(dataQuery, args...)

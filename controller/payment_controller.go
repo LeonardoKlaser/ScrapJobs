@@ -138,7 +138,7 @@ func (p *PaymentController) HandleWebhook(ctx *gin.Context) {
 	rawBody, err := io.ReadAll(ctx.Request.Body)
 	if err != nil {
 		log.Error().Err(err).Msg("Webhook AbacatePay: Erro ao ler corpo da requisição")
-		ctx.JSON(http.StatusInternalServerError, gin.H{"status": "error reading body"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"status": "Erro ao ler corpo da requisição"})
 		return
 	}
 	// Restaura o body para uso posterior se necessário

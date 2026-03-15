@@ -27,7 +27,7 @@ func CSRFProtection() gin.HandlerFunc {
 		}
 
 		if origin == "" {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Origin header required"})
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Cabeçalho Origin é obrigatório"})
 			return
 		}
 
@@ -40,7 +40,7 @@ func CSRFProtection() gin.HandlerFunc {
 		}
 
 		if !allowedOrigins[origin] {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Invalid origin"})
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Origem não permitida"})
 			return
 		}
 

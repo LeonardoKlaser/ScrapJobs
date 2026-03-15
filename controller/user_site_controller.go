@@ -48,13 +48,13 @@ func (usecase *UserSiteController) InsertUserSite(ctx *gin.Context) {
 
 	var body model.UserSiteRequest
 	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error" : fmt.Errorf("error to deserialize new job json body: %w", err).Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos para inscrição no site"})
 		return
 	}
 
 	err := usecase.usecase.InsertUserSite(user.Id, body.SiteId, body.TargetWords)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error" : fmt.Errorf("error registering user on the website: %w",err).Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Erro ao inscrever usuário no site"})
 		return
 	}
 
@@ -89,7 +89,7 @@ func (usc *UserSiteController) DeleteUserSite(ctx *gin.Context) {
 
 	siteId := ctx.Param("siteId")
 	if siteId == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "siteId is required"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "siteId é obrigatório"})
 		return
 	}
 
@@ -99,7 +99,7 @@ func (usc *UserSiteController) DeleteUserSite(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "User unregistered from site successfully"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "Inscrição removida com sucesso"})
 }
 
 // UpdateUserSiteFilters godoc
@@ -131,7 +131,7 @@ func (usc *UserSiteController) UpdateUserSiteFilters(ctx *gin.Context) {
 
 	siteIdStr := ctx.Param("siteId")
 	if siteIdStr == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "siteId is required"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "siteId é obrigatório"})
 		return
 	}
 

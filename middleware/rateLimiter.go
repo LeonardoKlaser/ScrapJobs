@@ -76,7 +76,7 @@ func RateLimiterWithContext(ctx context.Context, r rate.Limit, b int) gin.Handle
 		store.mu.Unlock()
 
 		if !v.limiter.Allow() {
-			ctx.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "Too many requests"})
+			ctx.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "Muitas requisições. Tente novamente em alguns segundos"})
 			return
 		}
 

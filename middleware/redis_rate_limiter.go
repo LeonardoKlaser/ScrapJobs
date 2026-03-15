@@ -45,7 +45,7 @@ func RedisRateLimiter(redisClient *redis.Client, limiterName string, limit int, 
 		}
 
 		if result == 0 {
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "Too many requests"})
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "Muitas requisições. Tente novamente em alguns segundos"})
 			return
 		}
 

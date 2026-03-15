@@ -76,13 +76,13 @@ func (usr *UserController) SignIn(ctx *gin.Context) {
 
 	if ctx.Bind(&body) != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to read body",
+			"error": "Falha ao ler os dados da requisição",
 		})
 		return
 	}
 
 	if body.Email == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User email is required in the path"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "E-mail é obrigatório"})
 		return
 	}
 
@@ -101,7 +101,7 @@ func (usr *UserController) SignIn(ctx *gin.Context) {
 	err = bcrypt.CompareHashAndPassword(hashToCompare, []byte(body.Password))
 	if err != nil || res.Id == 0 {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid E-mail or Password",
+			"error": "E-mail ou senha inválidos",
 		})
 		return
 	}
@@ -121,7 +121,7 @@ func (usr *UserController) SignIn(ctx *gin.Context) {
 	tokenString, err := token.SignedString([]byte(os.Getenv("JWTTOKEN")))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to create token",
+			"error": "Falha ao gerar token de autenticação",
 		})
 		return
 	}
@@ -151,7 +151,7 @@ func (usr *UserController) Logout(ctx *gin.Context) {
 	isSecure := os.Getenv("GIN_MODE") == "release"
 	ctx.SetSameSite(http.SameSiteLaxMode)
 	ctx.SetCookie("Authorization", "", -1, "", "", isSecure, true)
-	ctx.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "Logout realizado com sucesso"})
 }
 
 // UpdateProfile godoc
