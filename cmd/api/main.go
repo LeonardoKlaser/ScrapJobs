@@ -226,6 +226,7 @@ func main() {
 	notificationRepository := repository.NewNotificationRepository(dbConnection)
 	jobRepository := repository.NewJobRepository(dbConnection)
 	passwordResetRepo := repository.NewPasswordResetRepository(dbConnection)
+	jobApplicationRepository := repository.NewJobApplicationRepository(dbConnection)
 
 	// Usecases
 	userUsecase := usecase.NewUserUsercase(userRepository)
@@ -259,6 +260,7 @@ func main() {
 	statsController := controller.NewStatsController(dashboardRepository, redisClient)
 
 	emailConfigController := controller.NewEmailConfigController(emailConfigRepo, orchestrator)
+	jobApplicationController := controller.NewJobApplicationController(jobApplicationRepository)
 
 	// Analysis Controller (análise manual de IA)
 	var analysisController *controller.AnalysisController
@@ -357,6 +359,10 @@ func main() {
 		subscribedRoutes.DELETE("/userSite/:siteId", userSiteController.DeleteUserSite)
 		subscribedRoutes.PATCH("/userSite/:siteId", userSiteController.UpdateUserSiteFilters)
 		subscribedRoutes.POST("api/request-site", requestedSiteController.Create)
+		subscribedRoutes.POST("/api/applications", jobApplicationController.Create)
+		subscribedRoutes.PATCH("/api/applications/:id", jobApplicationController.Update)
+		subscribedRoutes.DELETE("/api/applications/:id", jobApplicationController.Delete)
+		subscribedRoutes.GET("/api/applications", jobApplicationController.GetAll)
 		if analysisController != nil {
 			analyzeRateLimiter := rateLimiterFn("analyze", 3, 60)
 			subscribedRoutes.POST("/api/analyze-job", analyzeRateLimiter, analysisController.AnalyzeJob)

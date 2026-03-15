@@ -17,9 +17,12 @@ type MonitoredURL struct {
 
 type JobWithMatch struct {
 	Job
-	Matched     bool   `json:"matched"`
-	HasAnalysis bool   `json:"has_analysis"`
-	CreatedAt   string `json:"created_at"`
+	Matched           bool    `json:"matched"`
+	HasAnalysis       bool    `json:"has_analysis"`
+	CreatedAt         string  `json:"created_at"`
+	ApplicationID     *int    `json:"application_id,omitempty"`
+	ApplicationStatus *string `json:"application_status,omitempty"`
+	InterviewRound    *int    `json:"interview_round,omitempty"`
 }
 
 type PaginatedJobs struct {

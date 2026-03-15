@@ -109,6 +109,10 @@ func (dr *DashboardRepository) GetAllJobs(userID, days int, search string, match
 		WHERE 1=1`
 
 	args := []interface{}{userID}
+	// WARNING: argIdx tracks positional parameters ($1, $2, ...) for this query.
+	// Adding new filter conditions above this point shifts all subsequent parameter
+	// indices. When modifying filters, verify that argIdx values for hasAnalysisExpr
+	// and applicationJoin still reference the correct args slice positions.
 	argIdx := 2
 
 	if days > 0 {
@@ -133,12 +137,19 @@ func (dr *DashboardRepository) GetAllJobs(userID, days int, search string, match
 	)
 	args = append(args, userID)
 
+	argIdx++
+	applicationJoin := fmt.Sprintf(
+		` LEFT JOIN job_applications ja ON ja.job_id = j.id AND ja.user_id = $%d`,
+		argIdx,
+	)
+	args = append(args, userID)
+
 	dataQuery := fmt.Sprintf(
-		`SELECT DISTINCT j.id, j.site_id, j.title, j.location, j.company, j.job_link, j.requisition_id, COALESCE(j.description, '') AS description, (%s) AS matched, (%s) AS has_analysis, j.created_at
-		%s
+		`SELECT DISTINCT j.id, j.site_id, j.title, j.location, j.company, j.job_link, j.requisition_id, COALESCE(j.description, '') AS description, (%s) AS matched, (%s) AS has_analysis, j.created_at, ja.id, ja.status, ja.interview_round
+		%s%s
 		ORDER BY j.created_at DESC
 		LIMIT 2000`,
-		matchedExpr, hasAnalysisExpr, baseFrom,
+		matchedExpr, hasAnalysisExpr, baseFrom, applicationJoin,
 	)
 
 	rows, err := dr.connection.Query(dataQuery, args...)
@@ -149,7 +160,7 @@ func (dr *DashboardRepository) GetAllJobs(userID, days int, search string, match
 
 	for rows.Next() {
 		var job model.JobWithMatch
-		if err := rows.Scan(&job.ID, &job.SiteID, &job.Title, &job.Location, &job.Company, &job.JobLink, &job.RequisitionID, &job.Description, &job.Matched, &job.HasAnalysis, &job.CreatedAt); err != nil {
+		if err := rows.Scan(&job.ID, &job.SiteID, &job.Title, &job.Location, &job.Company, &job.JobLink, &job.RequisitionID, &job.Description, &job.Matched, &job.HasAnalysis, &job.CreatedAt, &job.ApplicationID, &job.ApplicationStatus, &job.InterviewRound); err != nil {
 			return result, fmt.Errorf("erro ao ler vaga: %w", err)
 		}
 		result.Jobs = append(result.Jobs, job)
